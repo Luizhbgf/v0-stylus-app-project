@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
 import { Calendar } from "@/components/ui/calendar"
@@ -12,47 +12,74 @@ import Image from "next/image"
 import Link from "next/link"
 import { ThemeToggle } from "@/components/theme-toggle"
 import { createClient } from "@/lib/supabase/client"
-import { useRouter } from "next/navigation"
+import { useRouter, useSearchParams } from "next/navigation"
 import { toast } from "sonner"
-import { useEffect } from "react"
 
 export default function AgendarPage() {
   const [step, setStep] = useState(1)
+  const [selectedStaff, setSelectedStaff] = useState("")
   const [selectedService, setSelectedService] = useState("")
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(new Date())
   const [selectedTime, setSelectedTime] = useState("")
   const [notes, setNotes] = useState("")
+  const [staffMembers, setStaffMembers] = useState<any[]>([])
   const [services, setServices] = useState<any[]>([])
   const [loading, setLoading] = useState(false)
   const [user, setUser] = useState<any>(null)
 
   const router = useRouter()
+  const searchParams = useSearchParams()
   const supabase = createClient()
 
   useEffect(() => {
     async function loadData() {
-      // Check if user is logged in
       const {
         data: { user: currentUser },
       } = await supabase.auth.getUser()
       setUser(currentUser)
 
-      // Load services
-      const { data: servicesData } = await supabase
-        .from("services")
+      const { data: staffData } = await supabase
+        .from("profiles")
         .select("*")
-        .eq("is_active", true)
-        .order("category", { ascending: true })
+        .eq("user_level", 20)
+        .order("full_name", { ascending: true })
 
-      if (servicesData) {
-        setServices(servicesData)
+      if (staffData) {
+        setStaffMembers(staffData)
+      }
+
+      const preSelectedStaff = searchParams.get("staff")
+      if (preSelectedStaff) {
+        setSelectedStaff(preSelectedStaff)
+        await loadStaffServices(preSelectedStaff)
+        setStep(2)
       }
     }
     loadData()
-  }, [])
+  }, [searchParams])
+
+  const loadStaffServices = async (staffId: string) => {
+    const { data: staffServicesData } = await supabase
+      .from("staff_services")
+      .select(`
+        service_id,
+        services (*)
+      `)
+      .eq("staff_id", staffId)
+
+    if (staffServicesData) {
+      const servicesData = staffServicesData.map((ss: any) => ss.services).filter((s: any) => s && s.is_active)
+      setServices(servicesData)
+    }
+  }
+
+  const handleStaffSelect = async (staffId: string) => {
+    setSelectedStaff(staffId)
+    await loadStaffServices(staffId)
+  }
 
   const handleNext = () => {
-    if (step < 3) setStep(step + 1)
+    if (step < 4) setStep(step + 1)
   }
 
   const handleBack = () => {
@@ -66,7 +93,7 @@ export default function AgendarPage() {
       return
     }
 
-    if (!selectedService || !selectedDate || !selectedTime) {
+    if (!selectedStaff || !selectedService || !selectedDate || !selectedTime) {
       toast.error("Por favor, preencha todos os campos")
       return
     }
@@ -74,14 +101,13 @@ export default function AgendarPage() {
     setLoading(true)
 
     try {
-      // Combine date and time
       const [hours, minutes] = selectedTime.split(":")
       const appointmentDateTime = new Date(selectedDate)
       appointmentDateTime.setHours(Number.parseInt(hours), Number.parseInt(minutes), 0, 0)
 
-      // Create appointment request
       const { error } = await supabase.from("appointment_requests").insert({
         client_id: user.id,
+        staff_id: selectedStaff,
         service_id: selectedService,
         preferred_date: selectedDate.toISOString().split("T")[0],
         preferred_time: selectedTime,
@@ -102,6 +128,7 @@ export default function AgendarPage() {
   }
 
   const selectedServiceData = services.find((s) => s.id === selectedService)
+  const selectedStaffData = staffMembers.find((s) => s.id === selectedStaff)
 
   return (
     <div className="min-h-screen bg-background">
@@ -130,7 +157,7 @@ export default function AgendarPage() {
           {/* Progress Steps */}
           <div className="mb-12">
             <div className="flex items-center justify-between">
-              {[1, 2, 3].map((s) => (
+              {[1, 2, 3, 4].map((s) => (
                 <div key={s} className="flex items-center flex-1">
                   <div
                     className={`flex items-center justify-center w-10 h-10 rounded-full border-2 ${
@@ -141,13 +168,14 @@ export default function AgendarPage() {
                   >
                     {step > s ? <Check className="h-5 w-5" /> : s}
                   </div>
-                  {s < 3 && <div className={`flex-1 h-0.5 mx-2 ${step > s ? "bg-primary" : "bg-border"}`} />}
+                  {s < 4 && <div className={`flex-1 h-0.5 mx-2 ${step > s ? "bg-primary" : "bg-border"}`} />}
                 </div>
               ))}
             </div>
             <div className="flex justify-between mt-2">
+              <span className="text-xs text-muted-foreground">Profissional</span>
               <span className="text-xs text-muted-foreground">Serviço</span>
-              <span className="text-xs text-muted-foreground">Data e Hora</span>
+              <span className="text-xs text-muted-foreground">Data/Hora</span>
               <span className="text-xs text-muted-foreground">Confirmar</span>
             </div>
           </div>
@@ -156,25 +184,42 @@ export default function AgendarPage() {
           <Card className="p-8">
             {step === 1 && (
               <div>
-                <h2 className="font-serif text-3xl font-bold mb-6 text-foreground">Escolha o Serviço</h2>
-                <RadioGroup value={selectedService} onValueChange={setSelectedService}>
+                <h2 className="font-serif text-3xl font-bold mb-6 text-foreground">Escolha o Profissional</h2>
+                <RadioGroup value={selectedStaff} onValueChange={handleStaffSelect}>
                   <div className="space-y-4">
-                    {services.map((service) => (
+                    {staffMembers.map((staff) => (
                       <Label
-                        key={service.id}
-                        htmlFor={service.id}
-                        className="flex items-center justify-between p-4 border border-border rounded-lg cursor-pointer hover:bg-muted/50 transition-colors"
+                        key={staff.id}
+                        htmlFor={staff.id}
+                        className="flex items-center gap-4 p-4 border border-border rounded-lg cursor-pointer hover:bg-muted/50 transition-colors"
                       >
-                        <div className="flex items-center gap-4">
-                          <RadioGroupItem value={service.id} id={service.id} />
-                          <div>
-                            <p className="font-semibold text-foreground">{service.name}</p>
-                            <p className="text-sm text-muted-foreground">
-                              {service.duration} min • {service.category}
-                            </p>
+                        <RadioGroupItem value={staff.id} id={staff.id} />
+                        <div className="flex items-center gap-4 flex-1">
+                          {staff.avatar_url ? (
+                            <img
+                              src={staff.avatar_url || "/placeholder.svg"}
+                              alt={staff.full_name}
+                              className="h-16 w-16 rounded-full object-cover"
+                            />
+                          ) : (
+                            <div className="h-16 w-16 rounded-full bg-gold/10 flex items-center justify-center">
+                              <span className="text-xl font-bold text-gold">{staff.full_name?.[0] || "?"}</span>
+                            </div>
+                          )}
+                          <div className="flex-1">
+                            <p className="font-semibold text-foreground">{staff.full_name}</p>
+                            {staff.bio && <p className="text-sm text-muted-foreground mt-1">{staff.bio}</p>}
+                            {staff.specialties && staff.specialties.length > 0 && (
+                              <div className="flex flex-wrap gap-1 mt-2">
+                                {staff.specialties.slice(0, 3).map((specialty: string) => (
+                                  <span key={specialty} className="px-2 py-0.5 bg-gold/10 text-gold rounded text-xs">
+                                    {specialty.replace(/_/g, " ")}
+                                  </span>
+                                ))}
+                              </div>
+                            )}
                           </div>
                         </div>
-                        <span className="text-lg font-bold text-primary">R$ {service.price}</span>
                       </Label>
                     ))}
                   </div>
@@ -183,6 +228,38 @@ export default function AgendarPage() {
             )}
 
             {step === 2 && (
+              <div>
+                <h2 className="font-serif text-3xl font-bold mb-6 text-foreground">Escolha o Serviço</h2>
+                {services.length === 0 ? (
+                  <p className="text-muted-foreground">Este profissional ainda não cadastrou serviços.</p>
+                ) : (
+                  <RadioGroup value={selectedService} onValueChange={setSelectedService}>
+                    <div className="space-y-4">
+                      {services.map((service) => (
+                        <Label
+                          key={service.id}
+                          htmlFor={service.id}
+                          className="flex items-center justify-between p-4 border border-border rounded-lg cursor-pointer hover:bg-muted/50 transition-colors"
+                        >
+                          <div className="flex items-center gap-4">
+                            <RadioGroupItem value={service.id} id={service.id} />
+                            <div>
+                              <p className="font-semibold text-foreground">{service.name}</p>
+                              <p className="text-sm text-muted-foreground">
+                                {service.duration} min • {service.category}
+                              </p>
+                            </div>
+                          </div>
+                          <span className="text-lg font-bold text-primary">R$ {service.price}</span>
+                        </Label>
+                      ))}
+                    </div>
+                  </RadioGroup>
+                )}
+              </div>
+            )}
+
+            {step === 3 && (
               <div>
                 <h2 className="font-serif text-3xl font-bold mb-6 text-foreground">Escolha Data e Horário</h2>
                 <div className="grid md:grid-cols-2 gap-8">
@@ -228,10 +305,14 @@ export default function AgendarPage() {
               </div>
             )}
 
-            {step === 3 && (
+            {step === 4 && (
               <div>
                 <h2 className="font-serif text-3xl font-bold mb-6 text-foreground">Confirmar Solicitação</h2>
                 <div className="space-y-6">
+                  <div className="p-4 bg-muted/50 rounded-lg">
+                    <p className="text-sm text-muted-foreground mb-1">Profissional</p>
+                    <p className="font-semibold text-foreground">{selectedStaffData?.full_name}</p>
+                  </div>
                   <div className="p-4 bg-muted/50 rounded-lg">
                     <p className="text-sm text-muted-foreground mb-1">Serviço</p>
                     <p className="font-semibold text-foreground">{selectedServiceData?.name}</p>
@@ -265,16 +346,19 @@ export default function AgendarPage() {
               </div>
             )}
 
-            {/* Navigation Buttons */}
             <div className="flex items-center justify-between mt-8 pt-8 border-t border-border">
               <Button variant="outline" onClick={handleBack} disabled={step === 1 || loading}>
                 <ArrowLeft className="mr-2 h-4 w-4" />
                 Voltar
               </Button>
-              {step < 3 ? (
+              {step < 4 ? (
                 <Button
                   onClick={handleNext}
-                  disabled={(step === 1 && !selectedService) || (step === 2 && (!selectedDate || !selectedTime))}
+                  disabled={
+                    (step === 1 && !selectedStaff) ||
+                    (step === 2 && !selectedService) ||
+                    (step === 3 && (!selectedDate || !selectedTime))
+                  }
                   className="bg-primary text-primary-foreground hover:bg-accent"
                 >
                   Próximo
