@@ -80,38 +80,44 @@ export default async function ClienteDashboard() {
     <div className="min-h-screen bg-background">
       <Navbar user={profile} />
 
-      <div className="container mx-auto px-4 py-8">
-        <div className="mb-8">
-          <h1 className="text-4xl font-bold text-foreground mb-2">Olá, {profile.full_name || "Cliente"}!</h1>
-          <p className="text-muted-foreground">Bem-vindo ao seu painel de cliente</p>
+      <div className="container mx-auto px-4 py-6 md:py-8">
+        <div className="mb-6 md:mb-8">
+          <h1 className="text-3xl md:text-4xl font-bold text-foreground mb-2">
+            Olá, {profile.full_name || "Cliente"}!
+          </h1>
+          <p className="text-sm md:text-base text-muted-foreground">Bem-vindo ao seu painel de cliente</p>
         </div>
 
         {activeSubscription && (
-          <Card className="border-gold/20 bg-gold/5 mb-8">
-            <CardContent className="p-6">
-              <div className="flex justify-between items-start">
-                <div>
-                  <h3 className="text-xl font-bold text-foreground mb-2">
+          <Card className="border-primary/20 bg-primary/5 mb-6 md:mb-8">
+            <CardContent className="p-4 md:p-6">
+              <div className="flex flex-col md:flex-row md:justify-between md:items-start gap-4">
+                <div className="flex-1">
+                  <h3 className="text-lg md:text-xl font-bold text-foreground mb-2">
                     Plano Ativo: {activeSubscription.plan?.name}
                   </h3>
-                  <p className="text-sm text-muted-foreground mb-1">
+                  <p className="text-xs md:text-sm text-muted-foreground mb-1">
                     Profissional: {activeSubscription.plan?.staff?.full_name}
                   </p>
-                  <p className="text-sm text-muted-foreground mb-1">
+                  <p className="text-xs md:text-sm text-muted-foreground mb-1">
                     {activeSubscription.plan?.service_type === "haircut" ? "Corte" : "Corte + Barba"} -{" "}
                     {activeSubscription.plan?.frequency_per_week}x por semana
                   </p>
-                  <p className="text-sm text-muted-foreground">
+                  <p className="text-xs md:text-sm text-muted-foreground">
                     Próxima cobrança:{" "}
                     {activeSubscription.next_billing_date
                       ? new Date(activeSubscription.next_billing_date).toLocaleDateString("pt-BR")
                       : "N/A"}
                   </p>
                 </div>
-                <div className="text-right">
-                  <div className="text-3xl font-bold text-gold">R$ {Number(activeSubscription.price).toFixed(2)}</div>
-                  <div className="text-sm text-muted-foreground">/mês</div>
-                  <Button asChild variant="outline" size="sm" className="mt-2 border-gold/20 bg-transparent">
+                <div className="flex md:flex-col items-center md:items-end justify-between md:justify-start gap-2">
+                  <div>
+                    <div className="text-2xl md:text-3xl font-bold text-primary">
+                      R$ {Number(activeSubscription.price).toFixed(2)}
+                    </div>
+                    <div className="text-xs md:text-sm text-muted-foreground">/mês</div>
+                  </div>
+                  <Button asChild variant="outline" size="sm" className="border-primary/20 bg-transparent">
                     <Link href="/cliente/assinaturas">Gerenciar</Link>
                   </Button>
                 </div>
@@ -120,112 +126,112 @@ export default async function ClienteDashboard() {
           </Card>
         )}
 
-        <div className="grid md:grid-cols-3 lg:grid-cols-5 gap-4 mb-8">
-          <Link href="/cliente/favoritos">
-            <Card className="border-gold/20 hover:border-gold/40 transition-colors cursor-pointer">
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Favoritos</CardTitle>
-                <Heart className="h-4 w-4 text-gold" />
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3 md:gap-4 mb-6 md:mb-8">
+          <Link href="/cliente/favoritos" className="block">
+            <Card className="border-primary/20 hover:border-primary/40 transition-colors cursor-pointer h-full">
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 p-4">
+                <CardTitle className="text-xs md:text-sm font-medium">Favoritos</CardTitle>
+                <Heart className="h-3 w-3 md:h-4 md:w-4 text-primary" />
               </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold text-foreground">{favoritesCount || 0}</div>
+              <CardContent className="p-4 pt-0">
+                <div className="text-xl md:text-2xl font-bold text-foreground">{favoritesCount || 0}</div>
               </CardContent>
             </Card>
           </Link>
 
-          <Link href="/cliente/historico">
-            <Card className="border-gold/20 hover:border-gold/40 transition-colors cursor-pointer">
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Histórico</CardTitle>
-                <History className="h-4 w-4 text-gold" />
+          <Link href="/cliente/historico" className="block">
+            <Card className="border-primary/20 hover:border-primary/40 transition-colors cursor-pointer h-full">
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 p-4">
+                <CardTitle className="text-xs md:text-sm font-medium">Histórico</CardTitle>
+                <History className="h-3 w-3 md:h-4 md:w-4 text-primary" />
               </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold text-foreground">{pastAppointments?.length || 0}</div>
+              <CardContent className="p-4 pt-0">
+                <div className="text-xl md:text-2xl font-bold text-foreground">{pastAppointments?.length || 0}</div>
               </CardContent>
             </Card>
           </Link>
 
-          <Link href="/cliente/pagamentos">
-            <Card className="border-gold/20 hover:border-gold/40 transition-colors cursor-pointer">
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Pagamentos</CardTitle>
-                <CreditCard className="h-4 w-4 text-gold" />
+          <Link href="/cliente/pagamentos" className="block">
+            <Card className="border-primary/20 hover:border-primary/40 transition-colors cursor-pointer h-full">
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 p-4">
+                <CardTitle className="text-xs md:text-sm font-medium">Pagamentos</CardTitle>
+                <CreditCard className="h-3 w-3 md:h-4 md:w-4 text-primary" />
               </CardHeader>
-              <CardContent>
-                <div className="text-sm text-muted-foreground">Ver todos</div>
+              <CardContent className="p-4 pt-0">
+                <div className="text-xs md:text-sm text-muted-foreground">Ver todos</div>
               </CardContent>
             </Card>
           </Link>
 
-          <Link href="/cliente/assinaturas">
-            <Card className="border-gold/20 hover:border-gold/40 transition-colors cursor-pointer">
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Assinaturas</CardTitle>
-                <Package className="h-4 w-4 text-gold" />
+          <Link href="/cliente/assinaturas" className="block">
+            <Card className="border-primary/20 hover:border-primary/40 transition-colors cursor-pointer h-full">
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 p-4">
+                <CardTitle className="text-xs md:text-sm font-medium">Assinaturas</CardTitle>
+                <Package className="h-3 w-3 md:h-4 md:w-4 text-primary" />
               </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold text-foreground">{subscriptionsCount || 0}</div>
+              <CardContent className="p-4 pt-0">
+                <div className="text-xl md:text-2xl font-bold text-foreground">{subscriptionsCount || 0}</div>
               </CardContent>
             </Card>
           </Link>
 
-          <Link href="/cliente/solicitacoes">
-            <Card className="border-gold/20 hover:border-gold/40 transition-colors cursor-pointer">
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Solicitações</CardTitle>
-                <FileText className="h-4 w-4 text-gold" />
+          <Link href="/cliente/solicitacoes" className="block col-span-2 md:col-span-1">
+            <Card className="border-primary/20 hover:border-primary/40 transition-colors cursor-pointer h-full">
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 p-4">
+                <CardTitle className="text-xs md:text-sm font-medium">Solicitações</CardTitle>
+                <FileText className="h-3 w-3 md:h-4 md:w-4 text-primary" />
               </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold text-foreground">{pendingRequests?.length || 0}</div>
+              <CardContent className="p-4 pt-0">
+                <div className="text-xl md:text-2xl font-bold text-foreground">{pendingRequests?.length || 0}</div>
               </CardContent>
             </Card>
           </Link>
         </div>
 
-        <div className="grid md:grid-cols-4 gap-6 mb-8">
-          <Card className="border-gold/20">
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Próximos Agendamentos</CardTitle>
-              <Calendar className="h-4 w-4 text-gold" />
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6 mb-6 md:mb-8">
+          <Card className="border-primary/20">
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 p-4">
+              <CardTitle className="text-xs md:text-sm font-medium">Próximos</CardTitle>
+              <Calendar className="h-3 w-3 md:h-4 md:w-4 text-primary" />
             </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold text-foreground">{upcomingAppointments?.length || 0}</div>
+            <CardContent className="p-4 pt-0">
+              <div className="text-xl md:text-2xl font-bold text-foreground">{upcomingAppointments?.length || 0}</div>
             </CardContent>
           </Card>
 
-          <Card className="border-gold/20">
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Solicitações Pendentes</CardTitle>
-              <Bell className="h-4 w-4 text-gold" />
+          <Card className="border-primary/20">
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 p-4">
+              <CardTitle className="text-xs md:text-sm font-medium">Pendentes</CardTitle>
+              <Bell className="h-3 w-3 md:h-4 md:w-4 text-primary" />
             </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold text-foreground">{pendingRequests?.length || 0}</div>
+            <CardContent className="p-4 pt-0">
+              <div className="text-xl md:text-2xl font-bold text-foreground">{pendingRequests?.length || 0}</div>
             </CardContent>
           </Card>
 
-          <Card className="border-gold/20">
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Histórico Total</CardTitle>
-              <Clock className="h-4 w-4 text-gold" />
+          <Card className="border-primary/20">
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 p-4">
+              <CardTitle className="text-xs md:text-sm font-medium">Total</CardTitle>
+              <Clock className="h-3 w-3 md:h-4 md:w-4 text-primary" />
             </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold text-foreground">{appointments?.length || 0}</div>
+            <CardContent className="p-4 pt-0">
+              <div className="text-xl md:text-2xl font-bold text-foreground">{appointments?.length || 0}</div>
             </CardContent>
           </Card>
 
-          <Card className="border-gold/20">
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Perfil</CardTitle>
-              <User className="h-4 w-4 text-gold" />
+          <Card className="border-primary/20 col-span-2 lg:col-span-1">
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 p-4">
+              <CardTitle className="text-xs md:text-sm font-medium">Perfil</CardTitle>
+              <User className="h-3 w-3 md:h-4 md:w-4 text-primary" />
             </CardHeader>
-            <CardContent>
-              <div className="text-sm text-muted-foreground">{profile.email}</div>
+            <CardContent className="p-4 pt-0">
+              <div className="text-xs md:text-sm text-muted-foreground truncate">{profile.email}</div>
             </CardContent>
           </Card>
         </div>
 
         <div className="mb-6">
-          <Button asChild className="bg-gold hover:bg-gold/90 text-black" size="lg">
+          <Button asChild className="w-full md:w-auto bg-primary hover:bg-primary/90 text-black" size="lg">
             <Link href="/agendar">Nova Solicitação de Agendamento</Link>
           </Button>
         </div>

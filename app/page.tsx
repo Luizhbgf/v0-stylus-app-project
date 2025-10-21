@@ -22,8 +22,7 @@ export default async function HomePage() {
     <div className="min-h-screen bg-background">
       <Navbar user={profile} />
 
-      {/* Hero Section */}
-      <section className="relative min-h-[90vh] flex items-center justify-center overflow-hidden">
+      <section className="relative min-h-[85vh] md:min-h-[90vh] flex items-center justify-center overflow-hidden">
         <div className="absolute inset-0 bg-gradient-to-br from-background via-background to-primary/5" />
         <div
           className="absolute inset-0 opacity-[0.02]"
@@ -35,37 +34,37 @@ export default async function HomePage() {
 
         <div className="container mx-auto px-4 relative z-10">
           <div className="max-w-4xl mx-auto text-center">
-            <div className="inline-flex items-center gap-2 px-6 py-3 rounded-full border border-primary/20 bg-primary/5 backdrop-blur-sm text-primary text-sm font-medium mb-8 animate-fade-in">
-              <Sparkles className="h-4 w-4" />
+            <div className="inline-flex items-center gap-2 px-4 md:px-6 py-2 md:py-3 rounded-full border border-primary/20 bg-primary/5 backdrop-blur-sm text-primary text-xs md:text-sm font-medium mb-6 md:mb-8 animate-fade-in">
+              <Sparkles className="h-3 w-3 md:h-4 md:w-4" />
               Beleza e Bem-Estar
             </div>
 
-            <h1 className="font-serif text-6xl md:text-8xl font-bold text-foreground mb-6 text-balance leading-[1.1] tracking-tight">
+            <h1 className="font-serif text-4xl sm:text-5xl md:text-7xl lg:text-8xl font-bold text-foreground mb-4 md:mb-6 text-balance leading-[1.1] tracking-tight px-4">
               Sua Beleza,
               <br />
               <span className="text-primary">Nossa Paixão</span>
             </h1>
 
-            <p className="text-xl md:text-2xl text-muted-foreground mb-12 text-pretty leading-relaxed max-w-2xl mx-auto">
+            <p className="text-base md:text-xl lg:text-2xl text-muted-foreground mb-8 md:mb-12 text-pretty leading-relaxed max-w-2xl mx-auto px-4">
               Agende seus serviços de estética e beleza de forma rápida e prática. Profissionais qualificados prontos
               para realçar sua beleza natural.
             </p>
 
-            <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
-              <Link href="/agendar">
+            <div className="flex flex-col sm:flex-row items-center justify-center gap-3 md:gap-4 px-4">
+              <Link href="/agendar" className="w-full sm:w-auto">
                 <Button
                   size="lg"
-                  className="bg-primary hover:bg-primary/90 text-black font-semibold text-lg px-10 py-6 h-auto shadow-lg shadow-primary/20 hover:shadow-xl hover:shadow-primary/30 transition-all"
+                  className="w-full sm:w-auto bg-primary hover:bg-primary/90 text-black font-semibold text-base md:text-lg px-8 md:px-10 py-5 md:py-6 h-auto shadow-lg shadow-primary/20 hover:shadow-xl hover:shadow-primary/30 transition-all"
                 >
                   Agendar Horário
-                  <ArrowRight className="ml-2 h-5 w-5" />
+                  <ArrowRight className="ml-2 h-4 w-4 md:h-5 md:w-5" />
                 </Button>
               </Link>
-              <Link href="/quiz">
+              <Link href="/quiz" className="w-full sm:w-auto">
                 <Button
                   size="lg"
                   variant="outline"
-                  className="text-lg px-10 py-6 h-auto border-2 border-primary/30 hover:bg-primary/5 font-semibold bg-transparent"
+                  className="w-full sm:w-auto text-base md:text-lg px-8 md:px-10 py-5 md:py-6 h-auto border-2 border-primary/30 hover:bg-primary/5 font-semibold bg-transparent"
                 >
                   Encontrar Profissional
                 </Button>
@@ -74,40 +73,39 @@ export default async function HomePage() {
           </div>
         </div>
 
-        <div className="absolute top-20 left-10 w-72 h-72 bg-primary/10 rounded-full blur-3xl" />
-        <div className="absolute bottom-20 right-10 w-96 h-96 bg-primary/5 rounded-full blur-3xl" />
+        <div className="absolute top-20 left-10 w-48 h-48 md:w-72 md:h-72 bg-primary/10 rounded-full blur-3xl" />
+        <div className="absolute bottom-20 right-10 w-64 h-64 md:w-96 md:h-96 bg-primary/5 rounded-full blur-3xl" />
       </section>
 
-      {/* Features Section */}
-      <section className="py-24 relative">
+      <section className="py-16 md:py-24 relative">
         <div className="container mx-auto px-4">
-          <div className="grid md:grid-cols-3 gap-8 max-w-6xl mx-auto">
-            <Card className="p-10 text-center border-primary/10 bg-card hover:shadow-2xl hover:shadow-primary/5 transition-all duration-300 group">
-              <div className="inline-flex items-center justify-center w-20 h-20 rounded-2xl bg-primary/10 text-primary mb-6 group-hover:scale-110 transition-transform">
-                <Calendar className="h-10 w-10" />
+          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6 md:gap-8 max-w-6xl mx-auto">
+            <Card className="p-6 md:p-10 text-center border-primary/10 bg-card hover:shadow-2xl hover:shadow-primary/5 transition-all duration-300 group">
+              <div className="inline-flex items-center justify-center w-16 h-16 md:w-20 md:h-20 rounded-2xl bg-primary/10 text-primary mb-4 md:mb-6 group-hover:scale-110 transition-transform">
+                <Calendar className="h-8 w-8 md:h-10 md:w-10" />
               </div>
-              <h3 className="text-2xl font-bold mb-4 text-foreground">Agendamento Fácil</h3>
-              <p className="text-muted-foreground leading-relaxed text-lg">
+              <h3 className="text-xl md:text-2xl font-bold mb-3 md:mb-4 text-foreground">Agendamento Fácil</h3>
+              <p className="text-muted-foreground leading-relaxed text-base md:text-lg">
                 Agende seus horários online de forma rápida e prática, 24 horas por dia.
               </p>
             </Card>
 
-            <Card className="p-10 text-center border-primary/10 bg-card hover:shadow-2xl hover:shadow-primary/5 transition-all duration-300 group">
-              <div className="inline-flex items-center justify-center w-20 h-20 rounded-2xl bg-primary/10 text-primary mb-6 group-hover:scale-110 transition-transform">
-                <Award className="h-10 w-10" />
+            <Card className="p-6 md:p-10 text-center border-primary/10 bg-card hover:shadow-2xl hover:shadow-primary/5 transition-all duration-300 group">
+              <div className="inline-flex items-center justify-center w-16 h-16 md:w-20 md:h-20 rounded-2xl bg-primary/10 text-primary mb-4 md:mb-6 group-hover:scale-110 transition-transform">
+                <Award className="h-8 w-8 md:h-10 md:w-10" />
               </div>
-              <h3 className="text-2xl font-bold mb-4 text-foreground">Profissionais Qualificados</h3>
-              <p className="text-muted-foreground leading-relaxed text-lg">
+              <h3 className="text-xl md:text-2xl font-bold mb-3 md:mb-4 text-foreground">Profissionais Qualificados</h3>
+              <p className="text-muted-foreground leading-relaxed text-base md:text-lg">
                 Equipe especializada e experiente para cuidar da sua beleza com excelência.
               </p>
             </Card>
 
-            <Card className="p-10 text-center border-primary/10 bg-card hover:shadow-2xl hover:shadow-primary/5 transition-all duration-300 group">
-              <div className="inline-flex items-center justify-center w-20 h-20 rounded-2xl bg-primary/10 text-primary mb-6 group-hover:scale-110 transition-transform">
-                <Shield className="h-10 w-10" />
+            <Card className="p-6 md:p-10 text-center border-primary/10 bg-card hover:shadow-2xl hover:shadow-primary/5 transition-all duration-300 group sm:col-span-2 lg:col-span-1">
+              <div className="inline-flex items-center justify-center w-16 h-16 md:w-20 md:h-20 rounded-2xl bg-primary/10 text-primary mb-4 md:mb-6 group-hover:scale-110 transition-transform">
+                <Shield className="h-8 w-8 md:h-10 md:w-10" />
               </div>
-              <h3 className="text-2xl font-bold mb-4 text-foreground">Ambiente Seguro</h3>
-              <p className="text-muted-foreground leading-relaxed text-lg">
+              <h3 className="text-xl md:text-2xl font-bold mb-3 md:mb-4 text-foreground">Ambiente Seguro</h3>
+              <p className="text-muted-foreground leading-relaxed text-base md:text-lg">
                 Protocolos de higiene e segurança para seu conforto e tranquilidade.
               </p>
             </Card>
