@@ -37,5 +37,6 @@ CREATE POLICY "Staff and admin can view all feedback" ON public.feedback
 CREATE INDEX IF NOT EXISTS idx_feedback_staff_id ON public.feedback(staff_id);
 CREATE INDEX IF NOT EXISTS idx_feedback_created_at ON public.feedback(created_at);
 CREATE INDEX IF NOT EXISTS idx_appointments_date ON public.appointments(appointment_date);
-CREATE INDEX IF NOT EXISTS idx_payments_date ON public.payments(payment_date);
+-- Fixed column name from payment_date to paid_at to match payments table schema
+CREATE INDEX IF NOT EXISTS idx_payments_date ON public.payments(paid_at);
 CREATE INDEX IF NOT EXISTS idx_staff_earnings_date ON public.staff_earnings(payment_date);
