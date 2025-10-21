@@ -3,7 +3,7 @@ import { createClient } from "@/lib/supabase/server"
 import { Navbar } from "@/components/navbar"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import { Calendar, Clock, User, Bell } from "lucide-react"
+import { Calendar, Clock, User, Bell, Heart, History, CreditCard, Package, FileText } from "lucide-react"
 import Link from "next/link"
 
 export default async function ClienteDashboard() {
@@ -45,6 +45,17 @@ export default async function ClienteDashboard() {
     .eq("status", "pending")
     .order("created_at", { ascending: false })
 
+  const { count: favoritesCount } = await supabase
+    .from("favorites")
+    .select("*", { count: "exact", head: true })
+    .eq("client_id", user.id)
+
+  const { count: subscriptionsCount } = await supabase
+    .from("subscriptions")
+    .select("*", { count: "exact", head: true })
+    .eq("client_id", user.id)
+    .eq("status", "active")
+
   const upcomingAppointments = appointments?.filter(
     (apt) => new Date(apt.appointment_date) >= new Date() && apt.status !== "cancelled",
   )
@@ -61,6 +72,68 @@ export default async function ClienteDashboard() {
         <div className="mb-8">
           <h1 className="text-4xl font-bold text-foreground mb-2">Olá, {profile.full_name || "Cliente"}!</h1>
           <p className="text-muted-foreground">Bem-vindo ao seu painel de cliente</p>
+        </div>
+
+        <div className="grid md:grid-cols-3 lg:grid-cols-5 gap-4 mb-8">
+          <Link href="/cliente/favoritos">
+            <Card className="border-gold/20 hover:border-gold/40 transition-colors cursor-pointer">
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Favoritos</CardTitle>
+                <Heart className="h-4 w-4 text-gold" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold text-foreground">{favoritesCount || 0}</div>
+              </CardContent>
+            </Card>
+          </Link>
+
+          <Link href="/cliente/historico">
+            <Card className="border-gold/20 hover:border-gold/40 transition-colors cursor-pointer">
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Histórico</CardTitle>
+                <History className="h-4 w-4 text-gold" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold text-foreground">{pastAppointments?.length || 0}</div>
+              </CardContent>
+            </Card>
+          </Link>
+
+          <Link href="/cliente/pagamentos">
+            <Card className="border-gold/20 hover:border-gold/40 transition-colors cursor-pointer">
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Pagamentos</CardTitle>
+                <CreditCard className="h-4 w-4 text-gold" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-sm text-muted-foreground">Ver todos</div>
+              </CardContent>
+            </Card>
+          </Link>
+
+          <Link href="/cliente/assinaturas">
+            <Card className="border-gold/20 hover:border-gold/40 transition-colors cursor-pointer">
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Assinaturas</CardTitle>
+                <Package className="h-4 w-4 text-gold" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold text-foreground">{subscriptionsCount || 0}</div>
+              </CardContent>
+            </Card>
+          </Link>
+
+          <Link href="/cliente/solicitacoes">
+            <Card className="border-gold/20 hover:border-gold/40 transition-colors cursor-pointer">
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Solicitações</CardTitle>
+                <FileText className="h-4 w-4 text-gold" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold text-foreground">{pendingRequests?.length || 0}</div>
+              </CardContent>
+            </Card>
+          </Link>
         </div>
 
         <div className="grid md:grid-cols-4 gap-6 mb-8">
