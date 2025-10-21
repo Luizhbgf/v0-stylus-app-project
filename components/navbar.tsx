@@ -43,6 +43,13 @@ export function Navbar({ user }: NavbarProps) {
     return "/cliente"
   }
 
+  const getProfileLink = () => {
+    if (!user) return "/auth/login"
+    if (user.user_level && user.user_level >= 30) return "/admin/perfil/editar"
+    if (user.user_level && user.user_level >= 20) return "/staff/perfil/editar"
+    return "/cliente/perfil/editar"
+  }
+
   return (
     <nav className="border-b border-primary/10 bg-background/80 backdrop-blur-xl sticky top-0 z-50">
       <div className="container mx-auto px-4">
@@ -76,6 +83,12 @@ export function Navbar({ user }: NavbarProps) {
                       Dashboard
                     </Link>
                   </DropdownMenuItem>
+                  <DropdownMenuItem asChild>
+                    <Link href={getProfileLink()} className="cursor-pointer">
+                      <User className="h-4 w-4 mr-2" />
+                      Perfil
+                    </Link>
+                  </DropdownMenuItem>
                   {user.user_level && user.user_level >= 20 && (
                     <DropdownMenuItem asChild>
                       <Link href="/staff/solicitacoes" className="cursor-pointer">
@@ -105,16 +118,31 @@ export function Navbar({ user }: NavbarProps) {
             )}
           </div>
 
-          {/* Mobile actions */}
-          <div className="flex md:hidden items-center gap-2">
+          <div className="flex md:hidden items-center gap-1.5">
             <ThemeToggle />
-            {user?.id && <NotificationsBell userId={user.id} />}
-            {!user && (
-              <Button asChild variant="ghost" size="sm" className="hover:bg-primary/5 font-semibold">
-                <Link href="/auth/login">Entrar</Link>
-              </Button>
+
+            {user ? (
+              <>
+                {/* Dashboard button */}
+                <Button asChild variant="ghost" size="sm" className="h-9 px-2">
+                  <Link href={getDashboardLink()}>
+                    <LayoutDashboard className="h-4 w-4" />
+                  </Link>
+                </Button>
+
+                {/* Profile/Menu dropdown */}
+                <MobileNav user={user} />
+              </>
+            ) : (
+              <>
+                <Button asChild variant="ghost" size="sm" className="hover:bg-primary/5 font-semibold h-9 px-3">
+                  <Link href="/auth/login">Entrar</Link>
+                </Button>
+                <Button asChild size="sm" className="bg-primary hover:bg-primary/90 text-black font-semibold h-9 px-3">
+                  <Link href="/auth/sign-up">Cadastrar</Link>
+                </Button>
+              </>
             )}
-            <MobileNav user={user} />
           </div>
         </div>
       </div>
