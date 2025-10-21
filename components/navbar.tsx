@@ -4,6 +4,7 @@ import Link from "next/link"
 import Image from "next/image"
 import { Button } from "@/components/ui/button"
 import { ThemeToggle } from "@/components/theme-toggle"
+import { NotificationsBell } from "@/components/notifications-bell"
 import { createClient } from "@/lib/supabase/client"
 import { useRouter } from "next/navigation"
 import { LogOut, User } from "lucide-react"
@@ -11,6 +12,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 
 interface NavbarProps {
   user?: {
+    id?: string
     email?: string
     full_name?: string
     user_level?: number
@@ -43,6 +45,7 @@ export function Navbar({ user }: NavbarProps) {
 
           <div className="flex items-center gap-4">
             <ThemeToggle />
+            {user?.id && <NotificationsBell userId={user.id} />}
             {user ? (
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
@@ -55,6 +58,11 @@ export function Navbar({ user }: NavbarProps) {
                   <DropdownMenuItem asChild>
                     <Link href={getDashboardLink()}>Dashboard</Link>
                   </DropdownMenuItem>
+                  {user.user_level && user.user_level >= 20 && (
+                    <DropdownMenuItem asChild>
+                      <Link href="/staff/solicitacoes">Solicitações</Link>
+                    </DropdownMenuItem>
+                  )}
                   <DropdownMenuItem onClick={handleLogout}>
                     <LogOut className="h-4 w-4 mr-2" />
                     Sair

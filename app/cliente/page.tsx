@@ -3,7 +3,7 @@ import { createClient } from "@/lib/supabase/server"
 import { Navbar } from "@/components/navbar"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import { Calendar, Clock, User } from "lucide-react"
+import { Calendar, Clock, User, Bell } from "lucide-react"
 import Link from "next/link"
 
 export default async function ClienteDashboard() {
@@ -35,6 +35,16 @@ export default async function ClienteDashboard() {
     .eq("client_id", user.id)
     .order("appointment_date", { ascending: true })
 
+  const { data: pendingRequests } = await supabase
+    .from("appointment_requests")
+    .select(`
+      *,
+      service:services(*)
+    `)
+    .eq("client_id", user.id)
+    .eq("status", "pending")
+    .order("created_at", { ascending: false })
+
   const upcomingAppointments = appointments?.filter(
     (apt) => new Date(apt.appointment_date) >= new Date() && apt.status !== "cancelled",
   )
@@ -53,7 +63,7 @@ export default async function ClienteDashboard() {
           <p className="text-muted-foreground">Bem-vindo ao seu painel de cliente</p>
         </div>
 
-        <div className="grid md:grid-cols-3 gap-6 mb-8">
+        <div className="grid md:grid-cols-4 gap-6 mb-8">
           <Card className="border-gold/20">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">Próximos Agendamentos</CardTitle>
@@ -61,6 +71,16 @@ export default async function ClienteDashboard() {
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold text-foreground">{upcomingAppointments?.length || 0}</div>
+            </CardContent>
+          </Card>
+
+          <Card className="border-gold/20">
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Solicitações Pendentes</CardTitle>
+              <Bell className="h-4 w-4 text-gold" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold text-foreground">{pendingRequests?.length || 0}</div>
             </CardContent>
           </Card>
 
@@ -87,11 +107,48 @@ export default async function ClienteDashboard() {
 
         <div className="mb-6">
           <Button asChild className="bg-gold hover:bg-gold/90 text-black" size="lg">
-            <Link href="/agendar">Novo Agendamento</Link>
+            <Link href="/agendar">Nova Solicitação de Agendamento</Link>
           </Button>
         </div>
 
         <div className="space-y-6">
+          {pendingRequests && pendingRequests.length > 0 && (
+            <div>
+              <h2 className="text-2xl font-bold text-foreground mb-4">Solicitações Aguardando Aprovação</h2>
+              <div className="grid gap-4">
+                {pendingRequests.map((request) => (
+                  <Card key={request.id} className="border-yellow-500/20 bg-yellow-500/5">
+                    <CardContent className="p-6">
+                      <div className="flex justify-between items-start">
+                        <div>
+                          <h3 className="text-lg font-semibold text-foreground mb-2">{request.service?.name}</h3>
+                          <p className="text-sm text-muted-foreground mb-1">
+                            Data preferida: {new Date(request.preferred_date).toLocaleDateString("pt-BR")}
+                            {request.preferred_time && ` às ${request.preferred_time}`}
+                          </p>
+                          <p className="text-sm text-muted-foreground">
+                            Solicitado em: {new Date(request.created_at).toLocaleDateString("pt-BR")}
+                          </p>
+                          {request.notes && (
+                            <p className="text-sm text-muted-foreground mt-2">
+                              <strong>Observações:</strong> {request.notes}
+                            </p>
+                          )}
+                        </div>
+                        <div className="text-right">
+                          <span className="inline-block px-3 py-1 rounded-full text-xs font-medium bg-yellow-500/10 text-yellow-500">
+                            Aguardando Aprovação
+                          </span>
+                          <p className="text-lg font-bold text-gold mt-2">R$ {request.service?.price}</p>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            </div>
+          )}
+
           <div>
             <h2 className="text-2xl font-bold text-foreground mb-4">Próximos Agendamentos</h2>
             {upcomingAppointments && upcomingAppointments.length > 0 ? (

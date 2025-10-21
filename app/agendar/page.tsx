@@ -6,29 +6,102 @@ import { Card } from "@/components/ui/card"
 import { Calendar } from "@/components/ui/calendar"
 import { Label } from "@/components/ui/label"
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
+import { Textarea } from "@/components/ui/textarea"
 import { ArrowLeft, Check } from "lucide-react"
 import Image from "next/image"
 import Link from "next/link"
 import { ThemeToggle } from "@/components/theme-toggle"
+import { createClient } from "@/lib/supabase/client"
+import { useRouter } from "next/navigation"
+import { toast } from "sonner"
+import { useEffect } from "react"
 
 export default function AgendarPage() {
   const [step, setStep] = useState(1)
   const [selectedService, setSelectedService] = useState("")
-  const [selectedProfessional, setSelectedProfessional] = useState("")
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(new Date())
   const [selectedTime, setSelectedTime] = useState("")
+  const [notes, setNotes] = useState("")
+  const [services, setServices] = useState<any[]>([])
+  const [loading, setLoading] = useState(false)
+  const [user, setUser] = useState<any>(null)
+
+  const router = useRouter()
+  const supabase = createClient()
+
+  useEffect(() => {
+    async function loadData() {
+      // Check if user is logged in
+      const {
+        data: { user: currentUser },
+      } = await supabase.auth.getUser()
+      setUser(currentUser)
+
+      // Load services
+      const { data: servicesData } = await supabase
+        .from("services")
+        .select("*")
+        .eq("is_active", true)
+        .order("category", { ascending: true })
+
+      if (servicesData) {
+        setServices(servicesData)
+      }
+    }
+    loadData()
+  }, [])
 
   const handleNext = () => {
-    if (step < 4) setStep(step + 1)
+    if (step < 3) setStep(step + 1)
   }
 
   const handleBack = () => {
     if (step > 1) setStep(step - 1)
   }
 
-  const handleConfirm = () => {
-    alert("Agendamento confirmado! Você receberá uma confirmação por email.")
+  const handleConfirm = async () => {
+    if (!user) {
+      toast.error("Você precisa estar logado para solicitar um agendamento")
+      router.push("/auth/login")
+      return
+    }
+
+    if (!selectedService || !selectedDate || !selectedTime) {
+      toast.error("Por favor, preencha todos os campos")
+      return
+    }
+
+    setLoading(true)
+
+    try {
+      // Combine date and time
+      const [hours, minutes] = selectedTime.split(":")
+      const appointmentDateTime = new Date(selectedDate)
+      appointmentDateTime.setHours(Number.parseInt(hours), Number.parseInt(minutes), 0, 0)
+
+      // Create appointment request
+      const { error } = await supabase.from("appointment_requests").insert({
+        client_id: user.id,
+        service_id: selectedService,
+        preferred_date: selectedDate.toISOString().split("T")[0],
+        preferred_time: selectedTime,
+        notes: notes || null,
+        status: "pending",
+      })
+
+      if (error) throw error
+
+      toast.success("Solicitação enviada com sucesso! Aguarde a confirmação do profissional.")
+      router.push("/cliente")
+    } catch (error: any) {
+      console.error("[v0] Error creating appointment request:", error)
+      toast.error("Erro ao enviar solicitação. Tente novamente.")
+    } finally {
+      setLoading(false)
+    }
   }
+
+  const selectedServiceData = services.find((s) => s.id === selectedService)
 
   return (
     <div className="min-h-screen bg-background">
@@ -41,7 +114,7 @@ export default function AgendarPage() {
             </Link>
             <div className="flex items-center gap-3">
               <ThemeToggle />
-              <Link href="/">
+              <Link href={user ? "/cliente" : "/"}>
                 <Button variant="ghost">
                   <ArrowLeft className="mr-2 h-4 w-4" />
                   Voltar
@@ -57,7 +130,7 @@ export default function AgendarPage() {
           {/* Progress Steps */}
           <div className="mb-12">
             <div className="flex items-center justify-between">
-              {[1, 2, 3, 4].map((s) => (
+              {[1, 2, 3].map((s) => (
                 <div key={s} className="flex items-center flex-1">
                   <div
                     className={`flex items-center justify-center w-10 h-10 rounded-full border-2 ${
@@ -68,14 +141,13 @@ export default function AgendarPage() {
                   >
                     {step > s ? <Check className="h-5 w-5" /> : s}
                   </div>
-                  {s < 4 && <div className={`flex-1 h-0.5 mx-2 ${step > s ? "bg-primary" : "bg-border"}`} />}
+                  {s < 3 && <div className={`flex-1 h-0.5 mx-2 ${step > s ? "bg-primary" : "bg-border"}`} />}
                 </div>
               ))}
             </div>
             <div className="flex justify-between mt-2">
               <span className="text-xs text-muted-foreground">Serviço</span>
-              <span className="text-xs text-muted-foreground">Profissional</span>
-              <span className="text-xs text-muted-foreground">Data</span>
+              <span className="text-xs text-muted-foreground">Data e Hora</span>
               <span className="text-xs text-muted-foreground">Confirmar</span>
             </div>
           </div>
@@ -97,10 +169,12 @@ export default function AgendarPage() {
                           <RadioGroupItem value={service.id} id={service.id} />
                           <div>
                             <p className="font-semibold text-foreground">{service.name}</p>
-                            <p className="text-sm text-muted-foreground">{service.duration}</p>
+                            <p className="text-sm text-muted-foreground">
+                              {service.duration} min • {service.category}
+                            </p>
                           </div>
                         </div>
-                        <span className="text-lg font-bold text-primary">{service.price}</span>
+                        <span className="text-lg font-bold text-primary">R$ {service.price}</span>
                       </Label>
                     ))}
                   </div>
@@ -110,32 +184,6 @@ export default function AgendarPage() {
 
             {step === 2 && (
               <div>
-                <h2 className="font-serif text-3xl font-bold mb-6 text-foreground">Escolha o Profissional</h2>
-                <RadioGroup value={selectedProfessional} onValueChange={setSelectedProfessional}>
-                  <div className="space-y-4">
-                    {professionals.map((professional) => (
-                      <Label
-                        key={professional.id}
-                        htmlFor={professional.id}
-                        className="flex items-center gap-4 p-4 border border-border rounded-lg cursor-pointer hover:bg-muted/50 transition-colors"
-                      >
-                        <RadioGroupItem value={professional.id} id={professional.id} />
-                        <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center text-primary font-semibold text-xl">
-                          {professional.name.charAt(0)}
-                        </div>
-                        <div className="flex-1">
-                          <p className="font-semibold text-foreground">{professional.name}</p>
-                          <p className="text-sm text-muted-foreground">{professional.specialty}</p>
-                        </div>
-                      </Label>
-                    ))}
-                  </div>
-                </RadioGroup>
-              </div>
-            )}
-
-            {step === 3 && (
-              <div>
                 <h2 className="font-serif text-3xl font-bold mb-6 text-foreground">Escolha Data e Horário</h2>
                 <div className="grid md:grid-cols-2 gap-8">
                   <div>
@@ -144,6 +192,7 @@ export default function AgendarPage() {
                       mode="single"
                       selected={selectedDate}
                       onSelect={setSelectedDate}
+                      disabled={(date) => date < new Date()}
                       className="rounded-lg border border-border"
                     />
                   </div>
@@ -161,40 +210,56 @@ export default function AgendarPage() {
                         </Button>
                       ))}
                     </div>
+                    <div className="mt-6">
+                      <Label htmlFor="notes" className="text-foreground">
+                        Observações (opcional)
+                      </Label>
+                      <Textarea
+                        id="notes"
+                        placeholder="Alguma preferência ou observação especial?"
+                        value={notes}
+                        onChange={(e) => setNotes(e.target.value)}
+                        className="mt-2"
+                        rows={3}
+                      />
+                    </div>
                   </div>
                 </div>
               </div>
             )}
 
-            {step === 4 && (
+            {step === 3 && (
               <div>
-                <h2 className="font-serif text-3xl font-bold mb-6 text-foreground">Confirmar Agendamento</h2>
+                <h2 className="font-serif text-3xl font-bold mb-6 text-foreground">Confirmar Solicitação</h2>
                 <div className="space-y-6">
                   <div className="p-4 bg-muted/50 rounded-lg">
                     <p className="text-sm text-muted-foreground mb-1">Serviço</p>
-                    <p className="font-semibold text-foreground">
-                      {services.find((s) => s.id === selectedService)?.name}
-                    </p>
+                    <p className="font-semibold text-foreground">{selectedServiceData?.name}</p>
+                    <p className="text-sm text-muted-foreground">{selectedServiceData?.duration} minutos</p>
                   </div>
                   <div className="p-4 bg-muted/50 rounded-lg">
-                    <p className="text-sm text-muted-foreground mb-1">Profissional</p>
-                    <p className="font-semibold text-foreground">
-                      {professionals.find((p) => p.id === selectedProfessional)?.name}
-                    </p>
-                  </div>
-                  <div className="p-4 bg-muted/50 rounded-lg">
-                    <p className="text-sm text-muted-foreground mb-1">Data e Horário</p>
+                    <p className="text-sm text-muted-foreground mb-1">Data e Horário Preferido</p>
                     <p className="font-semibold text-foreground">
                       {selectedDate?.toLocaleDateString("pt-BR")} às {selectedTime}
                     </p>
                   </div>
+                  {notes && (
+                    <div className="p-4 bg-muted/50 rounded-lg">
+                      <p className="text-sm text-muted-foreground mb-1">Observações</p>
+                      <p className="text-foreground">{notes}</p>
+                    </div>
+                  )}
                   <div className="p-4 bg-primary/10 rounded-lg border border-primary/20">
                     <div className="flex items-center justify-between">
-                      <span className="font-semibold text-foreground">Total</span>
-                      <span className="text-2xl font-bold text-primary">
-                        {services.find((s) => s.id === selectedService)?.price}
-                      </span>
+                      <span className="font-semibold text-foreground">Valor</span>
+                      <span className="text-2xl font-bold text-primary">R$ {selectedServiceData?.price}</span>
                     </div>
+                  </div>
+                  <div className="p-4 bg-yellow-500/10 rounded-lg border border-yellow-500/20">
+                    <p className="text-sm text-yellow-700 dark:text-yellow-400">
+                      ⚠️ Esta é uma solicitação de agendamento. Um profissional irá confirmar seu horário em breve e você
+                      receberá uma notificação.
+                    </p>
                   </div>
                 </div>
               </div>
@@ -202,26 +267,26 @@ export default function AgendarPage() {
 
             {/* Navigation Buttons */}
             <div className="flex items-center justify-between mt-8 pt-8 border-t border-border">
-              <Button variant="outline" onClick={handleBack} disabled={step === 1}>
+              <Button variant="outline" onClick={handleBack} disabled={step === 1 || loading}>
                 <ArrowLeft className="mr-2 h-4 w-4" />
                 Voltar
               </Button>
-              {step < 4 ? (
+              {step < 3 ? (
                 <Button
                   onClick={handleNext}
-                  disabled={
-                    (step === 1 && !selectedService) ||
-                    (step === 2 && !selectedProfessional) ||
-                    (step === 3 && (!selectedDate || !selectedTime))
-                  }
+                  disabled={(step === 1 && !selectedService) || (step === 2 && (!selectedDate || !selectedTime))}
                   className="bg-primary text-primary-foreground hover:bg-accent"
                 >
                   Próximo
                 </Button>
               ) : (
-                <Button onClick={handleConfirm} className="bg-primary text-primary-foreground hover:bg-accent">
+                <Button
+                  onClick={handleConfirm}
+                  disabled={loading}
+                  className="bg-primary text-primary-foreground hover:bg-accent"
+                >
                   <Check className="mr-2 h-4 w-4" />
-                  Confirmar Agendamento
+                  {loading ? "Enviando..." : "Enviar Solicitação"}
                 </Button>
               )}
             </div>
@@ -231,22 +296,6 @@ export default function AgendarPage() {
     </div>
   )
 }
-
-const services = [
-  { id: "1", name: "Corte e Escova", duration: "1h 30min", price: "R$ 120" },
-  { id: "2", name: "Manicure e Pedicure", duration: "1h", price: "R$ 80" },
-  { id: "3", name: "Design de Sobrancelhas", duration: "30min", price: "R$ 60" },
-  { id: "4", name: "Maquiagem", duration: "1h", price: "R$ 150" },
-  { id: "5", name: "Tratamentos Faciais", duration: "1h 30min", price: "R$ 180" },
-  { id: "6", name: "Depilação", duration: "45min", price: "R$ 90" },
-]
-
-const professionals = [
-  { id: "1", name: "Carla Mendes", specialty: "Especialista em Cabelos" },
-  { id: "2", name: "Juliana Costa", specialty: "Manicure e Pedicure" },
-  { id: "3", name: "Patricia Lima", specialty: "Design de Sobrancelhas" },
-  { id: "4", name: "Fernanda Silva", specialty: "Maquiadora Profissional" },
-]
 
 const timeSlots = [
   "09:00",
