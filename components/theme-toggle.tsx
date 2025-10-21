@@ -5,9 +5,11 @@ import { useEffect, useState } from "react"
 import { Button } from "@/components/ui/button"
 
 export function ThemeToggle() {
+  const [mounted, setMounted] = useState(false)
   const [theme, setTheme] = useState<"light" | "dark">("light")
 
   useEffect(() => {
+    setMounted(true)
     // Check for saved theme preference or default to light
     const savedTheme = localStorage.getItem("theme") as "light" | "dark" | null
     const prefersDark = window.matchMedia("(prefers-color-scheme: dark)").matches
@@ -22,6 +24,19 @@ export function ThemeToggle() {
     setTheme(newTheme)
     localStorage.setItem("theme", newTheme)
     document.documentElement.classList.toggle("dark", newTheme === "dark")
+  }
+
+  if (!mounted) {
+    return (
+      <Button
+        variant="ghost"
+        size="icon"
+        className="text-foreground hover:text-primary transition-colors"
+        aria-label="Toggle theme"
+      >
+        <Sun className="h-5 w-5" />
+      </Button>
+    )
   }
 
   return (
