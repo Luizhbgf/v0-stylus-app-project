@@ -11,6 +11,7 @@ import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { useState } from "react"
 import Image from "next/image"
+import { Chrome, Apple } from "lucide-react"
 
 export default function SignUpPage() {
   const [email, setEmail] = useState("")
@@ -49,6 +50,44 @@ export default function SignUpPage() {
     }
   }
 
+  const handleGoogleSignUp = async () => {
+    const supabase = createClient()
+    setIsLoading(true)
+    setError(null)
+
+    try {
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider: "google",
+        options: {
+          redirectTo: `${window.location.origin}/auth/callback`,
+        },
+      })
+      if (error) throw error
+    } catch (error: unknown) {
+      setError(error instanceof Error ? error.message : "Erro ao cadastrar com Google")
+      setIsLoading(false)
+    }
+  }
+
+  const handleAppleSignUp = async () => {
+    const supabase = createClient()
+    setIsLoading(true)
+    setError(null)
+
+    try {
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider: "apple",
+        options: {
+          redirectTo: `${window.location.origin}/auth/callback`,
+        },
+      })
+      if (error) throw error
+    } catch (error: unknown) {
+      setError(error instanceof Error ? error.message : "Erro ao cadastrar com Apple")
+      setIsLoading(false)
+    }
+  }
+
   return (
     <div className="flex min-h-screen w-full items-center justify-center p-6 bg-background">
       <div className="w-full max-w-sm">
@@ -64,6 +103,38 @@ export default function SignUpPage() {
             <CardContent>
               <form onSubmit={handleSignUp}>
                 <div className="flex flex-col gap-4">
+                  <div className="grid gap-3">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      className="w-full border-gold/20 hover:bg-gold/5 bg-transparent"
+                      onClick={handleGoogleSignUp}
+                      disabled={isLoading}
+                    >
+                      <Chrome className="mr-2 h-4 w-4" />
+                      Continuar com Google
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      className="w-full border-gold/20 hover:bg-gold/5 bg-transparent"
+                      onClick={handleAppleSignUp}
+                      disabled={isLoading}
+                    >
+                      <Apple className="mr-2 h-4 w-4" />
+                      Continuar com Apple
+                    </Button>
+                  </div>
+
+                  <div className="relative">
+                    <div className="absolute inset-0 flex items-center">
+                      <span className="w-full border-t border-gold/20" />
+                    </div>
+                    <div className="relative flex justify-center text-xs uppercase">
+                      <span className="bg-card px-2 text-muted-foreground">Ou cadastre-se com email</span>
+                    </div>
+                  </div>
+
                   <div className="grid gap-2">
                     <Label htmlFor="fullName">Nome Completo</Label>
                     <Input
