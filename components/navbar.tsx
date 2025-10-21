@@ -7,8 +7,14 @@ import { ThemeToggle } from "@/components/theme-toggle"
 import { NotificationsBell } from "@/components/notifications-bell"
 import { createClient } from "@/lib/supabase/client"
 import { useRouter } from "next/navigation"
-import { LogOut, User } from "lucide-react"
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
+import { LogOut, User, LayoutDashboard } from "lucide-react"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+  DropdownMenuSeparator,
+} from "@/components/ui/dropdown-menu"
 
 interface NavbarProps {
   user?: {
@@ -26,6 +32,7 @@ export function Navbar({ user }: NavbarProps) {
   const handleLogout = async () => {
     await supabase.auth.signOut()
     router.push("/")
+    router.refresh()
   }
 
   const getDashboardLink = () => {
@@ -36,34 +43,47 @@ export function Navbar({ user }: NavbarProps) {
   }
 
   return (
-    <nav className="border-b border-gold/20 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-      <div className="container mx-auto px-4 py-4">
-        <div className="flex items-center justify-between">
-          <Link href="/" className="flex items-center">
-            <Image src="/logo.png" alt="Styllus" width={150} height={60} className="object-contain" />
+    <nav className="border-b border-primary/10 bg-background/80 backdrop-blur-xl sticky top-0 z-50">
+      <div className="container mx-auto px-4">
+        <div className="flex items-center justify-between h-20">
+          {/* Logo */}
+          <Link href="/" className="flex items-center hover:opacity-80 transition-opacity">
+            <Image src="/logo.png" alt="Styllus" width={160} height={60} className="object-contain" />
           </Link>
 
-          <div className="flex items-center gap-4">
+          {/* Right side actions */}
+          <div className="flex items-center gap-3">
             <ThemeToggle />
+
             {user?.id && <NotificationsBell userId={user.id} />}
+
             {user ? (
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <Button variant="outline" className="border-gold/20 bg-transparent">
+                  <Button
+                    variant="outline"
+                    className="border-primary/20 hover:bg-primary/5 bg-transparent font-semibold"
+                  >
                     <User className="h-4 w-4 mr-2" />
-                    {user.full_name || user.email}
+                    {user.full_name || user.email?.split("@")[0]}
                   </Button>
                 </DropdownMenuTrigger>
-                <DropdownMenuContent align="end">
+                <DropdownMenuContent align="end" className="w-56">
                   <DropdownMenuItem asChild>
-                    <Link href={getDashboardLink()}>Dashboard</Link>
+                    <Link href={getDashboardLink()} className="cursor-pointer">
+                      <LayoutDashboard className="h-4 w-4 mr-2" />
+                      Dashboard
+                    </Link>
                   </DropdownMenuItem>
                   {user.user_level && user.user_level >= 20 && (
                     <DropdownMenuItem asChild>
-                      <Link href="/staff/solicitacoes">Solicitações</Link>
+                      <Link href="/staff/solicitacoes" className="cursor-pointer">
+                        Solicitações
+                      </Link>
                     </DropdownMenuItem>
                   )}
-                  <DropdownMenuItem onClick={handleLogout}>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem onClick={handleLogout} className="cursor-pointer text-destructive">
                     <LogOut className="h-4 w-4 mr-2" />
                     Sair
                   </DropdownMenuItem>
@@ -71,10 +91,13 @@ export function Navbar({ user }: NavbarProps) {
               </DropdownMenu>
             ) : (
               <>
-                <Button asChild variant="outline" className="border-gold/20 hover:bg-gold/10 bg-transparent">
+                <Button asChild variant="ghost" className="hover:bg-primary/5 font-semibold">
                   <Link href="/auth/login">Entrar</Link>
                 </Button>
-                <Button asChild className="bg-gold hover:bg-gold/90 text-black">
+                <Button
+                  asChild
+                  className="bg-primary hover:bg-primary/90 text-black font-semibold shadow-lg shadow-primary/20"
+                >
                   <Link href="/auth/sign-up">Cadastrar</Link>
                 </Button>
               </>
