@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import { Textarea } from "@/components/ui/textarea"
 import { Navbar } from "@/components/navbar"
 import { useRouter } from "next/navigation"
 import { toast } from "sonner"
@@ -20,6 +21,7 @@ export default function AdicionarServico() {
   const [description, setDescription] = useState("")
   const [price, setPrice] = useState("")
   const [duration, setDuration] = useState("")
+  const [category, setCategory] = useState("")
   const [isLoading, setIsLoading] = useState(false)
   const router = useRouter()
   const supabase = createClient()
@@ -51,22 +53,46 @@ export default function AdicionarServico() {
       } = await supabase.auth.getUser()
       if (!user) throw new Error("Usuário não autenticado")
 
-      const { error } = await supabase.from("services").insert({
+      console.log("[v0] Creating service with data:", { name, description, price, duration, category })
+
+      const { data: serviceData, error: serviceError } = await supabase
+        .from("services")
+        .insert({
+          name,
+          description: description || null,
+          price: Number.parseFloat(price),
+          duration: Number.parseInt(duration),
+          category: category || null,
+          is_active: true,
+        })
+        .select()
+        .single()
+
+      if (serviceError) {
+        console.error("[v0] Error creating service:", serviceError)
+        throw serviceError
+      }
+
+      console.log("[v0] Service created:", serviceData)
+
+      const { error: linkError } = await supabase.from("staff_services").insert({
         staff_id: user.id,
-        name,
-        description,
-        price: Number.parseFloat(price),
-        duration: Number.parseInt(duration),
-        active: true,
+        service_id: serviceData.id,
       })
 
-      if (error) throw error
+      if (linkError) {
+        console.error("[v0] Error linking service to staff:", linkError)
+        throw linkError
+      }
+
+      console.log("[v0] Service linked to staff successfully")
 
       toast.success("Serviço criado com sucesso!")
       router.push("/staff/servicos")
-    } catch (error) {
-      console.error("Erro ao criar serviço:", error)
-      toast.error("Erro ao criar serviço")
+      router.refresh()
+    } catch (error: any) {
+      console.error("[v0] Error in handleSubmit:", error)
+      toast.error(error.message || "Erro ao criar serviço")
     } finally {
       setIsLoading(false)
     }
@@ -78,7 +104,7 @@ export default function AdicionarServico() {
     <div className="min-h-screen bg-background">
       <Navbar user={profile} />
 
-      <div className="container mx-auto px-4 py-8 max-w-2xl">
+      <div className="container mx-auto px-4 py-6 md:py-8 max-w-2xl">
         <div className="mb-6">
           <Link
             href="/staff/servicos"
@@ -87,16 +113,16 @@ export default function AdicionarServico() {
             <ArrowLeft className="mr-2 h-4 w-4" />
             Voltar para Serviços
           </Link>
-          <h1 className="text-3xl font-bold text-foreground">Adicionar Serviço</h1>
-          <p className="text-muted-foreground">Crie um novo serviço</p>
+          <h1 className="text-2xl md:text-3xl font-bold text-foreground">Adicionar Serviço</h1>
+          <p className="text-sm md:text-base text-muted-foreground">Crie um novo serviço</p>
         </div>
 
-        <Card className="border-gold/20">
+        <Card className="border-primary/20">
           <CardHeader>
-            <CardTitle>Novo Serviço</CardTitle>
+            <CardTitle className="text-lg md:text-xl">Novo Serviço</CardTitle>
           </CardHeader>
           <CardContent>
-            <form onSubmit={handleSubmit} className="space-y-6">
+            <form onSubmit={handleSubmit} className="space-y-4 md:space-y-6">
               <div className="space-y-2">
                 <Label htmlFor="name">Nome do Serviço *</Label>
                 <Input
@@ -104,33 +130,46 @@ export default function AdicionarServico() {
                   value={name}
                   onChange={(e) => setName(e.target.value)}
                   placeholder="Ex: Corte de Cabelo"
-                  className="border-gold/20"
+                  className="border-primary/20"
                   required
                 />
               </div>
 
               <div className="space-y-2">
                 <Label htmlFor="description">Descrição</Label>
-                <Input
+                <Textarea
                   id="description"
                   value={description}
                   onChange={(e) => setDescription(e.target.value)}
                   placeholder="Descrição do serviço..."
-                  className="border-gold/20"
+                  className="border-primary/20 min-h-[100px]"
+                  rows={4}
                 />
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="category">Categoria</Label>
+                <Input
+                  id="category"
+                  value={category}
+                  onChange={(e) => setCategory(e.target.value)}
+                  placeholder="Ex: Cabelo, Barba, Estética"
+                  className="border-primary/20"
+                />
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label htmlFor="price">Preço (R$) *</Label>
                   <Input
                     id="price"
                     type="number"
                     step="0.01"
+                    min="0"
                     value={price}
                     onChange={(e) => setPrice(e.target.value)}
                     placeholder="0.00"
-                    className="border-gold/20"
+                    className="border-primary/20"
                     required
                   />
                 </div>
@@ -140,20 +179,27 @@ export default function AdicionarServico() {
                   <Input
                     id="duration"
                     type="number"
+                    min="1"
                     value={duration}
                     onChange={(e) => setDuration(e.target.value)}
                     placeholder="30"
-                    className="border-gold/20"
+                    className="border-primary/20"
                     required
                   />
                 </div>
               </div>
 
-              <div className="flex gap-4">
-                <Button type="submit" className="flex-1 bg-gold hover:bg-gold/90 text-black" disabled={isLoading}>
+              <div className="flex flex-col sm:flex-row gap-3 pt-2">
+                <Button type="submit" className="flex-1 bg-primary hover:bg-primary/90 text-black" disabled={isLoading}>
                   {isLoading ? "Criando..." : "Criar Serviço"}
                 </Button>
-                <Button type="button" variant="outline" onClick={() => router.back()} disabled={isLoading}>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => router.back()}
+                  disabled={isLoading}
+                  className="sm:w-auto"
+                >
                   Cancelar
                 </Button>
               </div>
