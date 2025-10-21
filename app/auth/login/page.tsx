@@ -67,7 +67,15 @@ export default function LoginPage() {
           redirectTo: `${window.location.origin}/auth/callback`,
         },
       })
-      if (error) throw error
+      if (error) {
+        // Check if it's a provider not enabled error
+        if (error.message.includes("provider is not enabled") || error.message.includes("Unsupported provider")) {
+          throw new Error(
+            "Login com Google não está configurado. Por favor, habilite o provedor Google no painel do Supabase (Authentication > Providers).",
+          )
+        }
+        throw error
+      }
     } catch (error: unknown) {
       setError(error instanceof Error ? error.message : "Erro ao fazer login com Google")
       setIsLoading(false)
@@ -86,7 +94,15 @@ export default function LoginPage() {
           redirectTo: `${window.location.origin}/auth/callback`,
         },
       })
-      if (error) throw error
+      if (error) {
+        // Check if it's a provider not enabled error
+        if (error.message.includes("provider is not enabled") || error.message.includes("Unsupported provider")) {
+          throw new Error(
+            "Login com Apple não está configurado. Por favor, habilite o provedor Apple no painel do Supabase (Authentication > Providers).",
+          )
+        }
+        throw error
+      }
     } catch (error: unknown) {
       setError(error instanceof Error ? error.message : "Erro ao fazer login com Apple")
       setIsLoading(false)
