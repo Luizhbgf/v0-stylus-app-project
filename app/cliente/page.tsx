@@ -56,6 +56,18 @@ export default async function ClienteDashboard() {
     .eq("client_id", user.id)
     .eq("status", "active")
 
+  const { data: activeSubscription } = await supabase
+    .from("subscriptions")
+    .select(`
+      *,
+      plan:subscription_plans(*,
+        staff:staff_id(full_name)
+      )
+    `)
+    .eq("client_id", user.id)
+    .eq("status", "active")
+    .single()
+
   const upcomingAppointments = appointments?.filter(
     (apt) => new Date(apt.appointment_date) >= new Date() && apt.status !== "cancelled",
   )
@@ -73,6 +85,40 @@ export default async function ClienteDashboard() {
           <h1 className="text-4xl font-bold text-foreground mb-2">Olá, {profile.full_name || "Cliente"}!</h1>
           <p className="text-muted-foreground">Bem-vindo ao seu painel de cliente</p>
         </div>
+
+        {activeSubscription && (
+          <Card className="border-gold/20 bg-gold/5 mb-8">
+            <CardContent className="p-6">
+              <div className="flex justify-between items-start">
+                <div>
+                  <h3 className="text-xl font-bold text-foreground mb-2">
+                    Plano Ativo: {activeSubscription.plan?.name}
+                  </h3>
+                  <p className="text-sm text-muted-foreground mb-1">
+                    Profissional: {activeSubscription.plan?.staff?.full_name}
+                  </p>
+                  <p className="text-sm text-muted-foreground mb-1">
+                    {activeSubscription.plan?.service_type === "haircut" ? "Corte" : "Corte + Barba"} -{" "}
+                    {activeSubscription.plan?.frequency_per_week}x por semana
+                  </p>
+                  <p className="text-sm text-muted-foreground">
+                    Próxima cobrança:{" "}
+                    {activeSubscription.next_billing_date
+                      ? new Date(activeSubscription.next_billing_date).toLocaleDateString("pt-BR")
+                      : "N/A"}
+                  </p>
+                </div>
+                <div className="text-right">
+                  <div className="text-3xl font-bold text-gold">R$ {Number(activeSubscription.price).toFixed(2)}</div>
+                  <div className="text-sm text-muted-foreground">/mês</div>
+                  <Button asChild variant="outline" size="sm" className="mt-2 border-gold/20 bg-transparent">
+                    <Link href="/cliente/assinaturas">Gerenciar</Link>
+                  </Button>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        )}
 
         <div className="grid md:grid-cols-3 lg:grid-cols-5 gap-4 mb-8">
           <Link href="/cliente/favoritos">
