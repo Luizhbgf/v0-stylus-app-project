@@ -108,12 +108,12 @@ export default async function AdminDashboard() {
                   <Calendar className="h-6 w-6 text-gold" />
                 </div>
                 <div>
-                  <h3 className="font-semibold text-foreground">Agendamentos</h3>
-                  <p className="text-sm text-muted-foreground">Gerenciar todos os agendamentos</p>
+                  <h3 className="font-semibold text-foreground">Agenda</h3>
+                  <p className="text-sm text-muted-foreground">Ver agenda de todos</p>
                 </div>
               </div>
               <Button asChild className="w-full mt-4 bg-gold hover:bg-gold/90 text-black">
-                <Link href="/admin/agendamentos">Acessar</Link>
+                <Link href="/admin/agenda">Acessar</Link>
               </Button>
             </CardContent>
           </Card>
@@ -126,7 +126,7 @@ export default async function AdminDashboard() {
                 </div>
                 <div>
                   <h3 className="font-semibold text-foreground">Clientes</h3>
-                  <p className="text-sm text-muted-foreground">Gerenciar base de clientes</p>
+                  <p className="text-sm text-muted-foreground">Gerenciar todos os clientes</p>
                 </div>
               </div>
               <Button asChild className="w-full mt-4 bg-gold hover:bg-gold/90 text-black">
@@ -142,8 +142,76 @@ export default async function AdminDashboard() {
                   <Briefcase className="h-6 w-6 text-gold" />
                 </div>
                 <div>
+                  <h3 className="font-semibold text-foreground">Cursos</h3>
+                  <p className="text-sm text-muted-foreground">Gerenciar cursos e treinamentos</p>
+                </div>
+              </div>
+              <Button asChild className="w-full mt-4 bg-gold hover:bg-gold/90 text-black">
+                <Link href="/admin/cursos">Acessar</Link>
+              </Button>
+            </CardContent>
+          </Card>
+
+          <Card className="border-gold/20 hover:shadow-lg transition-shadow">
+            <CardContent className="p-6">
+              <div className="flex items-center gap-4">
+                <div className="p-3 bg-gold/10 rounded-lg">
+                  <DollarSign className="h-6 w-6 text-gold" />
+                </div>
+                <div>
+                  <h3 className="font-semibold text-foreground">Financeiro</h3>
+                  <p className="text-sm text-muted-foreground">Visão financeira completa</p>
+                </div>
+              </div>
+              <Button asChild className="w-full mt-4 bg-gold hover:bg-gold/90 text-black">
+                <Link href="/admin/financeiro">Acessar</Link>
+              </Button>
+            </CardContent>
+          </Card>
+
+          <Card className="border-gold/20 hover:shadow-lg transition-shadow">
+            <CardContent className="p-6">
+              <div className="flex items-center gap-4">
+                <div className="p-3 bg-gold/10 rounded-lg">
+                  <Users className="h-6 w-6 text-gold" />
+                </div>
+                <div>
+                  <h3 className="font-semibold text-foreground">Planos</h3>
+                  <p className="text-sm text-muted-foreground">Gerenciar planos de assinatura</p>
+                </div>
+              </div>
+              <Button asChild className="w-full mt-4 bg-gold hover:bg-gold/90 text-black">
+                <Link href="/admin/planos">Acessar</Link>
+              </Button>
+            </CardContent>
+          </Card>
+
+          <Card className="border-gold/20 hover:shadow-lg transition-shadow">
+            <CardContent className="p-6">
+              <div className="flex items-center gap-4">
+                <div className="p-3 bg-gold/10 rounded-lg">
+                  <TrendingUp className="h-6 w-6 text-gold" />
+                </div>
+                <div>
+                  <h3 className="font-semibold text-foreground">Relatórios</h3>
+                  <p className="text-sm text-muted-foreground">Análises e relatórios</p>
+                </div>
+              </div>
+              <Button asChild className="w-full mt-4 bg-gold hover:bg-gold/90 text-black">
+                <Link href="/admin/relatorios">Acessar</Link>
+              </Button>
+            </CardContent>
+          </Card>
+
+          <Card className="border-gold/20 hover:shadow-lg transition-shadow">
+            <CardContent className="p-6">
+              <div className="flex items-center gap-4">
+                <div className="p-3 bg-gold/10 rounded-lg">
+                  <Briefcase className="h-6 w-6 text-gold" />
+                </div>
+                <div>
                   <h3 className="font-semibold text-foreground">Serviços</h3>
-                  <p className="text-sm text-muted-foreground">Gerenciar serviços oferecidos</p>
+                  <p className="text-sm text-muted-foreground">Gerenciar todos os serviços</p>
                 </div>
               </div>
               <Button asChild className="w-full mt-4 bg-gold hover:bg-gold/90 text-black">
@@ -159,29 +227,12 @@ export default async function AdminDashboard() {
                   <Users className="h-6 w-6 text-gold" />
                 </div>
                 <div>
-                  <h3 className="font-semibold text-foreground">Profissionais</h3>
-                  <p className="text-sm text-muted-foreground">Gerenciar equipe</p>
+                  <h3 className="font-semibold text-foreground">Perfil</h3>
+                  <p className="text-sm text-muted-foreground">Gerenciar perfil</p>
                 </div>
               </div>
               <Button asChild className="w-full mt-4 bg-gold hover:bg-gold/90 text-black">
-                <Link href="/admin/profissionais">Acessar</Link>
-              </Button>
-            </CardContent>
-          </Card>
-
-          <Card className="border-gold/20 hover:shadow-lg transition-shadow">
-            <CardContent className="p-6">
-              <div className="flex items-center gap-4">
-                <div className="p-3 bg-gold/10 rounded-lg">
-                  <DollarSign className="h-6 w-6 text-gold" />
-                </div>
-                <div>
-                  <h3 className="font-semibold text-foreground">Relatórios</h3>
-                  <p className="text-sm text-muted-foreground">Análises e relatórios</p>
-                </div>
-              </div>
-              <Button asChild className="w-full mt-4 bg-gold hover:bg-gold/90 text-black">
-                <Link href="/admin/relatorios">Acessar</Link>
+                <Link href="/admin/perfil">Acessar</Link>
               </Button>
             </CardContent>
           </Card>
