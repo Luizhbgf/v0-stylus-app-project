@@ -2,7 +2,9 @@ import { redirect } from "next/navigation"
 import { createClient } from "@/lib/supabase/server"
 import { Navbar } from "@/components/navbar"
 import { Card, CardContent } from "@/components/ui/card"
-import { Briefcase, Clock } from "lucide-react"
+import { Briefcase, Clock, Plus } from "lucide-react"
+import { Button } from "@/components/ui/button"
+import Link from "next/link"
 
 export default async function StaffServicos() {
   const supabase = await createClient()
@@ -30,9 +32,17 @@ export default async function StaffServicos() {
       <Navbar user={profile} />
 
       <div className="container mx-auto px-4 py-8">
-        <div className="mb-8">
-          <h1 className="text-4xl font-bold text-foreground mb-2">Meus Serviços</h1>
-          <p className="text-muted-foreground">Serviços que você oferece</p>
+        <div className="mb-8 flex items-center justify-between">
+          <div>
+            <h1 className="text-4xl font-bold text-foreground mb-2">Meus Serviços</h1>
+            <p className="text-muted-foreground">Serviços que você oferece</p>
+          </div>
+          <Button asChild className="bg-gold hover:bg-gold/90 text-black">
+            <Link href="/staff/servicos/adicionar">
+              <Plus className="mr-2 h-4 w-4" />
+              Adicionar Serviço
+            </Link>
+          </Button>
         </div>
 
         <div className="grid md:grid-cols-2 gap-4">
@@ -71,6 +81,14 @@ export default async function StaffServicos() {
                       {staffService.service?.is_active ? "Ativo" : "Inativo"}
                     </span>
                   </div>
+                  <div className="flex gap-2 mt-4">
+                    <Button asChild variant="outline" className="flex-1 bg-transparent">
+                      <Link href={`/staff/servicos/${staffService.service_id}`}>Ver Detalhes</Link>
+                    </Button>
+                    <Button asChild className="flex-1 bg-gold hover:bg-gold/90 text-black">
+                      <Link href={`/staff/servicos/${staffService.service_id}/editar`}>Editar</Link>
+                    </Button>
+                  </div>
                 </CardContent>
               </Card>
             ))
@@ -78,7 +96,13 @@ export default async function StaffServicos() {
             <Card className="border-gold/20 md:col-span-2">
               <CardContent className="p-12 text-center">
                 <Briefcase className="h-12 w-12 text-gold mx-auto mb-4" />
-                <p className="text-muted-foreground">Nenhum serviço cadastrado</p>
+                <p className="text-muted-foreground mb-4">Nenhum serviço cadastrado</p>
+                <Button asChild className="bg-gold hover:bg-gold/90 text-black">
+                  <Link href="/staff/servicos/adicionar">
+                    <Plus className="mr-2 h-4 w-4" />
+                    Adicionar Primeiro Serviço
+                  </Link>
+                </Button>
               </CardContent>
             </Card>
           )}
