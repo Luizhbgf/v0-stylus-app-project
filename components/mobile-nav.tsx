@@ -55,7 +55,7 @@ export function MobileNav({ user }: MobileNavProps) {
             <div className="flex flex-col h-full">
               {/* Header */}
               <div className="flex items-center justify-between p-6 border-b border-primary/10">
-                <Image src="/logo.png" alt="Styllus" width={120} height={40} className="object-contain" />
+                <Image src="/logo.png" alt="Styllus" width={140} height={50} className="object-contain" />
                 <Button variant="ghost" size="icon" onClick={() => setIsOpen(false)}>
                   <X className="h-6 w-6" />
                 </Button>

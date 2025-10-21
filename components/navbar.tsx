@@ -49,7 +49,7 @@ export function Navbar({ user }: NavbarProps) {
         <div className="flex items-center justify-between h-16 md:h-20">
           {/* Logo */}
           <Link href="/" className="flex items-center hover:opacity-80 transition-opacity">
-            <Image src="/logo.png" alt="Styllus" width={140} height={50} className="object-contain w-28 md:w-40" />
+            <Image src="/logo.png" alt="Styllus" width={160} height={60} className="object-contain w-32 md:w-44" />
           </Link>
 
           {/* Desktop actions */}
@@ -109,6 +109,11 @@ export function Navbar({ user }: NavbarProps) {
           <div className="flex md:hidden items-center gap-2">
             <ThemeToggle />
             {user?.id && <NotificationsBell userId={user.id} />}
+            {!user && (
+              <Button asChild variant="ghost" size="sm" className="hover:bg-primary/5 font-semibold">
+                <Link href="/auth/login">Entrar</Link>
+              </Button>
+            )}
             <MobileNav user={user} />
           </div>
         </div>
