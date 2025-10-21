@@ -14,6 +14,7 @@ import { useRouter } from "next/navigation"
 import { toast } from "sonner"
 import { ArrowLeft } from "lucide-react"
 import Link from "next/link"
+import { Checkbox } from "@/components/ui/checkbox"
 
 export default function AdicionarAgendamentoAdmin() {
   const [profile, setProfile] = useState<any>(null)
@@ -27,6 +28,8 @@ export default function AdicionarAgendamentoAdmin() {
   const [appointmentDate, setAppointmentDate] = useState("")
   const [appointmentTime, setAppointmentTime] = useState("")
   const [notes, setNotes] = useState("")
+  const [isEventWithoutClient, setIsEventWithoutClient] = useState(false)
+  const [eventTitle, setEventTitle] = useState("")
   const [isLoading, setIsLoading] = useState(false)
   const router = useRouter()
   const supabase = createClient()
@@ -76,17 +79,18 @@ export default function AdicionarAgendamentoAdmin() {
       const appointmentDateTime = new Date(`${appointmentDate}T${appointmentTime}`)
 
       const { error } = await supabase.from("appointments").insert({
-        client_id: selectedClient,
+        client_id: isEventWithoutClient ? null : selectedClient,
         staff_id: selectedStaff,
         service_id: selectedService,
         appointment_date: appointmentDateTime.toISOString(),
         status: "confirmed",
         notes,
+        event_title: isEventWithoutClient ? eventTitle : null,
       })
 
       if (error) throw error
 
-      toast.success("Agendamento criado com sucesso!")
+      toast.success(isEventWithoutClient ? "Evento criado com sucesso!" : "Agendamento criado com sucesso!")
       router.push("/admin/agenda")
     } catch (error) {
       console.error("Erro ao criar agendamento:", error)
@@ -121,21 +125,53 @@ export default function AdicionarAgendamentoAdmin() {
           </CardHeader>
           <CardContent>
             <form onSubmit={handleSubmit} className="space-y-6">
-              <div className="space-y-2">
-                <Label htmlFor="client">Cliente *</Label>
-                <Select value={selectedClient} onValueChange={setSelectedClient} required>
-                  <SelectTrigger className="border-gold/20">
-                    <SelectValue placeholder="Selecione um cliente" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {clients.map((client) => (
-                      <SelectItem key={client.id} value={client.id}>
-                        {client.full_name} - {client.email}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+              <div className="flex items-center space-x-2 p-4 bg-muted/50 rounded-lg border border-gold/20">
+                <Checkbox
+                  id="eventWithoutClient"
+                  checked={isEventWithoutClient}
+                  onCheckedChange={(checked) => {
+                    setIsEventWithoutClient(checked as boolean)
+                    if (checked) {
+                      setSelectedClient("")
+                    } else {
+                      setEventTitle("")
+                    }
+                  }}
+                />
+                <Label htmlFor="eventWithoutClient" className="cursor-pointer">
+                  Evento sem cliente (bloqueio de horário, evento pessoal, etc.)
+                </Label>
               </div>
+
+              {isEventWithoutClient ? (
+                <div className="space-y-2">
+                  <Label htmlFor="eventTitle">Título do Evento *</Label>
+                  <Input
+                    id="eventTitle"
+                    value={eventTitle}
+                    onChange={(e) => setEventTitle(e.target.value)}
+                    placeholder="Ex: Horário bloqueado, Almoço, Reunião..."
+                    className="border-gold/20"
+                    required
+                  />
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  <Label htmlFor="client">Cliente *</Label>
+                  <Select value={selectedClient} onValueChange={setSelectedClient} required>
+                    <SelectTrigger className="border-gold/20">
+                      <SelectValue placeholder="Selecione um cliente" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {clients.map((client) => (
+                        <SelectItem key={client.id} value={client.id}>
+                          {client.full_name} - {client.email}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
 
               <div className="space-y-2">
                 <Label htmlFor="staff">Profissional *</Label>
@@ -210,7 +246,7 @@ export default function AdicionarAgendamentoAdmin() {
 
               <div className="flex gap-4">
                 <Button type="submit" className="flex-1 bg-gold hover:bg-gold/90 text-black" disabled={isLoading}>
-                  {isLoading ? "Criando..." : "Criar Agendamento"}
+                  {isLoading ? "Criando..." : isEventWithoutClient ? "Criar Evento" : "Criar Agendamento"}
                 </Button>
                 <Button type="button" variant="outline" onClick={() => router.back()} disabled={isLoading}>
                   Cancelar
