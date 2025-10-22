@@ -1,7 +1,6 @@
 "use client"
 
 import type React from "react"
-
 import { useState, useEffect } from "react"
 import { createClient } from "@/lib/supabase/client"
 import { Button } from "@/components/ui/button"
@@ -14,7 +13,8 @@ import { useRouter } from "next/navigation"
 import { toast } from "sonner"
 import { ArrowLeft } from "lucide-react"
 import Link from "next/link"
-import { Checkbox } from "@/components/ui/checkbox"
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
+import { Textarea } from "@/components/ui/textarea"
 
 export default function AdicionarAgendamentoStaff() {
   const [profile, setProfile] = useState<any>(null)
@@ -25,8 +25,12 @@ export default function AdicionarAgendamentoStaff() {
   const [appointmentDate, setAppointmentDate] = useState("")
   const [appointmentTime, setAppointmentTime] = useState("")
   const [notes, setNotes] = useState("")
-  const [isEventWithoutClient, setIsEventWithoutClient] = useState(false)
+
+  const [clientType, setClientType] = useState<"registered" | "sporadic" | "none">("registered")
+  const [sporadicName, setSporadicName] = useState("")
+  const [sporadicPhone, setSporadicPhone] = useState("")
   const [eventTitle, setEventTitle] = useState("")
+
   const [isLoading, setIsLoading] = useState(false)
   const router = useRouter()
   const supabase = createClient()
@@ -52,12 +56,13 @@ export default function AdicionarAgendamentoStaff() {
     setClients(clientsData || [])
 
     // Load staff services
-    const { data: servicesData } = await supabase
-      .from("services")
-      .select("*")
+    const { data: staffServicesData } = await supabase
+      .from("staff_services")
+      .select("service_id, services(*)")
       .eq("staff_id", user.id)
-      .eq("active", true)
-    setServices(servicesData || [])
+
+    const servicesData = staffServicesData?.map((ss) => ss.services).filter(Boolean) || []
+    setServices(servicesData)
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -70,21 +75,43 @@ export default function AdicionarAgendamentoStaff() {
       } = await supabase.auth.getUser()
       if (!user) throw new Error("Usuário não autenticado")
 
+      if (clientType === "registered" && !selectedClient) {
+        toast.error("Selecione um cliente")
+        setIsLoading(false)
+        return
+      }
+
+      if (clientType === "sporadic" && (!sporadicName || !sporadicPhone)) {
+        toast.error("Preencha o nome e telefone do cliente esporádico")
+        setIsLoading(false)
+        return
+      }
+
+      if (clientType === "none" && !eventTitle) {
+        toast.error("Preencha o título do evento")
+        setIsLoading(false)
+        return
+      }
+
       const appointmentDateTime = new Date(`${appointmentDate}T${appointmentTime}`)
 
       const { error } = await supabase.from("appointments").insert({
-        client_id: isEventWithoutClient ? null : selectedClient,
+        client_id: clientType === "registered" ? selectedClient : null,
         staff_id: user.id,
-        service_id: selectedService,
+        service_id: selectedService || null,
         appointment_date: appointmentDateTime.toISOString(),
         status: "confirmed",
         notes,
-        event_title: isEventWithoutClient ? eventTitle : null,
+        client_type: clientType === "sporadic" ? "sporadic" : "registered",
+        sporadic_client_name: clientType === "sporadic" ? sporadicName : null,
+        sporadic_client_phone: clientType === "sporadic" ? sporadicPhone : null,
+        event_title: clientType === "none" ? eventTitle : null,
+        payment_status: "pending",
       })
 
       if (error) throw error
 
-      toast.success(isEventWithoutClient ? "Evento criado com sucesso!" : "Agendamento criado com sucesso!")
+      toast.success("Agendamento criado com sucesso!")
       router.push("/staff/agenda")
     } catch (error) {
       console.error("Erro ao criar agendamento:", error)
@@ -110,7 +137,7 @@ export default function AdicionarAgendamentoStaff() {
             Voltar para Agenda
           </Link>
           <h1 className="text-3xl font-bold text-foreground">Adicionar Agendamento</h1>
-          <p className="text-muted-foreground">Crie um novo agendamento para seus clientes</p>
+          <p className="text-muted-foreground">Crie um novo agendamento na sua agenda</p>
         </div>
 
         <Card className="border-gold/20">
@@ -119,37 +146,31 @@ export default function AdicionarAgendamentoStaff() {
           </CardHeader>
           <CardContent>
             <form onSubmit={handleSubmit} className="space-y-6">
-              <div className="flex items-center space-x-2 p-4 bg-muted/50 rounded-lg border border-gold/20">
-                <Checkbox
-                  id="eventWithoutClient"
-                  checked={isEventWithoutClient}
-                  onCheckedChange={(checked) => {
-                    setIsEventWithoutClient(checked as boolean)
-                    if (checked) {
-                      setSelectedClient("")
-                    } else {
-                      setEventTitle("")
-                    }
-                  }}
-                />
-                <Label htmlFor="eventWithoutClient" className="cursor-pointer">
-                  Evento sem cliente (bloqueio de horário, evento pessoal, etc.)
-                </Label>
+              <div className="space-y-3">
+                <Label>Tipo de Agendamento *</Label>
+                <RadioGroup value={clientType} onValueChange={(value: any) => setClientType(value)}>
+                  <div className="flex items-center space-x-2 p-3 border border-gold/20 rounded-lg">
+                    <RadioGroupItem value="registered" id="registered" />
+                    <Label htmlFor="registered" className="cursor-pointer flex-1">
+                      Cliente Cadastrado
+                    </Label>
+                  </div>
+                  <div className="flex items-center space-x-2 p-3 border border-gold/20 rounded-lg">
+                    <RadioGroupItem value="sporadic" id="sporadic" />
+                    <Label htmlFor="sporadic" className="cursor-pointer flex-1">
+                      Cliente Esporádico (sem cadastro)
+                    </Label>
+                  </div>
+                  <div className="flex items-center space-x-2 p-3 border border-gold/20 rounded-lg">
+                    <RadioGroupItem value="none" id="none" />
+                    <Label htmlFor="none" className="cursor-pointer flex-1">
+                      Evento sem Cliente (bloqueio, reunião, etc.)
+                    </Label>
+                  </div>
+                </RadioGroup>
               </div>
 
-              {isEventWithoutClient ? (
-                <div className="space-y-2">
-                  <Label htmlFor="eventTitle">Título do Evento *</Label>
-                  <Input
-                    id="eventTitle"
-                    value={eventTitle}
-                    onChange={(e) => setEventTitle(e.target.value)}
-                    placeholder="Ex: Horário bloqueado, Almoço, Reunião..."
-                    className="border-gold/20"
-                    required
-                  />
-                </div>
-              ) : (
+              {clientType === "registered" && (
                 <div className="space-y-2">
                   <Label htmlFor="client">Cliente *</Label>
                   <Select value={selectedClient} onValueChange={setSelectedClient} required>
@@ -167,14 +188,55 @@ export default function AdicionarAgendamentoStaff() {
                 </div>
               )}
 
+              {clientType === "sporadic" && (
+                <>
+                  <div className="space-y-2">
+                    <Label htmlFor="sporadicName">Nome do Cliente *</Label>
+                    <Input
+                      id="sporadicName"
+                      value={sporadicName}
+                      onChange={(e) => setSporadicName(e.target.value)}
+                      placeholder="Nome completo"
+                      className="border-gold/20"
+                      required
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="sporadicPhone">Telefone *</Label>
+                    <Input
+                      id="sporadicPhone"
+                      value={sporadicPhone}
+                      onChange={(e) => setSporadicPhone(e.target.value)}
+                      placeholder="(00) 00000-0000"
+                      className="border-gold/20"
+                      required
+                    />
+                  </div>
+                </>
+              )}
+
+              {clientType === "none" && (
+                <div className="space-y-2">
+                  <Label htmlFor="eventTitle">Título do Evento *</Label>
+                  <Input
+                    id="eventTitle"
+                    value={eventTitle}
+                    onChange={(e) => setEventTitle(e.target.value)}
+                    placeholder="Ex: Horário bloqueado, Almoço, Reunião..."
+                    className="border-gold/20"
+                    required
+                  />
+                </div>
+              )}
+
               <div className="space-y-2">
-                <Label htmlFor="service">Serviço *</Label>
-                <Select value={selectedService} onValueChange={setSelectedService} required>
+                <Label htmlFor="service">Serviço {clientType !== "none" && "*"}</Label>
+                <Select value={selectedService} onValueChange={setSelectedService} required={clientType !== "none"}>
                   <SelectTrigger className="border-gold/20">
                     <SelectValue placeholder="Selecione um serviço" />
                   </SelectTrigger>
                   <SelectContent>
-                    {services.map((service) => (
+                    {services.map((service: any) => (
                       <SelectItem key={service.id} value={service.id}>
                         {service.name} - R$ {service.price} ({service.duration} min)
                       </SelectItem>
@@ -183,7 +245,7 @@ export default function AdicionarAgendamentoStaff() {
                 </Select>
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label htmlFor="date">Data *</Label>
                   <Input
@@ -211,18 +273,19 @@ export default function AdicionarAgendamentoStaff() {
 
               <div className="space-y-2">
                 <Label htmlFor="notes">Observações</Label>
-                <Input
+                <Textarea
                   id="notes"
                   value={notes}
                   onChange={(e) => setNotes(e.target.value)}
                   placeholder="Observações adicionais..."
                   className="border-gold/20"
+                  rows={3}
                 />
               </div>
 
-              <div className="flex gap-4">
+              <div className="flex flex-col sm:flex-row gap-4">
                 <Button type="submit" className="flex-1 bg-gold hover:bg-gold/90 text-black" disabled={isLoading}>
-                  {isLoading ? "Criando..." : isEventWithoutClient ? "Criar Evento" : "Criar Agendamento"}
+                  {isLoading ? "Criando..." : "Criar Agendamento"}
                 </Button>
                 <Button type="button" variant="outline" onClick={() => router.back()} disabled={isLoading}>
                   Cancelar
