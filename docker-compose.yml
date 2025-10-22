@@ -1,0 +1,64 @@
+version: '3.8'
+
+services:
+  # Ambiente de Desenvolvimento
+  styllus-dev:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: builder
+    container_name: styllus-dev
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=development
+      - NEXT_PUBLIC_APP_ENV=development
+    env_file:
+      - .env.development
+    volumes:
+      - .:/app
+      - /app/node_modules
+      - /app/.next
+    command: pnpm dev
+    networks:
+      - styllus-network
+
+  # Ambiente de Homologação
+  styllus-staging:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: runner
+    container_name: styllus-staging
+    ports:
+      - "3001:3000"
+    environment:
+      - NODE_ENV=production
+      - NEXT_PUBLIC_APP_ENV=staging
+    env_file:
+      - .env.staging
+    networks:
+      - styllus-network
+    restart: unless-stopped
+
+  # Ambiente de Produção (local)
+  styllus-production:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: runner
+    container_name: styllus-production
+    ports:
+      - "3002:3000"
+    environment:
+      - NODE_ENV=production
+      - NEXT_PUBLIC_APP_ENV=production
+    env_file:
+      - .env.production
+    networks:
+      - styllus-network
+    restart: unless-stopped
+
+networks:
+  styllus-network:
+    driver: bridge

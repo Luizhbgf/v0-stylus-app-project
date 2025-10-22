@@ -5,6 +5,13 @@
   "scripts": {
     "build": "next build",
     "dev": "next dev",
+    "docker:all": "docker-compose up -d",
+    "docker:build": "docker-compose build",
+    "docker:dev": "docker-compose up styllus-dev",
+    "docker:down": "docker-compose down",
+    "docker:logs": "docker-compose logs -f",
+    "docker:prod": "docker-compose up styllus-production",
+    "docker:staging": "docker-compose up styllus-staging",
     "lint": "next lint",
     "start": "next start"
   },
