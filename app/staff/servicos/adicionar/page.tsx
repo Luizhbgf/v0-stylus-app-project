@@ -1,7 +1,6 @@
 "use client"
 
 import type React from "react"
-
 import { useState, useEffect } from "react"
 import { createClient } from "@/lib/supabase/client"
 import { Button } from "@/components/ui/button"
@@ -12,8 +11,14 @@ import { Textarea } from "@/components/ui/textarea"
 import { Navbar } from "@/components/navbar"
 import { useRouter } from "next/navigation"
 import { toast } from "sonner"
-import { ArrowLeft } from "lucide-react"
+import { ArrowLeft, Plus, X } from "lucide-react"
 import Link from "next/link"
+
+interface ServiceExtra {
+  name: string
+  description: string
+  price: string
+}
 
 export default function AdicionarServico() {
   const [profile, setProfile] = useState<any>(null)
@@ -22,6 +27,7 @@ export default function AdicionarServico() {
   const [price, setPrice] = useState("")
   const [duration, setDuration] = useState("")
   const [category, setCategory] = useState("")
+  const [extras, setExtras] = useState<ServiceExtra[]>([])
   const [isLoading, setIsLoading] = useState(false)
   const router = useRouter()
   const supabase = createClient()
@@ -87,6 +93,23 @@ export default function AdicionarServico() {
 
       console.log("[v0] Service linked to staff successfully")
 
+      if (extras.length > 0) {
+        const extrasToInsert = extras
+          .filter((extra) => extra.name && extra.price)
+          .map((extra) => ({
+            service_id: serviceData.id,
+            name: extra.name,
+            description: extra.description || null,
+            price: Number.parseFloat(extra.price),
+            is_active: true,
+          }))
+
+        if (extrasToInsert.length > 0) {
+          const { error: extrasError } = await supabase.from("service_extras").insert(extrasToInsert)
+          if (extrasError) throw extrasError
+        }
+      }
+
       toast.success("Serviço criado com sucesso!")
       router.push("/staff/servicos")
       router.refresh()
@@ -96,6 +119,20 @@ export default function AdicionarServico() {
     } finally {
       setIsLoading(false)
     }
+  }
+
+  const addExtra = () => {
+    setExtras([...extras, { name: "", description: "", price: "" }])
+  }
+
+  const removeExtra = (index: number) => {
+    setExtras(extras.filter((_, i) => i !== index))
+  }
+
+  const updateExtra = (index: number, field: keyof ServiceExtra, value: string) => {
+    const newExtras = [...extras]
+    newExtras[index][field] = value
+    setExtras(newExtras)
   }
 
   if (!profile) return null
@@ -187,6 +224,73 @@ export default function AdicionarServico() {
                     required
                   />
                 </div>
+              </div>
+
+              <div className="space-y-4 pt-4 border-t border-primary/20">
+                <div className="flex items-center justify-between">
+                  <Label className="text-base">Adicionais (Opcionais)</Label>
+                  <Button type="button" variant="outline" size="sm" onClick={addExtra}>
+                    <Plus className="h-4 w-4 mr-2" />
+                    Adicionar Extra
+                  </Button>
+                </div>
+
+                {extras.map((extra, index) => (
+                  <Card key={index} className="border-primary/10">
+                    <CardContent className="pt-4 space-y-3">
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="text-sm font-medium">Adicional {index + 1}</span>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => removeExtra(index)}
+                          className="h-8 w-8 p-0"
+                        >
+                          <X className="h-4 w-4" />
+                        </Button>
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label htmlFor={`extra-name-${index}`}>Nome do Adicional *</Label>
+                        <Input
+                          id={`extra-name-${index}`}
+                          value={extra.name}
+                          onChange={(e) => updateExtra(index, "name", e.target.value)}
+                          placeholder="Ex: Desenho, Barba, Sobrancelha"
+                          className="border-primary/20"
+                          required
+                        />
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label htmlFor={`extra-description-${index}`}>Descrição</Label>
+                        <Input
+                          id={`extra-description-${index}`}
+                          value={extra.description}
+                          onChange={(e) => updateExtra(index, "description", e.target.value)}
+                          placeholder="Descrição do adicional"
+                          className="border-primary/20"
+                        />
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label htmlFor={`extra-price-${index}`}>Preço (R$) *</Label>
+                        <Input
+                          id={`extra-price-${index}`}
+                          type="number"
+                          step="0.01"
+                          min="0"
+                          value={extra.price}
+                          onChange={(e) => updateExtra(index, "price", e.target.value)}
+                          placeholder="0.00"
+                          className="border-primary/20"
+                          required
+                        />
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
               </div>
 
               <div className="flex flex-col sm:flex-row gap-3 pt-2">
