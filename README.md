@@ -17,8 +17,6 @@ Sistema robusto e escalável de agendamento online para salão de beleza e esté
 - **Responsivo**: Funciona perfeitamente em desktop, tablet e mobile
 - **Performance**: Otimizado para alta performance e escalabilidade
 - **PWA Ready**: Preparado para ser instalado como app em dispositivos móveis
-- **Docker**: Ambientes containerizados para desenvolvimento, homologação e produção
-- **CI/CD**: Pipeline automatizado com GitHub Actions
 
 ## 🛠️ Tecnologias
 
@@ -29,8 +27,6 @@ Sistema robusto e escalável de agendamento online para salão de beleza e esté
 - **shadcn/ui**: Componentes de UI de alta qualidade
 - **Lucide Icons**: Ícones modernos e elegantes
 - **Sonner**: Sistema de notificações toast
-- **Docker**: Containerização para ambientes isolados
-- **GitHub Actions**: CI/CD automatizado
 
 ## 🔐 Autenticação e Segurança
 
@@ -58,15 +54,6 @@ Execute os scripts na ordem para configurar o banco de dados:
 2. `scripts/002_create_profile_trigger.sql` - Trigger para criar perfil automaticamente
 3. `scripts/003_seed_data.sql` - Dados iniciais de serviços
 4. `scripts/004_create_notifications.sql` - Sistema de notificações
-5. `scripts/005_create_client_features.sql` - Funcionalidades do cliente
-6. `scripts/006_create_appointment_requests.sql` - Sistema de solicitações
-7. `scripts/007_create_staff_features.sql` - Funcionalidades do staff
-8. `scripts/008_add_staff_portfolio.sql` - Portfolio dos profissionais
-9. `scripts/009_create_feedback_system.sql` - Sistema de feedback
-10. `scripts/010_allow_appointments_without_client.sql` - Eventos sem cliente
-11. `scripts/011_fix_services_rls.sql` - Correção de políticas RLS
-12. `scripts/012_enhance_appointments_system.sql` - Melhorias no sistema de agendamentos
-13. `scripts/013_add_missing_columns.sql` - Colunas adicionais
 
 ## 🔔 Sistema de Notificações
 
@@ -78,83 +65,21 @@ O sistema envia notificações automáticas para clientes:
 
 Para ativar os lembretes automáticos, configure um cron job para executar a função `send_appointment_reminders()` a cada hora.
 
-## 🐳 Ambientes e Docker
-
-O projeto suporta três ambientes isolados:
-
-### Desenvolvimento
-\`\`\`bash
-# Iniciar ambiente de desenvolvimento
-npm run docker:dev
-# ou
-docker-compose up styllus-dev
-
-# Acesse em http://localhost:3000
-\`\`\`
-
-### Homologação (Staging)
-\`\`\`bash
-# Iniciar ambiente de homologação
-npm run docker:staging
-# ou
-docker-compose up styllus-staging
-
-# Acesse em http://localhost:3001
-\`\`\`
-
-### Produção (Local)
-\`\`\`bash
-# Iniciar ambiente de produção
-npm run docker:prod
-# ou
-docker-compose up styllus-production
-
-# Acesse em http://localhost:3002
-\`\`\`
-
-### Todos os Ambientes
-\`\`\`bash
-# Iniciar todos os ambientes simultaneamente
-npm run docker:all
-
-# Ver logs
-npm run docker:logs
-
-# Parar todos
-npm run docker:down
-\`\`\`
-
 ## 📱 Deploy
 
-### Vercel (Recomendado para Produção)
+### Vercel (Recomendado)
 1. Clique no botão "Publish" no topo da página
 2. Conecte sua conta Vercel
 3. Configure as variáveis de ambiente do Supabase
 4. O deploy será feito automaticamente
 
-O Vercel oferece:
-- **Preview Deployments**: Cada branch/PR gera uma URL de preview automaticamente
-- **Production**: Branch `main` é deployado em produção
-- **Edge Network**: Deploy global para menor latência
-
 ### Variáveis de Ambiente Necessárias
 
 Configure no painel da Vercel ou na seção "Vars" do v0:
 
-#### Desenvolvimento
-- `NEXT_PUBLIC_SUPABASE_URL`: URL do projeto Supabase Dev
-- `NEXT_PUBLIC_SUPABASE_ANON_KEY`: Chave anônima do Supabase Dev
-- `NEXT_PUBLIC_DEV_SUPABASE_REDIRECT_URL`: http://localhost:3000/auth/callback
-
-#### Staging
-- `NEXT_PUBLIC_SUPABASE_URL`: URL do projeto Supabase Staging
-- `NEXT_PUBLIC_SUPABASE_ANON_KEY`: Chave anônima do Supabase Staging
-- `NEXT_PUBLIC_DEV_SUPABASE_REDIRECT_URL`: https://staging.seu-dominio.com/auth/callback
-
-#### Produção
-- `NEXT_PUBLIC_SUPABASE_URL`: URL do projeto Supabase Prod
-- `NEXT_PUBLIC_SUPABASE_ANON_KEY`: Chave anônima do Supabase Prod
-- `NEXT_PUBLIC_DEV_SUPABASE_REDIRECT_URL`: https://seu-dominio.com/auth/callback
+- `NEXT_PUBLIC_SUPABASE_URL`: URL do projeto Supabase
+- `NEXT_PUBLIC_SUPABASE_ANON_KEY`: Chave anônima do Supabase
+- `NEXT_PUBLIC_DEV_SUPABASE_REDIRECT_URL`: URL de redirect para desenvolvimento (opcional)
 
 ### Outras Plataformas
 - **Google Play**: Use Capacitor para gerar APK
@@ -162,59 +87,19 @@ Configure no painel da Vercel ou na seção "Vars" do v0:
 
 ## 🔧 Configuração Local
 
-### Sem Docker
 \`\`\`bash
 # Instalar dependências
-pnpm install
+npm install
 
 # Rodar em desenvolvimento
-pnpm dev
+npm run dev
 
 # Build para produção
-pnpm build
+npm run build
 
 # Iniciar produção
-pnpm start
+npm start
 \`\`\`
-
-### Com Docker
-\`\`\`bash
-# Copiar arquivos de exemplo
-cp .env.development.example .env.development
-cp .env.staging.example .env.staging
-cp .env.production.example .env.production
-
-# Editar os arquivos .env com suas credenciais Supabase
-
-# Iniciar ambiente desejado
-pnpm docker:dev
-\`\`\`
-
-## 🔄 CI/CD Pipeline
-
-O projeto inclui pipeline automatizado com GitHub Actions:
-
-### Fluxo de Trabalho
-
-1. **Push para `develop`**: 
-   - Executa testes de qualidade (lint, type check)
-   - Build de desenvolvimento
-   
-2. **Push para `staging`**:
-   - Executa testes de qualidade
-   - Build de staging
-   - Cria imagem Docker
-
-3. **Push para `main`**:
-   - Executa testes de qualidade
-   - Deploy automático para Vercel Production
-
-### Configurar GitHub Actions
-
-Adicione os seguintes secrets no GitHub (Settings > Secrets):
-- `VERCEL_TOKEN`: Token de acesso do Vercel
-- `VERCEL_ORG_ID`: ID da organização Vercel
-- `VERCEL_PROJECT_ID`: ID do projeto Vercel
 
 ## 📊 Escalabilidade
 
@@ -226,8 +111,6 @@ O sistema foi desenvolvido para suportar até 500 usuários simultâneos atravé
 - **Otimização de Imagens**: Next.js Image para carregamento eficiente
 - **Code Splitting**: Carregamento sob demanda de componentes
 - **Edge Runtime**: Deploy em edge para menor latência
-- **Docker**: Isolamento e escalabilidade horizontal
-- **Load Balancing**: Suporte a múltiplas instâncias
 
 ## 🎨 Personalização
 
@@ -247,8 +130,6 @@ As cores e estilos podem ser personalizados no arquivo `app/globals.css` atravé
 - Ver histórico de serviços
 - Receber notificações em tempo real
 - Visualizar solicitações pendentes
-- Gerenciar favoritos
-- Acompanhar pagamentos e assinaturas
 
 ### Staff (Nível 20)
 - Aprovar/rejeitar solicitações de agendamento
@@ -256,40 +137,19 @@ As cores e estilos podem ser personalizados no arquivo `app/globals.css` atravé
 - Visualizar agenda do dia
 - Gerenciar seus agendamentos
 - Marcar serviços como concluídos
-- Adicionar clientes esporádicos
-- Criar eventos sem cliente
-- Gerenciar serviços oferecidos
-- Personalizar perfil com portfolio
 
 ### Admin (Nível 30)
 - Acesso a todas as funcionalidades de Staff
 - Visualizar estatísticas gerais
 - Gerenciar clientes
-- Gerenciar todos os serviços
+- Gerenciar serviços
 - Gerenciar profissionais
-- Visualizar relatórios detalhados
-- Acessar agenda de todos os profissionais
-- Gerenciar planos de assinatura
-- Gerenciar cursos
-- Análise de feedback e lucratividade
+- Visualizar relatórios
 
 ### Super Admin (Nível 40)
 - Acesso a todas as funcionalidades de Admin
 - Configurações avançadas do sistema
 - Gerenciar níveis de acesso de usuários
-
-## 📚 Documentação Adicional
-
-- [DEPLOYMENT.md](./DEPLOYMENT.md) - Guia completo de deploy e ambientes
-- [OAUTH_SETUP.md](./OAUTH_SETUP.md) - Configuração de login social (Google/Apple)
-
-## 🤝 Contribuindo
-
-1. Fork o projeto
-2. Crie uma branch para sua feature (`git checkout -b feature/AmazingFeature`)
-3. Commit suas mudanças (`git commit -m 'Add some AmazingFeature'`)
-4. Push para a branch (`git push origin feature/AmazingFeature`)
-5. Abra um Pull Request
 
 ## 📄 Licença
 
