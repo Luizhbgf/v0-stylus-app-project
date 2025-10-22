@@ -1,3 +1,4 @@
+-- Reescrevendo script para usar staff_id consistentemente
 -- Add new columns to appointments table for enhanced functionality
 ALTER TABLE public.appointments 
 ADD COLUMN IF NOT EXISTS client_type TEXT DEFAULT 'registered', -- registered, sporadic
@@ -15,7 +16,7 @@ ADD COLUMN IF NOT EXISTS payment_status TEXT DEFAULT 'pending'; -- pending, paid
 CREATE TABLE IF NOT EXISTS public.appointment_requests (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   client_id UUID REFERENCES public.profiles(id) ON DELETE CASCADE,
-  professional_id UUID REFERENCES public.profiles(id) ON DELETE CASCADE,
+  staff_id UUID REFERENCES public.profiles(id) ON DELETE CASCADE,
   service_id UUID REFERENCES public.services(id) ON DELETE CASCADE,
   requested_date TIMESTAMP WITH TIME ZONE NOT NULL,
   alternative_dates JSONB, -- Array of alternative dates
@@ -33,7 +34,7 @@ ALTER TABLE public.appointment_requests ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "Users can view own appointment requests" ON public.appointment_requests
   FOR SELECT USING (
     auth.uid() = client_id OR 
-    auth.uid() = professional_id OR
+    auth.uid() = staff_id OR
     EXISTS (
       SELECT 1 FROM public.profiles
       WHERE profiles.id = auth.uid() AND profiles.user_level >= 20
@@ -67,5 +68,5 @@ CREATE POLICY "Users can create appointments" ON public.appointments
 CREATE INDEX IF NOT EXISTS idx_appointments_client_type ON public.appointments(client_type);
 CREATE INDEX IF NOT EXISTS idx_appointments_payment_status ON public.appointments(payment_status);
 CREATE INDEX IF NOT EXISTS idx_appointment_requests_status ON public.appointment_requests(status);
-CREATE INDEX IF NOT EXISTS idx_appointment_requests_professional ON public.appointment_requests(professional_id);
+CREATE INDEX IF NOT EXISTS idx_appointment_requests_staff ON public.appointment_requests(staff_id);
 CREATE INDEX IF NOT EXISTS idx_appointment_requests_client ON public.appointment_requests(client_id);
