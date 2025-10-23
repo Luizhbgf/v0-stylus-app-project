@@ -15,8 +15,12 @@ ADD COLUMN IF NOT EXISTS working_hours JSONB DEFAULT '{"monday": {"start": "09:0
 CREATE INDEX IF NOT EXISTS idx_appointments_recurring ON public.appointments(is_recurring, parent_appointment_id);
 CREATE INDEX IF NOT EXISTS idx_profiles_staff_status ON public.profiles(staff_status) WHERE user_level >= 20;
 
+-- Removendo políticas antigas antes de criar novas (PostgreSQL não suporta IF NOT EXISTS em CREATE POLICY)
+DROP POLICY IF EXISTS "Staff can update own status" ON public.profiles;
+DROP POLICY IF EXISTS "Admin can update staff status" ON public.profiles;
+
 -- Update RLS policies to allow staff to manage their own status
-CREATE POLICY IF NOT EXISTS "Staff can update own status"
+CREATE POLICY "Staff can update own status"
 ON public.profiles
 FOR UPDATE
 TO authenticated
@@ -24,7 +28,7 @@ USING (auth.uid() = id AND user_level >= 20)
 WITH CHECK (auth.uid() = id AND user_level >= 20);
 
 -- Allow admin to update any staff status
-CREATE POLICY IF NOT EXISTS "Admin can update staff status"
+CREATE POLICY "Admin can update staff status"
 ON public.profiles
 FOR UPDATE
 TO authenticated
