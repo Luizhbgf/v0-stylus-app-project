@@ -2,7 +2,9 @@ import { redirect } from "next/navigation"
 import { createClient } from "@/lib/supabase/server"
 import { Navbar } from "@/components/navbar"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { User, Mail, Phone, Shield } from "lucide-react"
+import { Button } from "@/components/ui/button"
+import { User, Mail, Phone, Shield, Edit } from "lucide-react"
+import Link from "next/link"
 
 export default async function AdminPerfilPage() {
   const supabase = await createClient()
@@ -34,9 +36,17 @@ export default async function AdminPerfilPage() {
       <Navbar user={profile} />
 
       <div className="container mx-auto px-4 py-8">
-        <div className="mb-8">
-          <h1 className="text-4xl font-bold text-foreground mb-2">Meu Perfil</h1>
-          <p className="text-muted-foreground">Informações da sua conta</p>
+        <div className="mb-8 flex items-center justify-between">
+          <div>
+            <h1 className="text-4xl font-bold text-foreground mb-2">Meu Perfil</h1>
+            <p className="text-muted-foreground">Informações da sua conta</p>
+          </div>
+          <Link href="/admin/perfil/editar">
+            <Button className="bg-gold hover:bg-gold/90 text-black">
+              <Edit className="h-4 w-4 mr-2" />
+              Editar Perfil
+            </Button>
+          </Link>
         </div>
 
         <div className="max-w-2xl">
