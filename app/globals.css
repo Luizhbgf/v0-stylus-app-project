@@ -3,20 +3,20 @@
 
 @custom-variant dark (&:is(.dark *));
 
-/* Updated color scheme to black, white, and gold */
+/* Updated color scheme to teal green (#054547), white, and gold with smooth transitions */
 :root {
   --background: oklch(0.99 0 0); /* White */
-  --foreground: oklch(0.15 0 0); /* Black */
+  --foreground: oklch(0.25 0.05 180); /* Dark teal */
   --card: oklch(1 0 0); /* Pure white */
-  --card-foreground: oklch(0.15 0 0); /* Black */
+  --card-foreground: oklch(0.25 0.05 180); /* Dark teal */
   --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.15 0 0);
+  --popover-foreground: oklch(0.25 0.05 180);
   --primary: oklch(0.65 0.15 85); /* Gold */
   --primary-foreground: oklch(0.15 0 0); /* Black */
   --secondary: oklch(0.95 0.01 85); /* Light gold tint */
-  --secondary-foreground: oklch(0.15 0 0);
+  --secondary-foreground: oklch(0.25 0.05 180);
   --muted: oklch(0.96 0 0); /* Light gray */
-  --muted-foreground: oklch(0.45 0 0); /* Dark gray */
+  --muted-foreground: oklch(0.45 0.03 180); /* Muted teal */
   --accent: oklch(0.55 0.18 75); /* Darker gold */
   --accent-foreground: oklch(1 0 0); /* White */
   --destructive: oklch(0.577 0.245 27.325);
@@ -31,48 +31,48 @@
   --chart-5: oklch(0.6 0.16 70);
   --radius: 0.625rem;
   --sidebar: oklch(0.99 0 0);
-  --sidebar-foreground: oklch(0.15 0 0);
+  --sidebar-foreground: oklch(0.25 0.05 180);
   --sidebar-primary: oklch(0.65 0.15 85);
   --sidebar-primary-foreground: oklch(0.15 0 0);
   --sidebar-accent: oklch(0.95 0.01 85);
-  --sidebar-accent-foreground: oklch(0.15 0 0);
+  --sidebar-accent-foreground: oklch(0.25 0.05 180);
   --sidebar-border: oklch(0.9 0 0);
   --sidebar-ring: oklch(0.65 0.15 85);
 }
 
-/* Dark mode with black background, white text, and gold accents */
+/* Dark mode with deep teal (#054547) background, white text, and gold accents */
 .dark {
-  --background: oklch(0.12 0 0); /* Deep black */
+  --background: oklch(0.18 0.04 185); /* Deep teal #054547 */
   --foreground: oklch(0.98 0 0); /* White */
-  --card: oklch(0.18 0 0); /* Dark gray card */
+  --card: oklch(0.22 0.04 185); /* Slightly lighter teal card */
   --card-foreground: oklch(0.98 0 0);
-  --popover: oklch(0.15 0 0);
+  --popover: oklch(0.2 0.04 185);
   --popover-foreground: oklch(0.98 0 0);
   --primary: oklch(0.7 0.15 85); /* Bright gold */
-  --primary-foreground: oklch(0.12 0 0); /* Black */
-  --secondary: oklch(0.25 0.02 85); /* Dark gold tint */
+  --primary-foreground: oklch(0.15 0 0); /* Black */
+  --secondary: oklch(0.28 0.04 185); /* Dark teal tint */
   --secondary-foreground: oklch(0.98 0 0);
-  --muted: oklch(0.22 0 0); /* Dark muted */
-  --muted-foreground: oklch(0.65 0 0); /* Light gray text */
+  --muted: oklch(0.25 0.04 185); /* Dark muted teal */
+  --muted-foreground: oklch(0.65 0.02 180); /* Light teal-gray text */
   --accent: oklch(0.6 0.18 75); /* Gold accent */
   --accent-foreground: oklch(0.98 0 0);
   --destructive: oklch(0.5 0.2 27);
   --destructive-foreground: oklch(0.98 0 0);
-  --border: oklch(0.25 0 0); /* Dark border */
-  --input: oklch(0.25 0 0);
+  --border: oklch(0.3 0.04 185); /* Dark teal border */
+  --input: oklch(0.3 0.04 185);
   --ring: oklch(0.7 0.15 85);
   --chart-1: oklch(0.7 0.15 85);
   --chart-2: oklch(0.6 0.18 75);
   --chart-3: oklch(0.5 0.12 80);
   --chart-4: oklch(0.8 0.12 90);
   --chart-5: oklch(0.65 0.16 70);
-  --sidebar: oklch(0.15 0 0);
+  --sidebar: oklch(0.2 0.04 185);
   --sidebar-foreground: oklch(0.98 0 0);
   --sidebar-primary: oklch(0.7 0.15 85);
-  --sidebar-primary-foreground: oklch(0.12 0 0);
-  --sidebar-accent: oklch(0.25 0.02 85);
+  --sidebar-primary-foreground: oklch(0.15 0 0);
+  --sidebar-accent: oklch(0.28 0.04 185);
   --sidebar-accent-foreground: oklch(0.98 0 0);
-  --sidebar-border: oklch(0.25 0 0);
+  --sidebar-border: oklch(0.3 0.04 185);
   --sidebar-ring: oklch(0.7 0.15 85);
 }
 
@@ -123,6 +123,11 @@
 @layer base {
   * {
     @apply border-border outline-ring/50;
+    /* Add smooth transitions to all elements */
+    transition-property: color, background-color, border-color, text-decoration-color, fill, stroke, opacity, box-shadow,
+      transform;
+    transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+    transition-duration: 200ms;
   }
   body {
     @apply bg-background text-foreground;
@@ -131,4 +136,50 @@
 
 body {
   font-feature-settings: "rlig" 1, "calt" 1;
+}
+
+/* Add fluid animations and hover effects */
+@layer utilities {
+  .animate-float {
+    animation: float 3s ease-in-out infinite;
+  }
+
+  .animate-pulse-slow {
+    animation: pulse 4s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+  }
+
+  .hover-lift {
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+  }
+
+  .hover-lift:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 12px 24px -8px rgba(0, 0, 0, 0.2);
+  }
+
+  .hover-scale {
+    transition: transform 0.2s ease;
+  }
+
+  .hover-scale:hover {
+    transform: scale(1.05);
+  }
+
+  .hover-glow {
+    transition: box-shadow 0.3s ease;
+  }
+
+  .hover-glow:hover {
+    box-shadow: 0 0 20px rgba(var(--primary), 0.4);
+  }
+}
+
+@keyframes float {
+  0%,
+  100% {
+    transform: translateY(0px);
+  }
+  50% {
+    transform: translateY(-10px);
+  }
 }
