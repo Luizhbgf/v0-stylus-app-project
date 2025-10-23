@@ -9,8 +9,10 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Navbar } from "@/components/navbar"
 import { useRouter, useParams } from "next/navigation"
 import { toast } from "sonner"
-import { ArrowLeft, UserX, Trash2 } from "lucide-react"
+import { ArrowLeft, UserX, Trash2, Clock } from "lucide-react"
 import Link from "next/link"
+import { Input } from "@/components/ui/input"
+import { Checkbox } from "@/components/ui/checkbox"
 import {
   AlertDialog,
   AlertDialogAction,
@@ -29,6 +31,10 @@ export default function GerenciarUsuario() {
   const [userLevel, setUserLevel] = useState("")
   const [isActive, setIsActive] = useState(true)
   const [isLoading, setIsLoading] = useState(false)
+
+  const [staffStatus, setStaffStatus] = useState("active")
+  const [workingHours, setWorkingHours] = useState<any>({})
+
   const router = useRouter()
   const params = useParams()
   const supabase = createClient()
@@ -55,6 +61,8 @@ export default function GerenciarUsuario() {
       setTargetUser(userData)
       setUserLevel(userData.user_level.toString())
       setIsActive(userData.is_active)
+      setStaffStatus(userData.staff_status || "active")
+      setWorkingHours(userData.working_hours || {})
     }
   }
 
@@ -93,6 +101,38 @@ export default function GerenciarUsuario() {
     }
   }
 
+  const handleUpdateStaffStatus = async () => {
+    setIsLoading(true)
+    try {
+      const { error } = await supabase
+        .from("profiles")
+        .update({
+          staff_status: staffStatus,
+          working_hours: workingHours,
+        })
+        .eq("id", params.id)
+
+      if (error) throw error
+
+      toast.success("Status e horários atualizados!")
+      loadData()
+    } catch (error: any) {
+      toast.error(error.message || "Erro ao atualizar status")
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  const updateWorkingHours = (day: string, field: string, value: any) => {
+    setWorkingHours((prev: any) => ({
+      ...prev,
+      [day]: {
+        ...prev[day],
+        [field]: value,
+      },
+    }))
+  }
+
   const handleDelete = async () => {
     setIsLoading(true)
     try {
@@ -110,6 +150,8 @@ export default function GerenciarUsuario() {
   }
 
   if (!profile || !targetUser) return null
+
+  const isStaff = targetUser.user_level >= 20
 
   return (
     <div className="min-h-screen bg-background">
@@ -183,6 +225,94 @@ export default function GerenciarUsuario() {
               </Button>
             </CardContent>
           </Card>
+
+          {isStaff && (
+            <>
+              <Card className="border-primary/20">
+                <CardHeader>
+                  <CardTitle className="text-lg md:text-xl">Status do Profissional</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="staffStatus">Status</Label>
+                    <Select value={staffStatus} onValueChange={setStaffStatus}>
+                      <SelectTrigger className="border-primary/20">
+                        <SelectValue placeholder="Selecione o status" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="active">Ativo</SelectItem>
+                        <SelectItem value="vacation">Férias</SelectItem>
+                        <SelectItem value="inactive">Inativo</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card className="border-primary/20">
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2 text-lg md:text-xl">
+                    <Clock className="h-5 w-5 text-primary" />
+                    Horário de Trabalho
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  {Object.entries(workingHours).map(([day, hours]: [string, any]) => {
+                    const dayNames: Record<string, string> = {
+                      monday: "Segunda",
+                      tuesday: "Terça",
+                      wednesday: "Quarta",
+                      thursday: "Quinta",
+                      friday: "Sexta",
+                      saturday: "Sábado",
+                      sunday: "Domingo",
+                    }
+
+                    return (
+                      <div key={day} className="space-y-2 p-3 border border-primary/10 rounded-lg">
+                        <div className="flex items-center justify-between">
+                          <Label className="font-medium">{dayNames[day]}</Label>
+                          <Checkbox
+                            checked={hours?.enabled}
+                            onCheckedChange={(checked) => updateWorkingHours(day, "enabled", !!checked)}
+                          />
+                        </div>
+                        {hours?.enabled && (
+                          <div className="grid grid-cols-2 gap-2">
+                            <div>
+                              <Label className="text-xs">Início</Label>
+                              <Input
+                                type="time"
+                                value={hours.start}
+                                onChange={(e) => updateWorkingHours(day, "start", e.target.value)}
+                                className="border-primary/20"
+                              />
+                            </div>
+                            <div>
+                              <Label className="text-xs">Fim</Label>
+                              <Input
+                                type="time"
+                                value={hours.end}
+                                onChange={(e) => updateWorkingHours(day, "end", e.target.value)}
+                                className="border-primary/20"
+                              />
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    )
+                  })}
+                  <Button
+                    onClick={handleUpdateStaffStatus}
+                    disabled={isLoading}
+                    className="w-full bg-primary hover:bg-primary/90 text-black"
+                  >
+                    Atualizar Status e Horários
+                  </Button>
+                </CardContent>
+              </Card>
+            </>
+          )}
 
           {/* Actions */}
           <Card className="border-primary/20">

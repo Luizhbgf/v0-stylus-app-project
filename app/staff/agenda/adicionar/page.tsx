@@ -15,6 +15,7 @@ import { ArrowLeft } from "lucide-react"
 import Link from "next/link"
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import { Textarea } from "@/components/ui/textarea"
+import { Checkbox } from "@/components/ui/checkbox"
 
 export default function AdicionarAgendamentoStaff() {
   const [profile, setProfile] = useState<any>(null)
@@ -34,6 +35,11 @@ export default function AdicionarAgendamentoStaff() {
   const [isLoading, setIsLoading] = useState(false)
   const router = useRouter()
   const supabase = createClient()
+
+  const [isRecurring, setIsRecurring] = useState(false)
+  const [recurrenceType, setRecurrenceType] = useState<"weekly" | "biweekly" | "twice_weekly" | "monthly">("weekly")
+  const [recurrenceDays, setRecurrenceDays] = useState<number[]>([])
+  const [recurrenceEndDate, setRecurrenceEndDate] = useState("")
 
   useEffect(() => {
     loadData()
@@ -95,7 +101,7 @@ export default function AdicionarAgendamentoStaff() {
 
       const appointmentDateTime = new Date(`${appointmentDate}T${appointmentTime}`)
 
-      const { error } = await supabase.from("appointments").insert({
+      const appointmentData = {
         client_id: clientType === "registered" ? selectedClient : null,
         staff_id: user.id,
         service_id: selectedService || null,
@@ -107,9 +113,35 @@ export default function AdicionarAgendamentoStaff() {
         sporadic_client_phone: clientType === "sporadic" ? sporadicPhone : null,
         event_title: clientType === "none" ? eventTitle : null,
         payment_status: "pending",
-      })
+        is_recurring: isRecurring,
+        recurrence_type: isRecurring ? recurrenceType : null,
+        recurrence_days: isRecurring && recurrenceType === "twice_weekly" ? recurrenceDays : null,
+        recurrence_end_date: isRecurring ? recurrenceEndDate : null,
+      }
+
+      const { data: newAppointment, error } = await supabase
+        .from("appointments")
+        .insert(appointmentData)
+        .select()
+        .single()
 
       if (error) throw error
+
+      if (isRecurring && newAppointment) {
+        const futureAppointments = generateRecurringAppointments(
+          appointmentDateTime,
+          new Date(recurrenceEndDate),
+          recurrenceType,
+          recurrenceDays,
+          appointmentData,
+          newAppointment.id,
+        )
+
+        if (futureAppointments.length > 0) {
+          const { error: recurringError } = await supabase.from("appointments").insert(futureAppointments)
+          if (recurringError) console.error("Error creating recurring appointments:", recurringError)
+        }
+      }
 
       toast.success("Agendamento criado com sucesso!")
       router.push("/staff/agenda")
@@ -119,6 +151,74 @@ export default function AdicionarAgendamentoStaff() {
     } finally {
       setIsLoading(false)
     }
+  }
+
+  const generateRecurringAppointments = (
+    startDate: Date,
+    endDate: Date,
+    type: string,
+    days: number[],
+    baseData: any,
+    parentId: string,
+  ) => {
+    const appointments = []
+    let currentDate = new Date(startDate)
+
+    while (currentDate <= endDate) {
+      let nextDate: Date | null = null
+
+      switch (type) {
+        case "weekly":
+          nextDate = new Date(currentDate)
+          nextDate.setDate(currentDate.getDate() + 7)
+          break
+        case "biweekly":
+          nextDate = new Date(currentDate)
+          nextDate.setDate(currentDate.getDate() + 14)
+          break
+        case "twice_weekly":
+          // Find next occurrence of selected days
+          const currentDay = currentDate.getDay()
+          const sortedDays = [...days].sort((a, b) => a - b)
+          let daysToAdd = 0
+
+          for (const day of sortedDays) {
+            if (day > currentDay) {
+              daysToAdd = day - currentDay
+              break
+            }
+          }
+
+          if (daysToAdd === 0) {
+            daysToAdd = 7 - currentDay + sortedDays[0]
+          }
+
+          nextDate = new Date(currentDate)
+          nextDate.setDate(currentDate.getDate() + daysToAdd)
+          break
+        case "monthly":
+          nextDate = new Date(currentDate)
+          nextDate.setMonth(currentDate.getMonth() + 1)
+          break
+      }
+
+      if (nextDate && nextDate <= endDate) {
+        appointments.push({
+          ...baseData,
+          appointment_date: nextDate.toISOString(),
+          parent_appointment_id: parentId,
+        })
+        currentDate = nextDate
+      } else {
+        break
+      }
+    }
+
+    return appointments
+  }
+
+  const toggleRecurrenceDay = (day: number) => {
+    setRecurrenceDays((prev) => (prev.includes(day) ? prev.filter((d) => d !== day) : [...prev, day]))
   }
 
   if (!profile) return null
@@ -281,6 +381,79 @@ export default function AdicionarAgendamentoStaff() {
                   className="border-gold/20"
                   rows={3}
                 />
+              </div>
+
+              <div className="space-y-4 p-4 border border-gold/20 rounded-lg">
+                <div className="flex items-center space-x-2">
+                  <Checkbox
+                    id="recurring"
+                    checked={isRecurring}
+                    onCheckedChange={(checked) => setIsRecurring(!!checked)}
+                  />
+                  <Label htmlFor="recurring" className="cursor-pointer">
+                    Agendamento Recorrente (Agenda Fixa)
+                  </Label>
+                </div>
+
+                {isRecurring && (
+                  <div className="space-y-4 pl-6">
+                    <div className="space-y-2">
+                      <Label>Frequência</Label>
+                      <Select value={recurrenceType} onValueChange={(value: any) => setRecurrenceType(value)}>
+                        <SelectTrigger className="border-gold/20">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="weekly">Semanal (1x por semana)</SelectItem>
+                          <SelectItem value="biweekly">Quinzenal</SelectItem>
+                          <SelectItem value="twice_weekly">2x por semana</SelectItem>
+                          <SelectItem value="monthly">Mensal</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    {recurrenceType === "twice_weekly" && (
+                      <div className="space-y-2">
+                        <Label>Dias da Semana</Label>
+                        <div className="grid grid-cols-4 gap-2">
+                          {[
+                            { day: 0, label: "Dom" },
+                            { day: 1, label: "Seg" },
+                            { day: 2, label: "Ter" },
+                            { day: 3, label: "Qua" },
+                            { day: 4, label: "Qui" },
+                            { day: 5, label: "Sex" },
+                            { day: 6, label: "Sáb" },
+                          ].map(({ day, label }) => (
+                            <Button
+                              key={day}
+                              type="button"
+                              variant={recurrenceDays.includes(day) ? "default" : "outline"}
+                              size="sm"
+                              onClick={() => toggleRecurrenceDay(day)}
+                              className={recurrenceDays.includes(day) ? "bg-gold text-black" : ""}
+                            >
+                              {label}
+                            </Button>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    <div className="space-y-2">
+                      <Label htmlFor="endDate">Data Final da Recorrência *</Label>
+                      <Input
+                        id="endDate"
+                        type="date"
+                        value={recurrenceEndDate}
+                        onChange={(e) => setRecurrenceEndDate(e.target.value)}
+                        className="border-gold/20"
+                        required
+                        min={appointmentDate}
+                      />
+                    </div>
+                  </div>
+                )}
               </div>
 
               <div className="flex flex-col sm:flex-row gap-4">
