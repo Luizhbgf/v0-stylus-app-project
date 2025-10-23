@@ -11,9 +11,11 @@ import { Label } from "@/components/ui/label"
 import { Navbar } from "@/components/navbar"
 import { useRouter } from "next/navigation"
 import { toast } from "sonner"
-import { ArrowLeft, Upload } from "lucide-react"
+import { ArrowLeft, Upload, Camera, X } from "lucide-react"
 import Link from "next/link"
 import Image from "next/image"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Textarea } from "@/components/ui/textarea"
 
 export default function EditarPerfilStaff() {
   const [profile, setProfile] = useState<any>(null)
@@ -23,7 +25,12 @@ export default function EditarPerfilStaff() {
   const [specialties, setSpecialties] = useState("")
   const [photoUrl, setPhotoUrl] = useState("")
   const [portfolioImages, setPortfolioImages] = useState<string[]>([])
+  const [workStartTime, setWorkStartTime] = useState("09:00")
+  const [workEndTime, setWorkEndTime] = useState("18:00")
+  const [staffStatus, setStaffStatus] = useState("active")
   const [isLoading, setIsLoading] = useState(false)
+  const [isUploadingPhoto, setIsUploadingPhoto] = useState(false)
+  const [isUploadingPortfolio, setIsUploadingPortfolio] = useState(false)
   const router = useRouter()
   const supabase = createClient()
 
@@ -49,7 +56,68 @@ export default function EditarPerfilStaff() {
       setSpecialties(profileData.specialties?.join(", ") || "")
       setPhotoUrl(profileData.photo_url || "")
       setPortfolioImages(profileData.portfolio_images || [])
+      setWorkStartTime(profileData.work_start_time || "09:00")
+      setWorkEndTime(profileData.work_end_time || "18:00")
+      setStaffStatus(profileData.staff_status || "active")
     }
+  }
+
+  const handlePhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+
+    setIsUploadingPhoto(true)
+    try {
+      const formData = new FormData()
+      formData.append("file", file)
+
+      const response = await fetch("/api/upload-photo", {
+        method: "POST",
+        body: formData,
+      })
+
+      if (!response.ok) throw new Error("Upload failed")
+
+      const data = await response.json()
+      setPhotoUrl(data.url)
+      toast.success("Foto carregada com sucesso!")
+    } catch (error) {
+      console.error("[v0] Erro ao fazer upload:", error)
+      toast.error("Erro ao fazer upload da foto")
+    } finally {
+      setIsUploadingPhoto(false)
+    }
+  }
+
+  const handlePortfolioUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+
+    setIsUploadingPortfolio(true)
+    try {
+      const formData = new FormData()
+      formData.append("file", file)
+
+      const response = await fetch("/api/upload-photo", {
+        method: "POST",
+        body: formData,
+      })
+
+      if (!response.ok) throw new Error("Upload failed")
+
+      const data = await response.json()
+      setPortfolioImages([...portfolioImages, data.url])
+      toast.success("Imagem adicionada ao portfolio!")
+    } catch (error) {
+      console.error("[v0] Erro ao fazer upload:", error)
+      toast.error("Erro ao fazer upload da imagem")
+    } finally {
+      setIsUploadingPortfolio(false)
+    }
+  }
+
+  const removePortfolioImage = (index: number) => {
+    setPortfolioImages(portfolioImages.filter((_, i) => i !== index))
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -76,6 +144,9 @@ export default function EditarPerfilStaff() {
           specialties: specialtiesArray,
           photo_url: photoUrl,
           portfolio_images: portfolioImages,
+          work_start_time: workStartTime,
+          work_end_time: workEndTime,
+          staff_status: staffStatus,
         })
         .eq("id", user.id)
 
@@ -84,7 +155,7 @@ export default function EditarPerfilStaff() {
       toast.success("Perfil atualizado com sucesso!")
       router.push("/staff/perfil")
     } catch (error) {
-      console.error("Erro ao atualizar perfil:", error)
+      console.error("[v0] Erro ao atualizar perfil:", error)
       toast.error("Erro ao atualizar perfil")
     } finally {
       setIsLoading(false)
@@ -101,7 +172,7 @@ export default function EditarPerfilStaff() {
         <div className="mb-6">
           <Link
             href="/staff/perfil"
-            className="inline-flex items-center text-sm text-muted-foreground hover:text-foreground mb-4"
+            className="inline-flex items-center text-sm text-muted-foreground hover:text-foreground mb-4 transition-colors"
           >
             <ArrowLeft className="mr-2 h-4 w-4" />
             Voltar para Perfil
@@ -110,12 +181,50 @@ export default function EditarPerfilStaff() {
           <p className="text-muted-foreground">Personalize seu perfil profissional</p>
         </div>
 
-        <Card className="border-gold/20">
+        <Card className="border-gold/20 transition-all hover:shadow-lg">
           <CardHeader>
             <CardTitle>Informações Profissionais</CardTitle>
           </CardHeader>
           <CardContent>
             <form onSubmit={handleSubmit} className="space-y-6">
+              <div className="space-y-2">
+                <Label>Foto de Perfil</Label>
+                <div className="flex items-center gap-4">
+                  <div className="h-24 w-24 rounded-full bg-gold/10 flex items-center justify-center overflow-hidden transition-transform hover:scale-105">
+                    {photoUrl ? (
+                      <Image
+                        src={photoUrl || "/placeholder.svg"}
+                        alt="Foto de perfil"
+                        width={96}
+                        height={96}
+                        className="object-cover"
+                      />
+                    ) : (
+                      <Camera className="h-10 w-10 text-gold" />
+                    )}
+                  </div>
+                  <div>
+                    <Input
+                      type="file"
+                      accept="image/*"
+                      onChange={handlePhotoUpload}
+                      className="hidden"
+                      id="photo-upload"
+                      disabled={isUploadingPhoto}
+                    />
+                    <Label htmlFor="photo-upload" className="cursor-pointer">
+                      <Button type="button" variant="outline" disabled={isUploadingPhoto} asChild>
+                        <span>
+                          <Upload className="mr-2 h-4 w-4" />
+                          {isUploadingPhoto ? "Enviando..." : "Alterar Foto"}
+                        </span>
+                      </Button>
+                    </Label>
+                    <p className="text-xs text-muted-foreground mt-2">Máximo 5MB</p>
+                  </div>
+                </div>
+              </div>
+
               <div className="space-y-2">
                 <Label htmlFor="email">Email</Label>
                 <Input id="email" value={profile.email} disabled className="border-gold/20 bg-muted" />
@@ -129,7 +238,7 @@ export default function EditarPerfilStaff() {
                   value={fullName}
                   onChange={(e) => setFullName(e.target.value)}
                   placeholder="Seu nome completo"
-                  className="border-gold/20"
+                  className="border-gold/20 transition-all focus:border-gold"
                   required
                 />
               </div>
@@ -141,18 +250,19 @@ export default function EditarPerfilStaff() {
                   value={phone}
                   onChange={(e) => setPhone(e.target.value)}
                   placeholder="(00) 00000-0000"
-                  className="border-gold/20"
+                  className="border-gold/20 transition-all focus:border-gold"
                 />
               </div>
 
               <div className="space-y-2">
                 <Label htmlFor="bio">Biografia</Label>
-                <Input
+                <Textarea
                   id="bio"
                   value={bio}
                   onChange={(e) => setBio(e.target.value)}
                   placeholder="Conte um pouco sobre você..."
-                  className="border-gold/20"
+                  className="border-gold/20 transition-all focus:border-gold"
+                  rows={3}
                 />
               </div>
 
@@ -163,77 +273,113 @@ export default function EditarPerfilStaff() {
                   value={specialties}
                   onChange={(e) => setSpecialties(e.target.value)}
                   placeholder="Corte masculino, Barba, Coloração (separado por vírgula)"
-                  className="border-gold/20"
+                  className="border-gold/20 transition-all focus:border-gold"
                 />
                 <p className="text-xs text-muted-foreground">Separe as especialidades por vírgula</p>
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="photoUrl">URL da Foto de Perfil</Label>
-                <Input
-                  id="photoUrl"
-                  value={photoUrl}
-                  onChange={(e) => setPhotoUrl(e.target.value)}
-                  placeholder="https://exemplo.com/foto.jpg"
-                  className="border-gold/20"
-                />
-                {photoUrl && (
-                  <div className="mt-2">
-                    <Image
-                      src={photoUrl || "/placeholder.svg"}
-                      alt="Preview"
-                      width={100}
-                      height={100}
-                      className="rounded-lg object-cover"
-                    />
-                  </div>
-                )}
+                <Label htmlFor="staffStatus">Status *</Label>
+                <Select value={staffStatus} onValueChange={setStaffStatus}>
+                  <SelectTrigger className="border-gold/20 transition-all focus:border-gold">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="active">Ativo</SelectItem>
+                    <SelectItem value="vacation">De Férias</SelectItem>
+                    <SelectItem value="inactive">Inativo</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="workStartTime">Horário de Início</Label>
+                  <Input
+                    id="workStartTime"
+                    type="time"
+                    value={workStartTime}
+                    onChange={(e) => setWorkStartTime(e.target.value)}
+                    className="border-gold/20 transition-all focus:border-gold"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="workEndTime">Horário de Término</Label>
+                  <Input
+                    id="workEndTime"
+                    type="time"
+                    value={workEndTime}
+                    onChange={(e) => setWorkEndTime(e.target.value)}
+                    className="border-gold/20 transition-all focus:border-gold"
+                  />
+                </div>
               </div>
 
               <div className="space-y-2">
-                <Label>Portfolio (URLs das imagens)</Label>
-                <div className="space-y-2">
+                <Label>Portfolio</Label>
+                <div className="grid grid-cols-3 gap-4">
                   {portfolioImages.map((url, index) => (
-                    <div key={index} className="flex gap-2">
-                      <Input
-                        value={url}
-                        onChange={(e) => {
-                          const newImages = [...portfolioImages]
-                          newImages[index] = e.target.value
-                          setPortfolioImages(newImages)
-                        }}
-                        placeholder="https://exemplo.com/portfolio1.jpg"
-                        className="border-gold/20"
+                    <div key={index} className="relative group">
+                      <Image
+                        src={url || "/placeholder.svg"}
+                        alt={`Portfolio ${index + 1}`}
+                        width={150}
+                        height={150}
+                        className="rounded-lg object-cover w-full h-32 transition-transform group-hover:scale-105"
                       />
                       <Button
                         type="button"
-                        variant="outline"
-                        onClick={() => {
-                          const newImages = portfolioImages.filter((_, i) => i !== index)
-                          setPortfolioImages(newImages)
-                        }}
+                        variant="destructive"
+                        size="icon"
+                        className="absolute top-2 right-2 h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity"
+                        onClick={() => removePortfolioImage(index)}
                       >
-                        Remover
+                        <X className="h-4 w-4" />
                       </Button>
                     </div>
                   ))}
-                  <Button
-                    type="button"
-                    variant="outline"
-                    onClick={() => setPortfolioImages([...portfolioImages, ""])}
-                    className="w-full"
-                  >
-                    <Upload className="mr-2 h-4 w-4" />
-                    Adicionar Imagem ao Portfolio
-                  </Button>
+                </div>
+                <div>
+                  <Input
+                    type="file"
+                    accept="image/*"
+                    onChange={handlePortfolioUpload}
+                    className="hidden"
+                    id="portfolio-upload"
+                    disabled={isUploadingPortfolio}
+                  />
+                  <Label htmlFor="portfolio-upload" className="cursor-pointer">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      className="w-full transition-all hover:border-gold bg-transparent"
+                      disabled={isUploadingPortfolio}
+                      asChild
+                    >
+                      <span>
+                        <Upload className="mr-2 h-4 w-4" />
+                        {isUploadingPortfolio ? "Enviando..." : "Adicionar Imagem ao Portfolio"}
+                      </span>
+                    </Button>
+                  </Label>
                 </div>
               </div>
 
               <div className="flex gap-4">
-                <Button type="submit" className="flex-1 bg-gold hover:bg-gold/90 text-black" disabled={isLoading}>
+                <Button
+                  type="submit"
+                  className="flex-1 bg-gold hover:bg-gold/90 text-black transition-all hover:scale-105"
+                  disabled={isLoading}
+                >
                   {isLoading ? "Salvando..." : "Salvar Alterações"}
                 </Button>
-                <Button type="button" variant="outline" onClick={() => router.back()} disabled={isLoading}>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => router.back()}
+                  disabled={isLoading}
+                  className="transition-all hover:scale-105"
+                >
                   Cancelar
                 </Button>
               </div>

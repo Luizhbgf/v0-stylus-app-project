@@ -57,22 +57,21 @@ export default function EditarPerfilCliente() {
 
     setIsUploadingPhoto(true)
     try {
-      const fileExt = file.name.split(".").pop()
-      const fileName = `${profile.id}-${Date.now()}.${fileExt}`
-      const filePath = `avatars/${fileName}`
+      const formData = new FormData()
+      formData.append("file", file)
 
-      const { error: uploadError } = await supabase.storage.from("profiles").upload(filePath, file)
+      const response = await fetch("/api/upload-photo", {
+        method: "POST",
+        body: formData,
+      })
 
-      if (uploadError) throw uploadError
+      if (!response.ok) throw new Error("Upload failed")
 
-      const {
-        data: { publicUrl },
-      } = supabase.storage.from("profiles").getPublicUrl(filePath)
-
-      setAvatarUrl(publicUrl)
+      const data = await response.json()
+      setAvatarUrl(data.url)
       toast.success("Foto carregada com sucesso!")
     } catch (error) {
-      console.error("Erro ao fazer upload:", error)
+      console.error("[v0] Erro ao fazer upload:", error)
       toast.error("Erro ao fazer upload da foto")
     } finally {
       setIsUploadingPhoto(false)
