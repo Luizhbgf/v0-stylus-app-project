@@ -91,8 +91,8 @@ export default async function AdminDashboard() {
 
           <Card className="border-gold/20">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Profissionais</CardTitle>
-              <TrendingUp className="h-4 w-4 text-gold" />
+              <CardTitle className="text-sm font-medium">Usuários</CardTitle>
+              <Users className="h-4 w-4 text-gold" />
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold text-foreground">{staff?.length || 0}</div>
