@@ -165,12 +165,12 @@ export default async function StaffDashboard() {
               </Card>
             </Link>
 
-            <Link href="/staff/planos">
+            <Link href="/staff/assinaturas">
               <Card className="border-gold/20 hover:border-gold/40 transition-colors cursor-pointer">
                 <CardContent className="p-6 flex flex-col items-center text-center">
                   <DollarSign className="h-8 w-8 text-gold mb-3" />
-                  <h3 className="font-semibold text-foreground">Planos</h3>
-                  <p className="text-sm text-muted-foreground mt-1">Assinaturas</p>
+                  <h3 className="font-semibold text-foreground">Assinaturas</h3>
+                  <p className="text-sm text-muted-foreground mt-1">Gerenciar planos</p>
                 </CardContent>
               </Card>
             </Link>

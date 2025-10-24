@@ -52,7 +52,7 @@ export function CreatePlanForm() {
       if (error) throw error
 
       toast.success("Plano criado com sucesso!")
-      router.push("/staff/planos")
+      router.push("/staff/assinaturas")
       router.refresh()
     } catch (error) {
       console.error("Error creating plan:", error)
