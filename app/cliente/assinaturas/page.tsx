@@ -3,7 +3,7 @@ import { createClient } from "@/lib/supabase/server"
 import { Navbar } from "@/components/navbar"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import { ArrowLeft, Package, Calendar, DollarSign, CheckCircle, XCircle, CreditCard, Plus } from "lucide-react"
+import { Check, X } from "lucide-react"
 import Link from "next/link"
 
 export default async function AssinaturasPage() {
@@ -22,219 +22,167 @@ export default async function AssinaturasPage() {
     redirect("/auth/login")
   }
 
-  // Get client subscriptions with plan details
-  const { data: subscriptions } = await supabase
-    .from("subscriptions")
-    .select(`
-      *,
-      plan:subscription_plans(*,
-        staff:staff_id(full_name)
-      )
-    `)
-    .eq("client_id", user.id)
-    .order("created_at", { ascending: false })
-
-  // Get available subscription plans
-  const { data: availablePlans } = await supabase
+  const { data: plans } = await supabase
     .from("subscription_plans")
     .select(`
       *,
-      staff:staff_id(full_name)
+      staff:staff_id(full_name, avatar_url),
+      features:subscription_plan_features(*)
     `)
     .eq("is_active", true)
     .order("price", { ascending: true })
 
-  // Get payment methods
-  const { data: paymentMethods } = await supabase
-    .from("payment_methods")
+  // Get client's active subscriptions
+  const { data: mySubscriptions } = await supabase
+    .from("subscriptions")
     .select("*")
     .eq("client_id", user.id)
-    .order("is_default", { ascending: false })
-
-  const activeSubscriptions = subscriptions?.filter((s) => s.status === "active") || []
-  const hasActiveSubscription = activeSubscriptions.length > 0
+    .eq("status", "active")
+  // </CHANGE>
 
   return (
     <div className="min-h-screen bg-background">
       <Navbar user={profile} />
 
-      <div className="container mx-auto px-4 py-8">
-        <div className="mb-8">
-          <Link href="/cliente" className="inline-flex items-center text-gold hover:text-gold/80 mb-4">
-            <ArrowLeft className="h-4 w-4 mr-2" />
-            Voltar ao Dashboard
-          </Link>
-          <h1 className="text-4xl font-bold text-foreground mb-2">Minhas Assinaturas</h1>
-          <p className="text-muted-foreground">Gerencie seus planos e métodos de pagamento</p>
+      <div className="container mx-auto px-4 py-8 max-w-7xl">
+        <div className="text-center mb-12">
+          <h1 className="text-3xl md:text-5xl font-bold text-foreground mb-4">PLANOS DE ASSINATURA CLUBE STYLLUS</h1>
+          <p className="text-muted-foreground text-lg">Escolha o plano ideal para você</p>
         </div>
+        {/* </CHANGE> */}
 
-        {/* Payment Methods Section */}
-        <div className="mb-8">
-          <div className="flex justify-between items-center mb-4">
-            <h2 className="text-2xl font-bold text-foreground">Métodos de Pagamento</h2>
-            <Button asChild size="sm" className="bg-gold hover:bg-gold/90 text-black">
-              <Link href="/cliente/assinaturas/adicionar-cartao">
-                <Plus className="h-4 w-4 mr-2" />
-                Adicionar Cartão
-              </Link>
-            </Button>
-          </div>
-          {paymentMethods && paymentMethods.length > 0 ? (
-            <div className="grid md:grid-cols-2 gap-4">
-              {paymentMethods.map((method) => (
-                <Card key={method.id} className="border-gold/20">
-                  <CardContent className="p-4">
-                    <div className="flex justify-between items-center">
-                      <div className="flex items-center gap-3">
-                        <CreditCard className="h-8 w-8 text-gold" />
-                        <div>
-                          <p className="font-semibold text-foreground">
-                            {method.card_brand.toUpperCase()} •••• {method.card_last_four}
-                          </p>
-                          <p className="text-sm text-muted-foreground">
-                            {method.card_holder_name} - {method.expiry_month}/{method.expiry_year}
-                          </p>
-                        </div>
-                      </div>
-                      {method.is_default && (
-                        <span className="px-2 py-1 bg-gold/10 text-gold text-xs rounded-full">Padrão</span>
-                      )}
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
-          ) : (
-            <Card className="border-gold/20">
-              <CardContent className="p-6 text-center">
-                <CreditCard className="h-12 w-12 text-muted-foreground mx-auto mb-3" />
-                <p className="text-muted-foreground mb-4">Nenhum método de pagamento cadastrado</p>
-                <Button asChild className="bg-gold hover:bg-gold/90 text-black">
-                  <Link href="/cliente/assinaturas/adicionar-cartao">Adicionar Cartão</Link>
-                </Button>
-              </CardContent>
-            </Card>
-          )}
-        </div>
+        {plans && plans.length > 0 ? (
+          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6 mb-12">
+            {plans.map((plan) => {
+              const hasSubscription = mySubscriptions?.some((s) => s.plan_id === plan.id)
+              const features = plan.features || []
+              features.sort((a: any, b: any) => a.display_order - b.display_order)
 
-        {/* Active Subscriptions */}
-        {subscriptions && subscriptions.length > 0 && (
-          <div className="mb-8">
-            <h2 className="text-2xl font-bold text-foreground mb-4">Minhas Assinaturas</h2>
-            <div className="grid md:grid-cols-2 gap-6">
-              {subscriptions.map((subscription) => (
+              return (
                 <Card
-                  key={subscription.id}
-                  className={`border-gold/20 ${subscription.status === "active" ? "ring-2 ring-gold/20" : ""}`}
+                  key={plan.id}
+                  className="border-2 border-primary/20 overflow-hidden hover:border-primary/40 transition-all hover:scale-105 duration-300"
                 >
-                  <CardHeader>
-                    <div className="flex justify-between items-start">
-                      <div>
-                        <CardTitle className="text-2xl text-foreground mb-2">{subscription.plan?.name}</CardTitle>
-                        <p className="text-sm text-muted-foreground mb-1">
-                          Profissional: {subscription.plan?.staff?.full_name}
-                        </p>
-                        <span
-                          className={`inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-medium ${
-                            subscription.status === "active"
-                              ? "bg-green-500/10 text-green-500"
-                              : subscription.status === "cancelled"
-                                ? "bg-red-500/10 text-red-500"
-                                : "bg-gray-500/10 text-gray-500"
-                          }`}
-                        >
-                          {subscription.status === "active" ? (
-                            <>
-                              <CheckCircle className="h-3 w-3" />
-                              Ativo
-                            </>
-                          ) : subscription.status === "cancelled" ? (
-                            <>
-                              <XCircle className="h-3 w-3" />
-                              Cancelado
-                            </>
-                          ) : (
-                            "Expirado"
-                          )}
+                  {/* Gold header like in the image */}
+                  <div className="bg-gradient-to-r from-primary to-primary/80 p-6 text-center">
+                    <h3 className="text-2xl font-bold text-black">{plan.name}</h3>
+                  </div>
+
+                  <CardContent className="p-6">
+                    {/* Price section */}
+                    <div className="text-center mb-6 pb-6 border-b border-primary/20">
+                      <div className="flex items-start justify-center gap-1">
+                        <span className="text-2xl font-bold text-foreground mt-2">R$</span>
+                        <span className="text-6xl font-bold text-foreground">{Math.floor(Number(plan.price))}</span>
+                        <span className="text-2xl font-bold text-foreground mt-2">
+                          {(Number(plan.price) % 1).toFixed(2).substring(1)}
                         </span>
                       </div>
-                      <div className="text-right">
-                        <div className="text-3xl font-bold text-gold">R$ {Number(subscription.price).toFixed(2)}</div>
-                        <div className="text-sm text-muted-foreground">/mês</div>
-                      </div>
+                      <p className="text-primary font-semibold text-lg mt-2">Mensal</p>
+                      <p className="text-sm text-muted-foreground mt-2">Profissional: {plan.staff?.full_name}</p>
                     </div>
-                  </CardHeader>
-                  <CardContent>
-                    <p className="text-muted-foreground mb-4">
-                      {subscription.plan?.service_type === "haircut" ? "Corte" : "Corte + Barba"} -{" "}
-                      {subscription.plan?.frequency_per_week}x por semana
-                    </p>
-                    <div className="space-y-2 mb-4">
-                      <div className="flex items-center text-sm text-muted-foreground">
-                        <Calendar className="h-4 w-4 mr-2 text-gold" />
-                        Início: {new Date(subscription.start_date).toLocaleDateString("pt-BR")}
-                      </div>
-                      {subscription.next_billing_date && (
-                        <div className="flex items-center text-sm text-muted-foreground">
-                          <DollarSign className="h-4 w-4 mr-2 text-gold" />
-                          Próxima cobrança: {new Date(subscription.next_billing_date).toLocaleDateString("pt-BR")}
+
+                    {/* Features list with checkmarks and X marks */}
+                    <div className="space-y-3 mb-6">
+                      {features.map((feature: any) => (
+                        <div key={feature.id} className="flex items-start gap-3">
+                          <div
+                            className={`flex-shrink-0 w-6 h-6 rounded-full flex items-center justify-center ${
+                              feature.is_included ? "bg-green-500/20 text-green-500" : "bg-red-500/20 text-red-500"
+                            }`}
+                          >
+                            {feature.is_included ? <Check className="h-4 w-4" /> : <X className="h-4 w-4" />}
+                          </div>
+                          <p
+                            className={`text-sm flex-1 ${
+                              feature.is_included ? "text-foreground" : "text-muted-foreground"
+                            }`}
+                          >
+                            {feature.feature_text}
+                          </p>
                         </div>
+                      ))}
+                    </div>
+
+                    {/* CTA Button */}
+                    <Button
+                      asChild
+                      className="w-full bg-black hover:bg-black/90 text-white font-semibold py-6 text-lg transition-all hover:scale-105"
+                      disabled={hasSubscription}
+                    >
+                      {hasSubscription ? (
+                        <span>Plano Ativo</span>
+                      ) : (
+                        <Link href={`/cliente/assinaturas/${plan.id}/assinar`}>Clique aqui</Link>
                       )}
-                    </div>
-                    {subscription.status === "active" && (
-                      <Button
-                        variant="outline"
-                        className="w-full border-red-500/20 hover:bg-red-500/10 text-red-500 bg-transparent"
-                      >
-                        Cancelar Assinatura
-                      </Button>
-                    )}
+                    </Button>
                   </CardContent>
                 </Card>
-              ))}
-            </div>
+              )
+            })}
           </div>
-        )}
-
-        {/* Available Plans */}
-        {!hasActiveSubscription && availablePlans && availablePlans.length > 0 && (
-          <div>
-            <h2 className="text-2xl font-bold text-foreground mb-4">Planos Disponíveis</h2>
-            <div className="grid md:grid-cols-3 gap-6">
-              {availablePlans.map((plan) => (
-                <Card key={plan.id} className="border-gold/20 hover:border-gold/40 transition-colors">
-                  <CardHeader>
-                    <CardTitle className="text-xl text-foreground">{plan.name}</CardTitle>
-                    <p className="text-sm text-muted-foreground">Profissional: {plan.staff?.full_name}</p>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="text-center mb-4">
-                      <div className="text-4xl font-bold text-gold">R$ {Number(plan.price).toFixed(2)}</div>
-                      <div className="text-sm text-muted-foreground">/mês</div>
-                    </div>
-                    <div className="space-y-2 mb-6">
-                      <p className="text-sm text-muted-foreground">
-                        • {plan.service_type === "haircut" ? "Corte" : "Corte + Barba"}
-                      </p>
-                      <p className="text-sm text-muted-foreground">• {plan.frequency_per_week}x por semana</p>
-                      {plan.description && <p className="text-sm text-muted-foreground">• {plan.description}</p>}
-                    </div>
-                    <Button className="w-full bg-gold hover:bg-gold/90 text-black">Assinar Plano</Button>
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {!hasActiveSubscription && (!availablePlans || availablePlans.length === 0) && (
-          <Card className="border-gold/20">
+        ) : (
+          <Card className="border-primary/20">
             <CardContent className="p-12 text-center">
-              <Package className="h-16 w-16 text-muted-foreground mx-auto mb-4" />
               <h3 className="text-xl font-semibold text-foreground mb-2">Nenhum plano disponível</h3>
               <p className="text-muted-foreground">Em breve teremos planos de assinatura disponíveis</p>
             </CardContent>
           </Card>
+        )}
+        {/* </CHANGE> */}
+
+        {/* My active subscriptions section */}
+        {mySubscriptions && mySubscriptions.length > 0 && (
+          <div className="mt-12">
+            <h2 className="text-2xl font-bold text-foreground mb-6">Minhas Assinaturas Ativas</h2>
+            <div className="grid md:grid-cols-2 gap-6">
+              {mySubscriptions.map((subscription) => {
+                const plan = plans?.find((p) => p.id === subscription.plan_id)
+                return (
+                  <Card key={subscription.id} className="border-primary/20">
+                    <CardHeader>
+                      <CardTitle className="text-xl">{plan?.name}</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="space-y-2 text-sm">
+                        <div className="flex justify-between">
+                          <span className="text-muted-foreground">Profissional:</span>
+                          <span className="font-medium">{plan?.staff?.full_name}</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-muted-foreground">Valor:</span>
+                          <span className="font-medium text-primary">
+                            R$ {Number(subscription.price).toFixed(2)}/mês
+                          </span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-muted-foreground">Início:</span>
+                          <span className="font-medium">
+                            {new Date(subscription.start_date).toLocaleDateString("pt-BR")}
+                          </span>
+                        </div>
+                        {subscription.next_billing_date && (
+                          <div className="flex justify-between">
+                            <span className="text-muted-foreground">Próxima cobrança:</span>
+                            <span className="font-medium">
+                              {new Date(subscription.next_billing_date).toLocaleDateString("pt-BR")}
+                            </span>
+                          </div>
+                        )}
+                      </div>
+                      <Button
+                        variant="outline"
+                        className="w-full mt-4 border-red-500/20 hover:bg-red-500/10 text-red-500 bg-transparent"
+                        asChild
+                      >
+                        <Link href={`/cliente/assinaturas/${subscription.id}/cancelar`}>Cancelar Assinatura</Link>
+                      </Button>
+                    </CardContent>
+                  </Card>
+                )
+              })}
+            </div>
+          </div>
         )}
       </div>
     </div>

@@ -8,6 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Navbar } from "@/components/navbar"
 import { useRouter } from "next/navigation"
 import { toast } from "sonner"
@@ -20,8 +21,16 @@ interface Feature {
   included: boolean
 }
 
-export default function CriarAssinatura() {
+interface StaffMember {
+  id: string
+  full_name: string
+  avatar_url: string | null
+}
+
+export default function AdminCriarAssinatura() {
   const [profile, setProfile] = useState<any>(null)
+  const [staffMembers, setStaffMembers] = useState<StaffMember[]>([])
+  const [selectedStaffId, setSelectedStaffId] = useState("")
   const [name, setName] = useState("")
   const [description, setDescription] = useState("")
   const [price, setPrice] = useState("")
@@ -34,10 +43,10 @@ export default function CriarAssinatura() {
   const supabase = createClient()
 
   useEffect(() => {
-    loadProfile()
+    loadData()
   }, [])
 
-  const loadProfile = async () => {
+  const loadData = async () => {
     const {
       data: { user },
     } = await supabase.auth.getUser()
@@ -48,6 +57,15 @@ export default function CriarAssinatura() {
 
     const { data: profileData } = await supabase.from("profiles").select("*").eq("id", user.id).single()
     setProfile(profileData)
+
+    const { data: staff } = await supabase
+      .from("profiles")
+      .select("id, full_name, avatar_url")
+      .gte("user_level", 20)
+      .order("full_name")
+
+    if (staff) setStaffMembers(staff)
+    // </CHANGE>
   }
 
   const addFeature = () => {
@@ -81,6 +99,12 @@ export default function CriarAssinatura() {
       } = await supabase.auth.getUser()
       if (!user) throw new Error("Usuário não autenticado")
 
+      if (!selectedStaffId) {
+        toast.error("Selecione um profissional")
+        setIsLoading(false)
+        return
+      }
+
       if (features.length === 0) {
         toast.error("Adicione pelo menos um recurso ao plano")
         setIsLoading(false)
@@ -90,7 +114,7 @@ export default function CriarAssinatura() {
       const { data: plan, error: planError } = await supabase
         .from("subscription_plans")
         .insert({
-          staff_id: user.id,
+          staff_id: selectedStaffId,
           name,
           description,
           price: Number.parseFloat(price),
@@ -118,7 +142,7 @@ export default function CriarAssinatura() {
       // </CHANGE>
 
       toast.success("Plano de assinatura criado com sucesso!")
-      router.push("/staff/assinaturas")
+      router.push("/admin/assinaturas")
       router.refresh()
     } catch (error: any) {
       toast.error(error.message || "Erro ao criar plano")
@@ -136,7 +160,7 @@ export default function CriarAssinatura() {
       <div className="container mx-auto px-4 py-6 md:py-8 max-w-3xl">
         <div className="mb-6">
           <Link
-            href="/staff/assinaturas"
+            href="/admin/assinaturas"
             className="inline-flex items-center text-sm text-muted-foreground hover:text-foreground mb-4 transition-colors"
           >
             <ArrowLeft className="mr-2 h-4 w-4" />
@@ -144,11 +168,37 @@ export default function CriarAssinatura() {
           </Link>
           <h1 className="text-2xl md:text-3xl font-bold text-foreground">Criar Plano de Assinatura</h1>
           <p className="text-sm md:text-base text-muted-foreground">
-            Configure um novo plano mensal com recursos personalizados
+            Configure um novo plano mensal para um profissional
           </p>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-6">
+          <Card className="border-primary/20">
+            <CardHeader>
+              <CardTitle className="text-lg md:text-xl">Selecionar Profissional</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-2">
+                <Label htmlFor="staff">Profissional *</Label>
+                <Select value={selectedStaffId} onValueChange={setSelectedStaffId} required>
+                  <SelectTrigger className="border-primary/20">
+                    <SelectValue placeholder="Selecione um profissional" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {staffMembers.map((staff) => (
+                      <SelectItem key={staff.id} value={staff.id}>
+                        {staff.full_name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <p className="text-xs text-muted-foreground">Este plano será associado ao profissional selecionado</p>
+              </div>
+            </CardContent>
+          </Card>
+          {/* </CHANGE> */}
+
+          {/* Basic information */}
           <Card className="border-primary/20">
             <CardHeader>
               <CardTitle className="text-lg md:text-xl">Informações Básicas</CardTitle>
@@ -195,8 +245,8 @@ export default function CriarAssinatura() {
               </div>
             </CardContent>
           </Card>
-          {/* </CHANGE> */}
 
+          {/* Features */}
           <Card className="border-primary/20">
             <CardHeader>
               <CardTitle className="text-lg md:text-xl">Recursos do Plano</CardTitle>
@@ -265,8 +315,8 @@ export default function CriarAssinatura() {
               )}
             </CardContent>
           </Card>
-          {/* </CHANGE> */}
 
+          {/* Terms and observations */}
           <Card className="border-primary/20">
             <CardHeader>
               <CardTitle className="text-lg md:text-xl">Termos e Observações</CardTitle>
@@ -300,7 +350,6 @@ export default function CriarAssinatura() {
               </div>
             </CardContent>
           </Card>
-          {/* </CHANGE> */}
 
           <div className="flex flex-col sm:flex-row gap-3">
             <Button type="submit" className="flex-1 bg-primary hover:bg-primary/90 text-black" disabled={isLoading}>
