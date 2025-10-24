@@ -255,6 +255,23 @@ export default async function AdminDashboard() {
               </CardContent>
             </Card>
           )}
+
+          <Card className="border-gold/20 hover:shadow-lg transition-shadow">
+            <CardContent className="p-6">
+              <div className="flex items-center gap-4">
+                <div className="p-3 bg-gold/10 rounded-lg">
+                  <Users className="h-6 w-6 text-gold" />
+                </div>
+                <div>
+                  <h3 className="font-semibold text-foreground">Usuários</h3>
+                  <p className="text-sm text-muted-foreground">Gerenciar todos os usuários</p>
+                </div>
+              </div>
+              <Button asChild className="w-full mt-4 bg-gold hover:bg-gold/90 text-black">
+                <Link href="/admin/usuarios">Acessar</Link>
+              </Button>
+            </CardContent>
+          </Card>
         </div>
 
         <div>
