@@ -18,6 +18,11 @@ export const metadata: Metadata = {
   title: "Styllus - Estética e Beleza",
   description: "Sistema de agendamento online para salão de beleza. Agende seus serviços de forma rápida e prática.",
   keywords: "salão de beleza, estética, agendamento online, manicure, cabelo, maquiagem",
+  icons: {
+    icon: "/favicon.ico",
+    apple: "/icon-styllus.png",
+  },,
+  // </CHANGE>
     generator: 'v0.app'
 }
 
