@@ -21,8 +21,7 @@ export const metadata: Metadata = {
   icons: {
     icon: "/favicon.ico",
     apple: "/icon-styllus.png",
-  },,
-  // </CHANGE>
+  },
     generator: 'v0.app'
 }
 
