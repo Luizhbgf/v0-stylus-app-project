@@ -28,6 +28,10 @@ export default function EditarPerfilStaff() {
   const [workStartTime, setWorkStartTime] = useState("09:00")
   const [workEndTime, setWorkEndTime] = useState("18:00")
   const [staffStatus, setStaffStatus] = useState("active")
+  const [newEmail, setNewEmail] = useState("")
+  const [newPhone, setNewPhone] = useState("")
+  const [showEmailVerification, setShowEmailVerification] = useState(false)
+  const [showPhoneVerification, setShowPhoneVerification] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
   const [isUploadingPhoto, setIsUploadingPhoto] = useState(false)
   const [isUploadingPortfolio, setIsUploadingPortfolio] = useState(false)
@@ -162,6 +166,57 @@ export default function EditarPerfilStaff() {
     }
   }
 
+  const handleEmailChange = async () => {
+    if (!newEmail) {
+      toast.error("Digite um novo email")
+      return
+    }
+
+    setIsLoading(true)
+    try {
+      const { error } = await supabase.auth.updateUser(
+        { email: newEmail },
+        { emailRedirectTo: "https://v0-stylus-app-project.vercel.app/staff/perfil" },
+      )
+
+      if (error) throw error
+
+      toast.success("Email de verificação enviado! Verifique sua caixa de entrada.")
+      setShowEmailVerification(false)
+      setNewEmail("")
+    } catch (error) {
+      console.error("[v0] Erro ao alterar email:", error)
+      toast.error("Erro ao alterar email")
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  const handlePhoneChange = async () => {
+    if (!newPhone) {
+      toast.error("Digite um novo telefone")
+      return
+    }
+
+    setIsLoading(true)
+    try {
+      const { error } = await supabase.auth.updateUser({
+        phone: newPhone,
+      })
+
+      if (error) throw error
+
+      toast.success("Código de verificação enviado via SMS!")
+      setShowPhoneVerification(false)
+      setNewPhone("")
+    } catch (error) {
+      console.error("[v0] Erro ao alterar telefone:", error)
+      toast.error("Erro ao alterar telefone")
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
   if (!profile) return null
 
   return (
@@ -227,8 +282,40 @@ export default function EditarPerfilStaff() {
 
               <div className="space-y-2">
                 <Label htmlFor="email">Email</Label>
-                <Input id="email" value={profile.email} disabled className="border-gold/20 bg-muted" />
-                <p className="text-xs text-muted-foreground">O email não pode ser alterado</p>
+                <div className="flex gap-2">
+                  <Input id="email" value={profile.email} disabled className="border-gold/20 bg-muted flex-1" />
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => setShowEmailVerification(!showEmailVerification)}
+                  >
+                    Alterar
+                  </Button>
+                </div>
+                {showEmailVerification && (
+                  <div className="space-y-2 p-4 border border-gold/20 rounded-lg bg-card/50">
+                    <Label htmlFor="newEmail">Novo Email</Label>
+                    <Input
+                      id="newEmail"
+                      type="email"
+                      value={newEmail}
+                      onChange={(e) => setNewEmail(e.target.value)}
+                      placeholder="novo@email.com"
+                      className="border-gold/20"
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      Um email de verificação será enviado para o novo endereço
+                    </p>
+                    <Button
+                      type="button"
+                      onClick={handleEmailChange}
+                      className="w-full bg-gold hover:bg-gold/90 text-black"
+                      disabled={isLoading}
+                    >
+                      Enviar Verificação
+                    </Button>
+                  </div>
+                )}
               </div>
 
               <div className="space-y-2">
@@ -245,13 +332,43 @@ export default function EditarPerfilStaff() {
 
               <div className="space-y-2">
                 <Label htmlFor="phone">Telefone</Label>
-                <Input
-                  id="phone"
-                  value={phone}
-                  onChange={(e) => setPhone(e.target.value)}
-                  placeholder="(00) 00000-0000"
-                  className="border-gold/20 transition-all focus:border-gold"
-                />
+                <div className="flex gap-2">
+                  <Input
+                    id="phone"
+                    value={phone}
+                    onChange={(e) => setPhone(e.target.value)}
+                    placeholder="(00) 00000-0000"
+                    className="border-gold/20 transition-all focus:border-gold flex-1"
+                  />
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => setShowPhoneVerification(!showPhoneVerification)}
+                  >
+                    Verificar
+                  </Button>
+                </div>
+                {showPhoneVerification && (
+                  <div className="space-y-2 p-4 border border-gold/20 rounded-lg bg-card/50">
+                    <Label htmlFor="newPhone">Novo Telefone</Label>
+                    <Input
+                      id="newPhone"
+                      value={newPhone}
+                      onChange={(e) => setNewPhone(e.target.value)}
+                      placeholder="(00) 00000-0000"
+                      className="border-gold/20"
+                    />
+                    <p className="text-xs text-muted-foreground">Um código de verificação será enviado via SMS</p>
+                    <Button
+                      type="button"
+                      onClick={handlePhoneChange}
+                      className="w-full bg-gold hover:bg-gold/90 text-black"
+                      disabled={isLoading}
+                    >
+                      Enviar Código
+                    </Button>
+                  </div>
+                )}
               </div>
 
               <div className="space-y-2">
