@@ -82,6 +82,21 @@ export default async function StaffAgenda() {
     .eq("status", "pending")
     .order("created_at", { ascending: false })
 
+  const { data: approvedRequests } = await supabase
+    .from("appointment_requests")
+    .select(
+      `
+      *,
+      client:client_id(full_name, phone),
+      service:services(name, price, duration)
+    `,
+    )
+    .eq("staff_id", user.id)
+    .in("status", ["approved", "modified"])
+    .gte("requested_date", today.toISOString())
+    .lte("requested_date", thirtyDaysLater.toISOString())
+    .order("requested_date", { ascending: true })
+
   // Group appointments by date
   const appointmentsByDate = appointments?.reduce(
     (acc, apt) => {
@@ -89,6 +104,7 @@ export default async function StaffAgenda() {
       if (!acc[date]) acc[date] = []
       acc[date].push({
         ...apt,
+        type: "appointment",
         client: apt.client
           ? {
               ...apt.client,
@@ -100,6 +116,23 @@ export default async function StaffAgenda() {
     },
     {} as Record<string, any[]>,
   )
+
+  approvedRequests?.forEach((req) => {
+    const date = new Date(req.requested_date).toLocaleDateString("pt-BR")
+    if (!appointmentsByDate[date]) appointmentsByDate[date] = []
+    appointmentsByDate[date].push({
+      ...req,
+      type: "approved_request",
+      appointment_date: req.requested_date,
+    })
+  })
+
+  // Sort each day's items by time
+  Object.keys(appointmentsByDate || {}).forEach((date) => {
+    appointmentsByDate[date].sort(
+      (a, b) => new Date(a.appointment_date).getTime() - new Date(b.appointment_date).getTime(),
+    )
+  })
 
   return (
     <div className="min-h-screen bg-background">
@@ -181,80 +214,103 @@ export default async function StaffAgenda() {
 
         <div className="space-y-6">
           {appointmentsByDate && Object.keys(appointmentsByDate).length > 0 ? (
-            Object.entries(appointmentsByDate).map(([date, apts]) => (
+            Object.entries(appointmentsByDate).map(([date, items]) => (
               <div key={date}>
                 <h2 className="text-xl font-bold text-foreground mb-4 flex items-center gap-2">
                   <Calendar className="h-5 w-5 text-gold" />
                   {date}
                 </h2>
                 <div className="grid gap-4">
-                  {apts.map((apt) => (
-                    <Card key={apt.id} className={`border ${getAppointmentColor(apt)}`}>
+                  {items.map((item) => (
+                    <Card
+                      key={item.id}
+                      className={`border ${item.type === "approved_request" ? "border-gold/50 bg-gold/5" : getAppointmentColor(item)}`}
+                    >
                       <CardContent className="p-4 sm:p-6">
                         <div className="flex flex-col sm:flex-row justify-between items-start gap-4">
                           <div className="flex-1">
                             <div className="flex items-start gap-2 mb-2">
                               <h3 className="text-lg font-semibold text-foreground">
-                                {apt.event_title || apt.service?.name}
+                                {item.type === "approved_request"
+                                  ? item.service?.name
+                                  : item.event_title || item.service?.name}
                               </h3>
                               <Badge variant="outline" className="text-xs">
-                                {getClientTypeLabel(apt)}
+                                {item.type === "approved_request" ? "Solicitação Aprovada" : getClientTypeLabel(item)}
                               </Badge>
                             </div>
-                            {apt.client_type === "sporadic" ? (
+                            {item.type === "approved_request" ? (
+                              <>
+                                <p className="text-sm text-muted-foreground mb-1">Cliente: {item.client?.full_name}</p>
+                                <p className="text-sm text-muted-foreground mb-1">Telefone: {item.client?.phone}</p>
+                              </>
+                            ) : item.client_type === "sporadic" ? (
                               <>
                                 <p className="text-sm text-muted-foreground mb-1">
-                                  Cliente: {apt.sporadic_client_name}
+                                  Cliente: {item.sporadic_client_name}
                                 </p>
                                 <p className="text-sm text-muted-foreground mb-1">
-                                  Telefone: {apt.sporadic_client_phone}
+                                  Telefone: {item.sporadic_client_phone}
                                 </p>
                               </>
-                            ) : apt.client ? (
+                            ) : item.client ? (
                               <>
-                                <p className="text-sm text-muted-foreground mb-1">Cliente: {apt.client.full_name}</p>
-                                <p className="text-sm text-muted-foreground mb-1">Telefone: {apt.client.phone}</p>
+                                <p className="text-sm text-muted-foreground mb-1">Cliente: {item.client.full_name}</p>
+                                <p className="text-sm text-muted-foreground mb-1">Telefone: {item.client.phone}</p>
                               </>
                             ) : (
                               <p className="text-sm text-muted-foreground mb-1">Evento sem cliente</p>
                             )}
                             <div className="flex items-center gap-2 text-sm text-muted-foreground">
                               <Clock className="h-4 w-4" />
-                              {new Date(apt.appointment_date).toLocaleTimeString("pt-BR", {
+                              {new Date(item.appointment_date).toLocaleTimeString("pt-BR", {
                                 hour: "2-digit",
                                 minute: "2-digit",
                               })}
                             </div>
-                            {apt.notes && <p className="text-sm text-muted-foreground mt-2">Obs: {apt.notes}</p>}
+                            {item.notes && <p className="text-sm text-muted-foreground mt-2">Obs: {item.notes}</p>}
+                            {item.staff_notes && (
+                              <p className="text-sm text-muted-foreground mt-2">
+                                Observações do profissional: {item.staff_notes}
+                              </p>
+                            )}
                           </div>
                           <div className="text-left sm:text-right w-full sm:w-auto">
-                            <span
-                              className={`inline-block px-3 py-1 rounded-full text-xs font-medium ${
-                                apt.status === "completed"
-                                  ? "bg-green-500/10 text-green-500"
-                                  : apt.status === "confirmed"
-                                    ? "bg-blue-500/10 text-blue-500"
-                                    : apt.status === "cancelled"
-                                      ? "bg-red-500/10 text-red-500"
-                                      : "bg-yellow-500/10 text-yellow-500"
-                              }`}
-                            >
-                              {apt.status === "completed"
-                                ? "Concluído"
-                                : apt.status === "confirmed"
-                                  ? "Confirmado"
-                                  : apt.status === "cancelled"
-                                    ? "Cancelado"
-                                    : "Pendente"}
-                            </span>
-                            {apt.service?.price && (
-                              <p className="text-sm text-muted-foreground mt-2">R$ {apt.service.price}</p>
+                            {item.type === "approved_request" ? (
+                              <span className="inline-block px-3 py-1 rounded-full text-xs font-medium bg-gold/20 text-gold">
+                                Aprovada
+                              </span>
+                            ) : (
+                              <span
+                                className={`inline-block px-3 py-1 rounded-full text-xs font-medium ${
+                                  item.status === "completed"
+                                    ? "bg-green-500/10 text-green-500"
+                                    : item.status === "confirmed"
+                                      ? "bg-blue-500/10 text-blue-500"
+                                      : item.status === "cancelled"
+                                        ? "bg-red-500/10 text-red-500"
+                                        : "bg-yellow-500/10 text-yellow-500"
+                                }`}
+                              >
+                                {item.status === "completed"
+                                  ? "Concluído"
+                                  : item.status === "confirmed"
+                                    ? "Confirmado"
+                                    : item.status === "cancelled"
+                                      ? "Cancelado"
+                                      : "Pendente"}
+                              </span>
                             )}
-                            <Link href={`/staff/agenda/${apt.id}`}>
-                              <Button size="sm" variant="outline" className="mt-2 w-full sm:w-auto bg-transparent">
-                                Gerenciar
-                              </Button>
-                            </Link>
+                            {item.service?.price && (
+                              <p className="text-sm text-muted-foreground mt-2">R$ {item.service.price}</p>
+                            )}
+                            {item.type === "appointment" && (
+                              <Link href={`/staff/agenda/${item.id}`}>
+                                <Button size="sm" variant="outline" className="mt-2 w-full sm:w-auto bg-transparent">
+                                  Gerenciar
+                                </Button>
+                              </Link>
+                            )}
                           </div>
                         </div>
                       </CardContent>
