@@ -93,9 +93,9 @@ export default async function StaffAgenda() {
     )
     .eq("staff_id", user.id)
     .in("status", ["approved", "modified"])
-    .gte("requested_date", today.toISOString())
-    .lte("requested_date", thirtyDaysLater.toISOString())
-    .order("requested_date", { ascending: true })
+    .gte("preferred_date", today.toISOString())
+    .lte("preferred_date", thirtyDaysLater.toISOString())
+    .order("preferred_date", { ascending: true })
 
   // Group appointments by date
   const appointmentsByDate = appointments?.reduce(
@@ -118,12 +118,12 @@ export default async function StaffAgenda() {
   )
 
   approvedRequests?.forEach((req) => {
-    const date = new Date(req.requested_date).toLocaleDateString("pt-BR")
+    const date = new Date(req.preferred_date).toLocaleDateString("pt-BR")
     if (!appointmentsByDate[date]) appointmentsByDate[date] = []
     appointmentsByDate[date].push({
       ...req,
       type: "approved_request",
-      appointment_date: req.requested_date,
+      appointment_date: req.preferred_date,
     })
   })
 
