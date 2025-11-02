@@ -55,9 +55,8 @@ export default function GerenciarSolicitacao() {
 
     if (requestData) {
       setRequest(requestData)
-      const requestedDate = new Date(requestData.requested_date)
-      setNewDate(requestedDate.toISOString().split("T")[0])
-      setNewTime(requestedDate.toTimeString().slice(0, 5))
+      setNewDate(requestData.preferred_date)
+      setNewTime(requestData.preferred_time)
     }
   }
 
@@ -166,7 +165,7 @@ export default function GerenciarSolicitacao() {
 
   if (!profile || !request) return null
 
-  const requestedDate = new Date(request.requested_date)
+  const requestedDateTime = new Date(`${request.preferred_date}T${request.preferred_time}`)
 
   return (
     <div className="min-h-screen bg-background">
@@ -209,8 +208,8 @@ export default function GerenciarSolicitacao() {
               <div>
                 <Label className="text-muted-foreground">Data/Hora Solicitada</Label>
                 <p className="text-foreground font-medium">
-                  {requestedDate.toLocaleDateString("pt-BR")} às{" "}
-                  {requestedDate.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}
+                  {requestedDateTime.toLocaleDateString("pt-BR")} às{" "}
+                  {requestedDateTime.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}
                 </p>
               </div>
 
