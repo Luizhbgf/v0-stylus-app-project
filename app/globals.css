@@ -8,7 +8,6 @@
   /* Styllus Brand Colors */
   --gold: oklch(0.75 0.15 85);
   --green-sicoob: oklch(0.45 0.15 150);
-  --green-sicoob-dark: oklch(0.25 0.12 150);
 
   /* Light Mode: fundo branco com detalhes em dourado e verde Sicoob */
   --background: oklch(1 0 0); /* Branco */
@@ -47,42 +46,41 @@
 }
 
 .dark {
-  /* Dark Mode: fundo verde Sicoob escuro com detalhes em dourado e branco */
-  --background: oklch(0.2 0.1 150); /* Verde Sicoob escuro mas visível */
+  /* Dark Mode: fundo #385857 com detalhes em dourado e branco */
+  --background: #385857; /* Verde escuro específico */
   --foreground: oklch(0.985 0 0); /* Texto branco */
-  --card: oklch(0.25 0.1 150); /* Verde Sicoob um pouco mais claro que o fundo */
+  --card: #3f6362; /* Verde um pouco mais claro que o fundo */
   --card-foreground: oklch(0.985 0 0);
-  --popover: oklch(0.25 0.1 150);
+  --popover: #3f6362;
   --popover-foreground: oklch(0.985 0 0);
   --primary: oklch(0.75 0.15 85); /* Dourado */
   --primary-foreground: oklch(0.145 0 0); /* Texto escuro no dourado */
   --secondary: oklch(0.985 0 0); /* Branco */
-  --secondary-foreground: oklch(0.2 0.1 150); /* Verde escuro no branco */
-  --muted: oklch(0.3 0.08 150); /* Verde Sicoob médio */
+  --secondary-foreground: #385857; /* Verde escuro no branco */
+  --muted: #4a706e; /* Verde médio */
   --muted-foreground: oklch(0.85 0 0); /* Texto claro */
   --accent: oklch(0.75 0.15 85); /* Dourado para acentos */
   --accent-foreground: oklch(0.145 0 0);
   --destructive: oklch(0.577 0.245 27.325);
   --destructive-foreground: oklch(0.985 0 0);
-  --border: oklch(0.35 0.08 150); /* Bordas em verde mais claro */
-  --input: oklch(0.3 0.08 150);
+  --border: #4a706e; /* Bordas em verde mais claro */
+  --input: #4a706e;
   --ring: oklch(0.75 0.15 85); /* Dourado para focus ring */
   --chart-1: oklch(0.75 0.15 85); /* Dourado */
   --chart-2: oklch(0.985 0 0); /* Branco */
-  --chart-3: oklch(0.55 0.12 150); /* Verde Sicoob claro */
+  --chart-3: #5a8280; /* Verde claro */
   --chart-4: oklch(0.828 0.189 84.429);
   --chart-5: oklch(0.769 0.188 70.08);
-  --sidebar: oklch(0.25 0.1 150);
+  --sidebar: #3f6362;
   --sidebar-foreground: oklch(0.985 0 0);
   --sidebar-primary: oklch(0.75 0.15 85); /* Dourado */
   --sidebar-primary-foreground: oklch(0.145 0 0);
   --sidebar-accent: oklch(0.985 0 0); /* Branco */
-  --sidebar-accent-foreground: oklch(0.2 0.1 150);
-  --sidebar-border: oklch(0.35 0.08 150);
+  --sidebar-accent-foreground: #385857;
+  --sidebar-border: #4a706e;
   --sidebar-ring: oklch(0.75 0.15 85);
 }
 
-/* Removendo var() do @theme e definindo valores diretos */
 @theme {
   --font-sans: Inter, ui-sans-serif, system-ui, sans-serif;
   --font-serif: "Playfair Display", ui-serif, Georgia, serif;
@@ -91,20 +89,20 @@
   --color-gold: oklch(0.75 0.15 85);
   --color-green-sicoob: oklch(0.45 0.15 150);
 
-  /* Base colors - direct values instead of var() */
+  /* Base colors */
   --color-background: oklch(1 0 0);
   --color-foreground: oklch(0.145 0 0);
   --color-card: oklch(1 0 0);
   --color-card-foreground: oklch(0.145 0 0);
   --color-popover: oklch(1 0 0);
   --color-popover-foreground: oklch(0.145 0 0);
-  --color-primary: oklch(0.75 0.15 85); /* Dourado */
+  --color-primary: oklch(0.75 0.15 85);
   --color-primary-foreground: oklch(0.145 0 0);
-  --color-secondary: oklch(0.45 0.15 150); /* Verde Sicoob */
+  --color-secondary: oklch(0.45 0.15 150);
   --color-secondary-foreground: oklch(1 0 0);
   --color-muted: oklch(0.97 0 0);
   --color-muted-foreground: oklch(0.556 0 0);
-  --color-accent: oklch(0.75 0.15 85); /* Dourado */
+  --color-accent: oklch(0.75 0.15 85);
   --color-accent-foreground: oklch(0.145 0 0);
   --color-destructive: oklch(0.577 0.245 27.325);
   --color-destructive-foreground: oklch(0.985 0 0);
