@@ -11,10 +11,13 @@ export function ThemeToggle() {
 
   useEffect(() => {
     setMounted(true)
-  }, [])
+    console.log("[v0] Theme atual:", theme)
+  }, [theme])
 
   const toggleTheme = () => {
-    setTheme(theme === "light" ? "dark" : "light")
+    const newTheme = theme === "light" ? "dark" : "light"
+    console.log("[v0] Mudando tema de", theme, "para", newTheme)
+    setTheme(newTheme)
   }
 
   if (!mounted) {
