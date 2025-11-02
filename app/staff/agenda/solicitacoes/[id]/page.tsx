@@ -40,7 +40,6 @@ export default function GerenciarSolicitacao() {
     const { data: profileData } = await supabase.from("profiles").select("*").eq("id", user.id).single()
     setProfile(profileData)
 
-    // Load request
     const { data: requestData } = await supabase
       .from("appointment_requests")
       .select(
@@ -55,16 +54,16 @@ export default function GerenciarSolicitacao() {
 
     if (requestData) {
       setRequest(requestData)
-      const requestedDate = new Date(requestData.requested_date)
-      setNewDate(requestedDate.toISOString().split("T")[0])
-      setNewTime(requestedDate.toTimeString().slice(0, 5))
+      // Initialize with the preferred date and time from the request
+      setNewDate(requestData.preferred_date || "")
+      setNewTime(requestData.preferred_time || "")
     }
   }
 
   const handleApprove = async () => {
     setIsLoading(true)
     try {
-      const appointmentDateTime = new Date(`${newDate}T${newTime}`)
+      const appointmentDateTime = new Date(`${newDate}T${newTime}:00`)
 
       // Create appointment
       const { error: aptError } = await supabase.from("appointments").insert({
@@ -74,7 +73,6 @@ export default function GerenciarSolicitacao() {
         appointment_date: appointmentDateTime.toISOString(),
         status: "confirmed",
         notes: request.notes,
-        is_client_request: true,
         payment_status: "pending",
       })
 
@@ -85,7 +83,6 @@ export default function GerenciarSolicitacao() {
         .from("appointment_requests")
         .update({
           status: "approved",
-          staff_notes: staffNotes,
         })
         .eq("id", request.id)
 
@@ -104,7 +101,7 @@ export default function GerenciarSolicitacao() {
   const handleModify = async () => {
     setIsLoading(true)
     try {
-      const appointmentDateTime = new Date(`${newDate}T${newTime}`)
+      const appointmentDateTime = new Date(`${newDate}T${newTime}:00`)
 
       // Create appointment with modified date
       const { error: aptError } = await supabase.from("appointments").insert({
@@ -113,8 +110,7 @@ export default function GerenciarSolicitacao() {
         service_id: request.service_id,
         appointment_date: appointmentDateTime.toISOString(),
         status: "confirmed",
-        notes: `${request.notes}\n\nModificado pelo profissional: ${staffNotes}`,
-        is_client_request: true,
+        notes: staffNotes ? `${request.notes || ""}\n\nModificado pelo profissional: ${staffNotes}` : request.notes,
         payment_status: "pending",
       })
 
@@ -125,7 +121,6 @@ export default function GerenciarSolicitacao() {
         .from("appointment_requests")
         .update({
           status: "modified",
-          staff_notes: staffNotes,
         })
         .eq("id", request.id)
 
@@ -148,7 +143,6 @@ export default function GerenciarSolicitacao() {
         .from("appointment_requests")
         .update({
           status: "rejected",
-          staff_notes: staffNotes,
         })
         .eq("id", request.id)
 
@@ -166,7 +160,18 @@ export default function GerenciarSolicitacao() {
 
   if (!profile || !request) return null
 
-  const requestedDate = new Date(request.requested_date)
+  const formatRequestedDateTime = () => {
+    if (!request.preferred_date) return "Data não especificada"
+
+    try {
+      const date = new Date(request.preferred_date)
+      const dateStr = date.toLocaleDateString("pt-BR")
+      const timeStr = request.preferred_time || "Horário não especificado"
+      return `${dateStr} às ${timeStr}`
+    } catch (error) {
+      return "Data inválida"
+    }
+  }
 
   return (
     <div className="min-h-screen bg-background">
@@ -195,7 +200,7 @@ export default function GerenciarSolicitacao() {
                 <Label className="text-muted-foreground">Cliente</Label>
                 <p className="text-foreground font-medium">{request.client?.full_name}</p>
                 <p className="text-sm text-muted-foreground">{request.client?.email}</p>
-                <p className="text-sm text-muted-foreground">{request.client?.phone}</p>
+                {request.client?.phone && <p className="text-sm text-muted-foreground">{request.client?.phone}</p>}
               </div>
 
               <div>
@@ -208,10 +213,7 @@ export default function GerenciarSolicitacao() {
 
               <div>
                 <Label className="text-muted-foreground">Data/Hora Solicitada</Label>
-                <p className="text-foreground font-medium">
-                  {requestedDate.toLocaleDateString("pt-BR")} às{" "}
-                  {requestedDate.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}
-                </p>
+                <p className="text-foreground font-medium">{formatRequestedDateTime()}</p>
               </div>
 
               {request.notes && (
