@@ -63,10 +63,21 @@ export default function GerenciarSolicitacao() {
   const handleApprove = async () => {
     setIsLoading(true)
     try {
+      console.log("[v0] Starting approve process")
+      console.log("[v0] Request data:", request)
+      console.log("[v0] New date:", newDate, "New time:", newTime)
+
+      if (!newDate || !newTime) {
+        toast.error("Por favor, selecione uma data e horário válidos")
+        setIsLoading(false)
+        return
+      }
+
       const appointmentDateTime = new Date(`${newDate}T${newTime}:00`)
+      console.log("[v0] Appointment date time:", appointmentDateTime.toISOString())
 
       // Create appointment
-      const { error: aptError } = await supabase.from("appointments").insert({
+      const appointmentData = {
         client_id: request.client_id,
         staff_id: request.staff_id,
         service_id: request.service_id,
@@ -74,11 +85,23 @@ export default function GerenciarSolicitacao() {
         status: "confirmed",
         notes: request.notes,
         payment_status: "pending",
-      })
+      }
+      console.log("[v0] Creating appointment with data:", appointmentData)
 
-      if (aptError) throw aptError
+      const { data: newAppointment, error: aptError } = await supabase
+        .from("appointments")
+        .insert(appointmentData)
+        .select()
+        .single()
+
+      if (aptError) {
+        console.error("[v0] Error creating appointment:", aptError)
+        throw aptError
+      }
+      console.log("[v0] Appointment created:", newAppointment)
 
       // Update request status
+      console.log("[v0] Updating request status to approved")
       const { error: reqError } = await supabase
         .from("appointment_requests")
         .update({
@@ -86,12 +109,16 @@ export default function GerenciarSolicitacao() {
         })
         .eq("id", request.id)
 
-      if (reqError) throw reqError
+      if (reqError) {
+        console.error("[v0] Error updating request:", reqError)
+        throw reqError
+      }
+      console.log("[v0] Request updated successfully")
 
       toast.success("Solicitação aprovada!")
       router.push("/staff/agenda")
     } catch (error) {
-      console.error("Erro ao aprovar solicitação:", error)
+      console.error("[v0] Error in handleApprove:", error)
       toast.error("Erro ao aprovar solicitação")
     } finally {
       setIsLoading(false)
@@ -101,10 +128,19 @@ export default function GerenciarSolicitacao() {
   const handleModify = async () => {
     setIsLoading(true)
     try {
+      console.log("[v0] Starting modify process")
+
+      if (!newDate || !newTime) {
+        toast.error("Por favor, selecione uma data e horário válidos")
+        setIsLoading(false)
+        return
+      }
+
       const appointmentDateTime = new Date(`${newDate}T${newTime}:00`)
+      console.log("[v0] Modified appointment date time:", appointmentDateTime.toISOString())
 
       // Create appointment with modified date
-      const { error: aptError } = await supabase.from("appointments").insert({
+      const appointmentData = {
         client_id: request.client_id,
         staff_id: request.staff_id,
         service_id: request.service_id,
@@ -112,9 +148,20 @@ export default function GerenciarSolicitacao() {
         status: "confirmed",
         notes: staffNotes ? `${request.notes || ""}\n\nModificado pelo profissional: ${staffNotes}` : request.notes,
         payment_status: "pending",
-      })
+      }
+      console.log("[v0] Creating modified appointment with data:", appointmentData)
 
-      if (aptError) throw aptError
+      const { data: newAppointment, error: aptError } = await supabase
+        .from("appointments")
+        .insert(appointmentData)
+        .select()
+        .single()
+
+      if (aptError) {
+        console.error("[v0] Error creating modified appointment:", aptError)
+        throw aptError
+      }
+      console.log("[v0] Modified appointment created:", newAppointment)
 
       // Update request status
       const { error: reqError } = await supabase
@@ -124,12 +171,15 @@ export default function GerenciarSolicitacao() {
         })
         .eq("id", request.id)
 
-      if (reqError) throw reqError
+      if (reqError) {
+        console.error("[v0] Error updating request to modified:", reqError)
+        throw reqError
+      }
 
       toast.success("Solicitação modificada e aprovada!")
       router.push("/staff/agenda")
     } catch (error) {
-      console.error("Erro ao modificar solicitação:", error)
+      console.error("[v0] Error in handleModify:", error)
       toast.error("Erro ao modificar solicitação")
     } finally {
       setIsLoading(false)
@@ -139,6 +189,8 @@ export default function GerenciarSolicitacao() {
   const handleReject = async () => {
     setIsLoading(true)
     try {
+      console.log("[v0] Starting reject process")
+
       const { error } = await supabase
         .from("appointment_requests")
         .update({
@@ -146,12 +198,16 @@ export default function GerenciarSolicitacao() {
         })
         .eq("id", request.id)
 
-      if (error) throw error
+      if (error) {
+        console.error("[v0] Error rejecting request:", error)
+        throw error
+      }
+      console.log("[v0] Request rejected successfully")
 
       toast.success("Solicitação rejeitada")
       router.push("/staff/agenda")
     } catch (error) {
-      console.error("Erro ao rejeitar solicitação:", error)
+      console.error("[v0] Error in handleReject:", error)
       toast.error("Erro ao rejeitar solicitação")
     } finally {
       setIsLoading(false)

@@ -171,10 +171,9 @@ export default async function StaffAgenda() {
                     <p className="text-sm text-muted-foreground">Cliente: {request.client?.full_name}</p>
                     <p className="text-sm text-muted-foreground">
                       Data solicitada:{" "}
-                      {new Date(request.requested_date).toLocaleString("pt-BR", {
-                        dateStyle: "short",
-                        timeStyle: "short",
-                      })}
+                      {request.preferred_date && request.preferred_time
+                        ? `${new Date(request.preferred_date).toLocaleDateString("pt-BR")} às ${request.preferred_time}`
+                        : "Data não especificada"}
                     </p>
                     {request.notes && <p className="text-sm text-muted-foreground mt-1">Obs: {request.notes}</p>}
                   </div>
