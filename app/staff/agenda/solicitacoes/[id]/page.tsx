@@ -63,21 +63,43 @@ export default function GerenciarSolicitacao() {
   const handleApprove = async () => {
     setIsLoading(true)
     try {
+      if (!newDate || !newTime) {
+        toast.error("Data e horário são obrigatórios")
+        setIsLoading(false)
+        return
+      }
+
       const appointmentDateTime = new Date(`${newDate}T${newTime}`)
 
-      // Create appointment
-      const { error: aptError } = await supabase.from("appointments").insert({
+      console.log("[v0] Criando appointment com dados:", {
         client_id: request.client_id,
         staff_id: request.staff_id,
         service_id: request.service_id,
         appointment_date: appointmentDateTime.toISOString(),
         status: "confirmed",
         notes: request.notes,
-        is_client_request: true,
         payment_status: "pending",
       })
 
-      if (aptError) throw aptError
+      const { data: aptData, error: aptError } = await supabase
+        .from("appointments")
+        .insert({
+          client_id: request.client_id,
+          staff_id: request.staff_id,
+          service_id: request.service_id,
+          appointment_date: appointmentDateTime.toISOString(),
+          status: "confirmed",
+          notes: request.notes,
+          payment_status: "pending",
+        })
+        .select()
+
+      if (aptError) {
+        console.error("[v0] Erro ao criar appointment:", aptError)
+        throw aptError
+      }
+
+      console.log("[v0] Appointment criado com sucesso:", aptData)
 
       // Update request status
       const { error: reqError } = await supabase
@@ -88,12 +110,15 @@ export default function GerenciarSolicitacao() {
         })
         .eq("id", request.id)
 
-      if (reqError) throw reqError
+      if (reqError) {
+        console.error("[v0] Erro ao atualizar request:", reqError)
+        throw reqError
+      }
 
       toast.success("Solicitação aprovada!")
       router.push("/staff/agenda")
     } catch (error) {
-      console.error("Erro ao aprovar solicitação:", error)
+      console.error("[v0] Erro ao aprovar solicitação:", error)
       toast.error("Erro ao aprovar solicitação")
     } finally {
       setIsLoading(false)
@@ -103,21 +128,43 @@ export default function GerenciarSolicitacao() {
   const handleModify = async () => {
     setIsLoading(true)
     try {
+      if (!newDate || !newTime) {
+        toast.error("Data e horário são obrigatórios")
+        setIsLoading(false)
+        return
+      }
+
       const appointmentDateTime = new Date(`${newDate}T${newTime}`)
 
-      // Create appointment with modified date
-      const { error: aptError } = await supabase.from("appointments").insert({
+      console.log("[v0] Modificando appointment com dados:", {
         client_id: request.client_id,
         staff_id: request.staff_id,
         service_id: request.service_id,
         appointment_date: appointmentDateTime.toISOString(),
         status: "confirmed",
         notes: `${request.notes}\n\nModificado pelo profissional: ${staffNotes}`,
-        is_client_request: true,
         payment_status: "pending",
       })
 
-      if (aptError) throw aptError
+      const { data: aptData, error: aptError } = await supabase
+        .from("appointments")
+        .insert({
+          client_id: request.client_id,
+          staff_id: request.staff_id,
+          service_id: request.service_id,
+          appointment_date: appointmentDateTime.toISOString(),
+          status: "confirmed",
+          notes: `${request.notes}\n\nModificado pelo profissional: ${staffNotes}`,
+          payment_status: "pending",
+        })
+        .select()
+
+      if (aptError) {
+        console.error("[v0] Erro ao criar appointment modificado:", aptError)
+        throw aptError
+      }
+
+      console.log("[v0] Appointment modificado criado com sucesso:", aptData)
 
       // Update request status
       const { error: reqError } = await supabase
@@ -128,12 +175,15 @@ export default function GerenciarSolicitacao() {
         })
         .eq("id", request.id)
 
-      if (reqError) throw reqError
+      if (reqError) {
+        console.error("[v0] Erro ao atualizar request:", reqError)
+        throw reqError
+      }
 
       toast.success("Solicitação modificada e aprovada!")
       router.push("/staff/agenda")
     } catch (error) {
-      console.error("Erro ao modificar solicitação:", error)
+      console.error("[v0] Erro ao modificar solicitação:", error)
       toast.error("Erro ao modificar solicitação")
     } finally {
       setIsLoading(false)
@@ -143,6 +193,8 @@ export default function GerenciarSolicitacao() {
   const handleReject = async () => {
     setIsLoading(true)
     try {
+      console.log("[v0] Rejeitando solicitação:", request.id)
+
       const { error } = await supabase
         .from("appointment_requests")
         .update({
@@ -151,12 +203,16 @@ export default function GerenciarSolicitacao() {
         })
         .eq("id", request.id)
 
-      if (error) throw error
+      if (error) {
+        console.error("[v0] Erro ao rejeitar:", error)
+        throw error
+      }
 
+      console.log("[v0] Solicitação rejeitada com sucesso")
       toast.success("Solicitação rejeitada")
       router.push("/staff/agenda")
     } catch (error) {
-      console.error("Erro ao rejeitar solicitação:", error)
+      console.error("[v0] Erro ao rejeitar solicitação:", error)
       toast.error("Erro ao rejeitar solicitação")
     } finally {
       setIsLoading(false)
