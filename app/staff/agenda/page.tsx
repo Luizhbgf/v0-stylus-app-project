@@ -82,6 +82,9 @@ export default async function StaffAgenda() {
     .eq("status", "pending")
     .order("created_at", { ascending: false })
 
+  const todayDateString = today.toISOString().split("T")[0]
+  const thirtyDaysLaterDateString = thirtyDaysLater.toISOString().split("T")[0]
+
   const { data: approvedRequests } = await supabase
     .from("appointment_requests")
     .select(
@@ -93,8 +96,8 @@ export default async function StaffAgenda() {
     )
     .eq("staff_id", user.id)
     .in("status", ["approved", "modified"])
-    .gte("preferred_date", today.toISOString())
-    .lte("preferred_date", thirtyDaysLater.toISOString())
+    .gte("preferred_date", todayDateString)
+    .lte("preferred_date", thirtyDaysLaterDateString)
     .order("preferred_date", { ascending: true })
 
   // Group appointments by date
@@ -118,12 +121,13 @@ export default async function StaffAgenda() {
   )
 
   approvedRequests?.forEach((req) => {
-    const date = new Date(req.preferred_date).toLocaleDateString("pt-BR")
+    const appointmentDateTime = new Date(`${req.preferred_date}T${req.preferred_time}`)
+    const date = appointmentDateTime.toLocaleDateString("pt-BR")
     if (!appointmentsByDate[date]) appointmentsByDate[date] = []
     appointmentsByDate[date].push({
       ...req,
       type: "approved_request",
-      appointment_date: req.preferred_date,
+      appointment_date: appointmentDateTime.toISOString(),
     })
   })
 
@@ -161,30 +165,30 @@ export default async function StaffAgenda() {
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-3">
-              {pendingRequests.map((request) => (
-                <div
-                  key={request.id}
-                  className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 p-4 bg-background rounded-lg border border-gold/20"
-                >
-                  <div className="flex-1">
-                    <h3 className="font-semibold text-foreground">{request.service?.name}</h3>
-                    <p className="text-sm text-muted-foreground">Cliente: {request.client?.full_name}</p>
-                    <p className="text-sm text-muted-foreground">
-                      Data solicitada:{" "}
-                      {new Date(request.requested_date).toLocaleString("pt-BR", {
-                        dateStyle: "short",
-                        timeStyle: "short",
-                      })}
-                    </p>
-                    {request.notes && <p className="text-sm text-muted-foreground mt-1">Obs: {request.notes}</p>}
+              {pendingRequests.map((request) => {
+                const requestDateTime = new Date(`${request.preferred_date}T${request.preferred_time}`)
+                return (
+                  <div
+                    key={request.id}
+                    className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 p-4 bg-background rounded-lg border border-gold/20"
+                  >
+                    <div className="flex-1">
+                      <h3 className="font-semibold text-foreground">{request.service?.name}</h3>
+                      <p className="text-sm text-muted-foreground">Cliente: {request.client?.full_name}</p>
+                      <p className="text-sm text-muted-foreground">
+                        Data solicitada: {requestDateTime.toLocaleDateString("pt-BR")} às{" "}
+                        {requestDateTime.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}
+                      </p>
+                      {request.notes && <p className="text-sm text-muted-foreground mt-1">Obs: {request.notes}</p>}
+                    </div>
+                    <Link href={`/staff/agenda/solicitacoes/${request.id}`}>
+                      <Button size="sm" variant="outline" className="border-gold/20 w-full sm:w-auto bg-transparent">
+                        Gerenciar
+                      </Button>
+                    </Link>
                   </div>
-                  <Link href={`/staff/agenda/solicitacoes/${request.id}`}>
-                    <Button size="sm" variant="outline" className="border-gold/20 w-full sm:w-auto bg-transparent">
-                      Gerenciar
-                    </Button>
-                  </Link>
-                </div>
-              ))}
+                )
+              })}
             </CardContent>
           </Card>
         )}
