@@ -54,9 +54,16 @@ export default function GerenciarSolicitacao() {
       .single()
 
     if (requestData) {
+      console.log("[v0] Request data loaded:", requestData)
       setRequest(requestData)
-      setNewDate(requestData.preferred_date)
-      setNewTime(requestData.preferred_time)
+      // Ensure date and time are in correct format
+      if (requestData.preferred_date) {
+        setNewDate(requestData.preferred_date)
+      }
+      if (requestData.preferred_time) {
+        // Time comes as HH:MM:SS, we need HH:MM for input
+        setNewTime(requestData.preferred_time.substring(0, 5))
+      }
     }
   }
 
@@ -221,7 +228,19 @@ export default function GerenciarSolicitacao() {
 
   if (!profile || !request) return null
 
-  const requestedDateTime = new Date(`${request.preferred_date}T${request.preferred_time}`)
+  let requestedDateTime = null
+  let formattedDate = "Data não disponível"
+
+  if (request.preferred_date && request.preferred_time) {
+    try {
+      requestedDateTime = new Date(`${request.preferred_date}T${request.preferred_time}`)
+      if (!isNaN(requestedDateTime.getTime())) {
+        formattedDate = `${requestedDateTime.toLocaleDateString("pt-BR")} às ${requestedDateTime.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}`
+      }
+    } catch (error) {
+      console.error("[v0] Erro ao formatar data:", error)
+    }
+  }
 
   return (
     <div className="min-h-screen bg-background">
@@ -263,10 +282,7 @@ export default function GerenciarSolicitacao() {
 
               <div>
                 <Label className="text-muted-foreground">Data/Hora Solicitada</Label>
-                <p className="text-foreground font-medium">
-                  {requestedDateTime.toLocaleDateString("pt-BR")} às{" "}
-                  {requestedDateTime.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}
-                </p>
+                <p className="text-foreground font-medium">{formattedDate}</p>
               </div>
 
               {request.notes && (
