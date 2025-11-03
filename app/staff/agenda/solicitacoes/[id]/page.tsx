@@ -40,7 +40,6 @@ export default function GerenciarSolicitacao() {
     const { data: profileData } = await supabase.from("profiles").select("*").eq("id", user.id).single()
     setProfile(profileData)
 
-    // Load request
     const { data: requestData } = await supabase
       .from("appointment_requests")
       .select(
@@ -54,31 +53,20 @@ export default function GerenciarSolicitacao() {
       .single()
 
     if (requestData) {
-      console.log("[v0] Request data loaded:", requestData)
       setRequest(requestData)
-      // Ensure date and time are in correct format
-      if (requestData.preferred_date) {
-        setNewDate(requestData.preferred_date)
-      }
-      if (requestData.preferred_time) {
-        // Time comes as HH:MM:SS, we need HH:MM for input
-        setNewTime(requestData.preferred_time.substring(0, 5))
-      }
+      // Initialize with the preferred date and time from the request
+      setNewDate(requestData.preferred_date || "")
+      setNewTime(requestData.preferred_time || "")
     }
   }
 
   const handleApprove = async () => {
     setIsLoading(true)
     try {
-      if (!newDate || !newTime) {
-        toast.error("Data e horário são obrigatórios")
-        setIsLoading(false)
-        return
-      }
+      const appointmentDateTime = new Date(`${newDate}T${newTime}:00`)
 
-      const appointmentDateTime = new Date(`${newDate}T${newTime}`)
-
-      console.log("[v0] Criando appointment com dados:", {
+      // Create appointment
+      const { error: aptError } = await supabase.from("appointments").insert({
         client_id: request.client_id,
         staff_id: request.staff_id,
         service_id: request.service_id,
@@ -88,44 +76,22 @@ export default function GerenciarSolicitacao() {
         payment_status: "pending",
       })
 
-      const { data: aptData, error: aptError } = await supabase
-        .from("appointments")
-        .insert({
-          client_id: request.client_id,
-          staff_id: request.staff_id,
-          service_id: request.service_id,
-          appointment_date: appointmentDateTime.toISOString(),
-          status: "confirmed",
-          notes: request.notes,
-          payment_status: "pending",
-        })
-        .select()
-
-      if (aptError) {
-        console.error("[v0] Erro ao criar appointment:", aptError)
-        throw aptError
-      }
-
-      console.log("[v0] Appointment criado com sucesso:", aptData)
+      if (aptError) throw aptError
 
       // Update request status
       const { error: reqError } = await supabase
         .from("appointment_requests")
         .update({
           status: "approved",
-          staff_notes: staffNotes,
         })
         .eq("id", request.id)
 
-      if (reqError) {
-        console.error("[v0] Erro ao atualizar request:", reqError)
-        throw reqError
-      }
+      if (reqError) throw reqError
 
       toast.success("Solicitação aprovada!")
       router.push("/staff/agenda")
     } catch (error) {
-      console.error("[v0] Erro ao aprovar solicitação:", error)
+      console.error("Erro ao aprovar solicitação:", error)
       toast.error("Erro ao aprovar solicitação")
     } finally {
       setIsLoading(false)
@@ -135,62 +101,35 @@ export default function GerenciarSolicitacao() {
   const handleModify = async () => {
     setIsLoading(true)
     try {
-      if (!newDate || !newTime) {
-        toast.error("Data e horário são obrigatórios")
-        setIsLoading(false)
-        return
-      }
+      const appointmentDateTime = new Date(`${newDate}T${newTime}:00`)
 
-      const appointmentDateTime = new Date(`${newDate}T${newTime}`)
-
-      console.log("[v0] Modificando appointment com dados:", {
+      // Create appointment with modified date
+      const { error: aptError } = await supabase.from("appointments").insert({
         client_id: request.client_id,
         staff_id: request.staff_id,
         service_id: request.service_id,
         appointment_date: appointmentDateTime.toISOString(),
         status: "confirmed",
-        notes: `${request.notes}\n\nModificado pelo profissional: ${staffNotes}`,
+        notes: staffNotes ? `${request.notes || ""}\n\nModificado pelo profissional: ${staffNotes}` : request.notes,
         payment_status: "pending",
       })
 
-      const { data: aptData, error: aptError } = await supabase
-        .from("appointments")
-        .insert({
-          client_id: request.client_id,
-          staff_id: request.staff_id,
-          service_id: request.service_id,
-          appointment_date: appointmentDateTime.toISOString(),
-          status: "confirmed",
-          notes: `${request.notes}\n\nModificado pelo profissional: ${staffNotes}`,
-          payment_status: "pending",
-        })
-        .select()
-
-      if (aptError) {
-        console.error("[v0] Erro ao criar appointment modificado:", aptError)
-        throw aptError
-      }
-
-      console.log("[v0] Appointment modificado criado com sucesso:", aptData)
+      if (aptError) throw aptError
 
       // Update request status
       const { error: reqError } = await supabase
         .from("appointment_requests")
         .update({
           status: "modified",
-          staff_notes: staffNotes,
         })
         .eq("id", request.id)
 
-      if (reqError) {
-        console.error("[v0] Erro ao atualizar request:", reqError)
-        throw reqError
-      }
+      if (reqError) throw reqError
 
       toast.success("Solicitação modificada e aprovada!")
       router.push("/staff/agenda")
     } catch (error) {
-      console.error("[v0] Erro ao modificar solicitação:", error)
+      console.error("Erro ao modificar solicitação:", error)
       toast.error("Erro ao modificar solicitação")
     } finally {
       setIsLoading(false)
@@ -200,26 +139,19 @@ export default function GerenciarSolicitacao() {
   const handleReject = async () => {
     setIsLoading(true)
     try {
-      console.log("[v0] Rejeitando solicitação:", request.id)
-
       const { error } = await supabase
         .from("appointment_requests")
         .update({
           status: "rejected",
-          staff_notes: staffNotes,
         })
         .eq("id", request.id)
 
-      if (error) {
-        console.error("[v0] Erro ao rejeitar:", error)
-        throw error
-      }
+      if (error) throw error
 
-      console.log("[v0] Solicitação rejeitada com sucesso")
       toast.success("Solicitação rejeitada")
       router.push("/staff/agenda")
     } catch (error) {
-      console.error("[v0] Erro ao rejeitar solicitação:", error)
+      console.error("Erro ao rejeitar solicitação:", error)
       toast.error("Erro ao rejeitar solicitação")
     } finally {
       setIsLoading(false)
@@ -228,17 +160,16 @@ export default function GerenciarSolicitacao() {
 
   if (!profile || !request) return null
 
-  let requestedDateTime = null
-  let formattedDate = "Data não disponível"
+  const formatRequestedDateTime = () => {
+    if (!request.preferred_date) return "Data não especificada"
 
-  if (request.preferred_date && request.preferred_time) {
     try {
-      requestedDateTime = new Date(`${request.preferred_date}T${request.preferred_time}`)
-      if (!isNaN(requestedDateTime.getTime())) {
-        formattedDate = `${requestedDateTime.toLocaleDateString("pt-BR")} às ${requestedDateTime.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}`
-      }
+      const date = new Date(request.preferred_date)
+      const dateStr = date.toLocaleDateString("pt-BR")
+      const timeStr = request.preferred_time || "Horário não especificado"
+      return `${dateStr} às ${timeStr}`
     } catch (error) {
-      console.error("[v0] Erro ao formatar data:", error)
+      return "Data inválida"
     }
   }
 
@@ -269,7 +200,7 @@ export default function GerenciarSolicitacao() {
                 <Label className="text-muted-foreground">Cliente</Label>
                 <p className="text-foreground font-medium">{request.client?.full_name}</p>
                 <p className="text-sm text-muted-foreground">{request.client?.email}</p>
-                <p className="text-sm text-muted-foreground">{request.client?.phone}</p>
+                {request.client?.phone && <p className="text-sm text-muted-foreground">{request.client?.phone}</p>}
               </div>
 
               <div>
@@ -282,7 +213,7 @@ export default function GerenciarSolicitacao() {
 
               <div>
                 <Label className="text-muted-foreground">Data/Hora Solicitada</Label>
-                <p className="text-foreground font-medium">{formattedDate}</p>
+                <p className="text-foreground font-medium">{formatRequestedDateTime()}</p>
               </div>
 
               {request.notes && (
