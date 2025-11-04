@@ -63,7 +63,15 @@ export default function GerenciarSolicitacao() {
   const handleApprove = async () => {
     setIsLoading(true)
     try {
+      if (!newDate || !newTime) {
+        toast.error("Data e horário são obrigatórios")
+        setIsLoading(false)
+        return
+      }
+
       const appointmentDateTime = new Date(`${newDate}T${newTime}:00`)
+
+      console.log("[v0] Approving request with date:", appointmentDateTime.toISOString())
 
       // Create appointment
       const { error: aptError } = await supabase.from("appointments").insert({
@@ -74,9 +82,13 @@ export default function GerenciarSolicitacao() {
         status: "confirmed",
         notes: request.notes,
         payment_status: "pending",
+        client_type: "registered",
       })
 
-      if (aptError) throw aptError
+      if (aptError) {
+        console.error("[v0] Error creating appointment:", aptError)
+        throw aptError
+      }
 
       // Update request status
       const { error: reqError } = await supabase
@@ -86,7 +98,10 @@ export default function GerenciarSolicitacao() {
         })
         .eq("id", request.id)
 
-      if (reqError) throw reqError
+      if (reqError) {
+        console.error("[v0] Error updating request:", reqError)
+        throw reqError
+      }
 
       toast.success("Solicitação aprovada!")
       router.push("/staff/agenda")
@@ -101,7 +116,15 @@ export default function GerenciarSolicitacao() {
   const handleModify = async () => {
     setIsLoading(true)
     try {
+      if (!newDate || !newTime) {
+        toast.error("Data e horário são obrigatórios")
+        setIsLoading(false)
+        return
+      }
+
       const appointmentDateTime = new Date(`${newDate}T${newTime}:00`)
+
+      console.log("[v0] Modifying request with date:", appointmentDateTime.toISOString())
 
       // Create appointment with modified date
       const { error: aptError } = await supabase.from("appointments").insert({
@@ -112,9 +135,13 @@ export default function GerenciarSolicitacao() {
         status: "confirmed",
         notes: staffNotes ? `${request.notes || ""}\n\nModificado pelo profissional: ${staffNotes}` : request.notes,
         payment_status: "pending",
+        client_type: "registered",
       })
 
-      if (aptError) throw aptError
+      if (aptError) {
+        console.error("[v0] Error creating appointment:", aptError)
+        throw aptError
+      }
 
       // Update request status
       const { error: reqError } = await supabase
@@ -124,7 +151,10 @@ export default function GerenciarSolicitacao() {
         })
         .eq("id", request.id)
 
-      if (reqError) throw reqError
+      if (reqError) {
+        console.error("[v0] Error updating request:", reqError)
+        throw reqError
+      }
 
       toast.success("Solicitação modificada e aprovada!")
       router.push("/staff/agenda")
@@ -164,9 +194,9 @@ export default function GerenciarSolicitacao() {
     if (!request.preferred_date) return "Data não especificada"
 
     try {
-      const date = new Date(request.preferred_date)
+      const date = new Date(request.preferred_date + "T00:00:00")
       const dateStr = date.toLocaleDateString("pt-BR")
-      const timeStr = request.preferred_time || "Horário não especificado"
+      const timeStr = request.preferred_time ? request.preferred_time.substring(0, 5) : "Horário não especificado"
       return `${dateStr} às ${timeStr}`
     } catch (error) {
       return "Data inválida"

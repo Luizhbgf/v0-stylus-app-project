@@ -101,14 +101,14 @@ export default function AdicionarAgendamentoStaff() {
 
       const appointmentDateTime = new Date(`${appointmentDate}T${appointmentTime}`)
 
-      const appointmentData = {
+      const appointmentData: any = {
         client_id: clientType === "registered" ? selectedClient : null,
         staff_id: user.id,
         service_id: selectedService || null,
         appointment_date: appointmentDateTime.toISOString(),
         status: "confirmed",
         notes,
-        client_type: clientType === "sporadic" ? "sporadic" : "registered",
+        client_type: clientType === "none" ? null : clientType,
         sporadic_client_name: clientType === "sporadic" ? sporadicName : null,
         sporadic_client_phone: clientType === "sporadic" ? sporadicPhone : null,
         event_title: clientType === "none" ? eventTitle : null,
@@ -116,8 +116,10 @@ export default function AdicionarAgendamentoStaff() {
         is_recurring: isRecurring,
         recurrence_type: isRecurring ? recurrenceType : null,
         recurrence_days: isRecurring && recurrenceType === "twice_weekly" ? recurrenceDays : null,
-        recurrence_end_date: isRecurring ? recurrenceEndDate : null,
+        recurrence_end_date: isRecurring && recurrenceEndDate ? new Date(recurrenceEndDate).toISOString() : null,
       }
+
+      console.log("[v0] Creating appointment with data:", appointmentData)
 
       const { data: newAppointment, error } = await supabase
         .from("appointments")
@@ -125,7 +127,12 @@ export default function AdicionarAgendamentoStaff() {
         .select()
         .single()
 
-      if (error) throw error
+      if (error) {
+        console.error("[v0] Error creating appointment:", error)
+        throw error
+      }
+
+      console.log("[v0] Appointment created successfully:", newAppointment)
 
       if (isRecurring && newAppointment) {
         const futureAppointments = generateRecurringAppointments(
