@@ -69,18 +69,33 @@ export default function GerenciarSolicitacao() {
         return
       }
 
-      const appointmentDateTime = new Date(`${newDate}T${newTime}:00`)
+      const {
+        data: { user },
+      } = await supabase.auth.getUser()
+      if (!user) {
+        toast.error("Usuário não autenticado")
+        setIsLoading(false)
+        return
+      }
 
-      console.log("[v0] Approving request with date:", appointmentDateTime.toISOString())
-      console.log("[v0] Request data:", {
-        client_id: request.client_id,
-        staff_id: request.staff_id,
-        service_id: request.service_id,
-      })
+      const timeFormatted = newTime.length > 5 ? newTime.substring(0, 5) : newTime
+      const appointmentDateTime = new Date(`${newDate}T${timeFormatted}:00`)
+
+      if (isNaN(appointmentDateTime.getTime())) {
+        toast.error("Data ou horário inválido")
+        setIsLoading(false)
+        return
+      }
+
+      if (!request.client_id) {
+        toast.error("Cliente não encontrado na solicitação")
+        setIsLoading(false)
+        return
+      }
 
       const appointmentData = {
         client_id: request.client_id,
-        staff_id: request.staff_id,
+        staff_id: user.id,
         service_id: request.service_id,
         appointment_date: appointmentDateTime.toISOString(),
         status: "confirmed",
@@ -109,7 +124,6 @@ export default function GerenciarSolicitacao() {
 
       console.log("[v0] Appointment created successfully:", newAppointment)
 
-      // Update request status
       const { error: reqError } = await supabase
         .from("appointment_requests")
         .update({
@@ -124,6 +138,7 @@ export default function GerenciarSolicitacao() {
 
       toast.success("Solicitação aprovada!")
       router.push("/staff/agenda")
+      router.refresh()
     } catch (error) {
       console.error("Erro ao aprovar solicitação:", error)
       toast.error("Erro ao aprovar solicitação")
@@ -141,13 +156,33 @@ export default function GerenciarSolicitacao() {
         return
       }
 
-      const appointmentDateTime = new Date(`${newDate}T${newTime}:00`)
+      const {
+        data: { user },
+      } = await supabase.auth.getUser()
+      if (!user) {
+        toast.error("Usuário não autenticado")
+        setIsLoading(false)
+        return
+      }
 
-      console.log("[v0] Modifying request with date:", appointmentDateTime.toISOString())
+      const timeFormatted = newTime.length > 5 ? newTime.substring(0, 5) : newTime
+      const appointmentDateTime = new Date(`${newDate}T${timeFormatted}:00`)
+
+      if (isNaN(appointmentDateTime.getTime())) {
+        toast.error("Data ou horário inválido")
+        setIsLoading(false)
+        return
+      }
+
+      if (!request.client_id) {
+        toast.error("Cliente não encontrado na solicitação")
+        setIsLoading(false)
+        return
+      }
 
       const appointmentData = {
         client_id: request.client_id,
-        staff_id: request.staff_id,
+        staff_id: user.id,
         service_id: request.service_id,
         appointment_date: appointmentDateTime.toISOString(),
         status: "confirmed",
@@ -178,7 +213,6 @@ export default function GerenciarSolicitacao() {
 
       console.log("[v0] Modified appointment created successfully:", newAppointment)
 
-      // Update request status
       const { error: reqError } = await supabase
         .from("appointment_requests")
         .update({
@@ -193,6 +227,7 @@ export default function GerenciarSolicitacao() {
 
       toast.success("Solicitação modificada e aprovada!")
       router.push("/staff/agenda")
+      router.refresh()
     } catch (error) {
       console.error("Erro ao modificar solicitação:", error)
       toast.error("Erro ao modificar solicitação")
