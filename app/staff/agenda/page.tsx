@@ -121,17 +121,28 @@ export default async function StaffAgenda() {
   )
 
   approvedRequests?.forEach((req) => {
+    // Skip if date or time is missing
     if (!req.preferred_date || !req.preferred_time) return
 
-    const dateTimeStr = `${req.preferred_date}T${req.preferred_time}`
-    const date = new Date(dateTimeStr).toLocaleDateString("pt-BR")
+    try {
+      const dateTimeStr = `${req.preferred_date}T${req.preferred_time}`
+      const dateObj = new Date(dateTimeStr)
 
-    if (!appointmentsByDate[date]) appointmentsByDate[date] = []
-    appointmentsByDate[date].push({
-      ...req,
-      type: "approved_request",
-      appointment_date: dateTimeStr,
-    })
+      // Skip if date is invalid
+      if (isNaN(dateObj.getTime())) return
+
+      const date = dateObj.toLocaleDateString("pt-BR")
+
+      if (!appointmentsByDate[date]) appointmentsByDate[date] = []
+      appointmentsByDate[date].push({
+        ...req,
+        type: "approved_request",
+        appointment_date: dateTimeStr,
+      })
+    } catch (error) {
+      console.error("[v0] Error processing approved request:", error)
+      // Skip this request if there's an error
+    }
   })
 
   // Sort each day's items by time
