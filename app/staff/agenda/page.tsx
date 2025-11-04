@@ -50,7 +50,14 @@ export default async function StaffAgenda() {
   const thirtyDaysLater = new Date(today)
   thirtyDaysLater.setDate(today.getDate() + 30)
 
-  const { data: appointments } = await supabase
+  console.log("[v0] Date range for appointments:", {
+    today: today.toISOString(),
+    thirtyDaysLater: thirtyDaysLater.toISOString(),
+    todayDate: today.toISOString().split("T")[0],
+    thirtyDaysLaterDate: thirtyDaysLater.toISOString().split("T")[0],
+  })
+
+  const { data: appointments, error: appointmentsError } = await supabase
     .from("appointments")
     .select(
       `
@@ -69,7 +76,13 @@ export default async function StaffAgenda() {
     .lte("appointment_date", thirtyDaysLater.toISOString())
     .order("appointment_date", { ascending: true })
 
-  const { data: pendingRequests } = await supabase
+  console.log("[v0] Appointments query result:", {
+    count: appointments?.length || 0,
+    error: appointmentsError,
+    appointments: appointments,
+  })
+
+  const { data: pendingRequests, error: pendingError } = await supabase
     .from("appointment_requests")
     .select(
       `
@@ -82,10 +95,16 @@ export default async function StaffAgenda() {
     .eq("status", "pending")
     .order("created_at", { ascending: false })
 
+  console.log("[v0] Pending requests query result:", {
+    count: pendingRequests?.length || 0,
+    error: pendingError,
+    requests: pendingRequests,
+  })
+
   const startDate = today.toISOString().split("T")[0] // YYYY-MM-DD format
   const endDate = thirtyDaysLater.toISOString().split("T")[0] // YYYY-MM-DD format
 
-  const { data: approvedRequests } = await supabase
+  const { data: approvedRequests, error: approvedError } = await supabase
     .from("appointment_requests")
     .select(
       `
@@ -99,6 +118,12 @@ export default async function StaffAgenda() {
     .gte("preferred_date", startDate)
     .lte("preferred_date", endDate)
     .order("preferred_date", { ascending: true })
+
+  console.log("[v0] Approved requests query result:", {
+    count: approvedRequests?.length || 0,
+    error: approvedError,
+    requests: approvedRequests,
+  })
 
   // Group appointments by date
   const appointmentsByDate = appointments?.reduce(
@@ -119,6 +144,8 @@ export default async function StaffAgenda() {
     },
     {} as Record<string, any[]>,
   )
+
+  console.log("[v0] Appointments by date (after initial grouping):", appointmentsByDate)
 
   approvedRequests?.forEach((req) => {
     // Skip if date or time is missing
@@ -143,6 +170,12 @@ export default async function StaffAgenda() {
       console.error("[v0] Error processing approved request:", error)
       // Skip this request if there's an error
     }
+  })
+
+  console.log("[v0] Final appointments by date:", {
+    dates: Object.keys(appointmentsByDate || {}),
+    totalItems: Object.values(appointmentsByDate || {}).flat().length,
+    appointmentsByDate,
   })
 
   // Sort each day's items by time
