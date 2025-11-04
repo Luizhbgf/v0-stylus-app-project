@@ -45,18 +45,7 @@ export default async function StaffAgenda() {
   const { data: profile } = await supabase.from("profiles").select("*").eq("id", user.id).single()
   if (!profile || profile.user_level < 20) redirect("/cliente")
 
-  // Get all appointments for the next 30 days
-  const today = new Date()
-  const thirtyDaysLater = new Date(today)
-  thirtyDaysLater.setDate(today.getDate() + 30)
-
-  console.log("[v0] Date range for appointments:", {
-    today: today.toISOString(),
-    thirtyDaysLater: thirtyDaysLater.toISOString(),
-    todayDate: today.toISOString().split("T")[0],
-    thirtyDaysLaterDate: thirtyDaysLater.toISOString().split("T")[0],
-  })
-
+  // Get ALL appointments first to see if any exist
   const { data: appointments, error: appointmentsError } = await supabase
     .from("appointments")
     .select(
@@ -72,16 +61,9 @@ export default async function StaffAgenda() {
     `,
     )
     .eq("staff_id", user.id)
-    .gte("appointment_date", today.toISOString())
-    .lte("appointment_date", thirtyDaysLater.toISOString())
     .order("appointment_date", { ascending: true })
 
-  console.log("[v0] Appointments query result:", {
-    count: appointments?.length || 0,
-    error: appointmentsError,
-    appointments: appointments,
-  })
-
+  // Get ALL pending requests
   const { data: pendingRequests, error: pendingError } = await supabase
     .from("appointment_requests")
     .select(
@@ -95,15 +77,7 @@ export default async function StaffAgenda() {
     .eq("status", "pending")
     .order("created_at", { ascending: false })
 
-  console.log("[v0] Pending requests query result:", {
-    count: pendingRequests?.length || 0,
-    error: pendingError,
-    requests: pendingRequests,
-  })
-
-  const startDate = today.toISOString().split("T")[0] // YYYY-MM-DD format
-  const endDate = thirtyDaysLater.toISOString().split("T")[0] // YYYY-MM-DD format
-
+  // Get ALL approved requests
   const { data: approvedRequests, error: approvedError } = await supabase
     .from("appointment_requests")
     .select(
@@ -115,22 +89,17 @@ export default async function StaffAgenda() {
     )
     .eq("staff_id", user.id)
     .in("status", ["approved", "modified"])
-    .gte("preferred_date", startDate)
-    .lte("preferred_date", endDate)
     .order("preferred_date", { ascending: true })
 
-  console.log("[v0] Approved requests query result:", {
-    count: approvedRequests?.length || 0,
-    error: approvedError,
-    requests: approvedRequests,
-  })
-
   // Group appointments by date
-  const appointmentsByDate = appointments?.reduce(
-    (acc, apt) => {
+  const appointmentsByDate: Record<string, any[]> = {}
+
+  // Add regular appointments
+  appointments?.forEach((apt) => {
+    try {
       const date = new Date(apt.appointment_date).toLocaleDateString("pt-BR")
-      if (!acc[date]) acc[date] = []
-      acc[date].push({
+      if (!appointmentsByDate[date]) appointmentsByDate[date] = []
+      appointmentsByDate[date].push({
         ...apt,
         type: "appointment",
         client: apt.client
@@ -140,13 +109,12 @@ export default async function StaffAgenda() {
             }
           : null,
       })
-      return acc
-    },
-    {} as Record<string, any[]>,
-  )
+    } catch (error) {
+      console.error("[v0] Error processing appointment:", error)
+    }
+  })
 
-  console.log("[v0] Appointments by date (after initial grouping):", appointmentsByDate)
-
+  // Add approved requests
   approvedRequests?.forEach((req) => {
     // Skip if date or time is missing
     if (!req.preferred_date || !req.preferred_time) return
@@ -168,18 +136,11 @@ export default async function StaffAgenda() {
       })
     } catch (error) {
       console.error("[v0] Error processing approved request:", error)
-      // Skip this request if there's an error
     }
   })
 
-  console.log("[v0] Final appointments by date:", {
-    dates: Object.keys(appointmentsByDate || {}),
-    totalItems: Object.values(appointmentsByDate || {}).flat().length,
-    appointmentsByDate,
-  })
-
   // Sort each day's items by time
-  Object.keys(appointmentsByDate || {}).forEach((date) => {
+  Object.keys(appointmentsByDate).forEach((date) => {
     appointmentsByDate[date].sort(
       (a, b) => new Date(a.appointment_date).getTime() - new Date(b.appointment_date).getTime(),
     )
@@ -202,6 +163,32 @@ export default async function StaffAgenda() {
             </Button>
           </Link>
         </div>
+
+        {(appointmentsError || pendingError || approvedError) && (
+          <Card className="mb-6 border-red-500/20 bg-red-500/5">
+            <CardHeader>
+              <CardTitle className="text-red-500">Erros ao carregar dados</CardTitle>
+            </CardHeader>
+            <CardContent>
+              {appointmentsError && <p className="text-sm text-red-500">Appointments: {appointmentsError.message}</p>}
+              {pendingError && <p className="text-sm text-red-500">Pending: {pendingError.message}</p>}
+              {approvedError && <p className="text-sm text-red-500">Approved: {approvedError.message}</p>}
+            </CardContent>
+          </Card>
+        )}
+
+        <Card className="mb-6 border-blue-500/20 bg-blue-500/5">
+          <CardHeader>
+            <CardTitle className="text-sm">Debug Info</CardTitle>
+          </CardHeader>
+          <CardContent className="text-sm space-y-1">
+            <p>Appointments encontrados: {appointments?.length || 0}</p>
+            <p>Solicitações pendentes: {pendingRequests?.length || 0}</p>
+            <p>Solicitações aprovadas: {approvedRequests?.length || 0}</p>
+            <p>Datas com agendamentos: {Object.keys(appointmentsByDate).length}</p>
+            <p>Staff ID: {user.id}</p>
+          </CardContent>
+        </Card>
 
         {pendingRequests && pendingRequests.length > 0 && (
           <Card className="mb-6 border-gold/20 bg-gold/5">
