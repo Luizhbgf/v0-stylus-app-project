@@ -45,7 +45,12 @@ export default async function StaffAgenda() {
   const { data: profile } = await supabase.from("profiles").select("*").eq("id", user.id).single()
   if (!profile || profile.user_level < 20) redirect("/cliente")
 
-  // Get ALL appointments first to see if any exist
+  // Get appointments within the next 30 days
+  const today = new Date()
+  today.setHours(0, 0, 0, 0)
+  const thirtyDaysLater = new Date(today)
+  thirtyDaysLater.setDate(today.getDate() + 30)
+
   const { data: appointments, error: appointmentsError } = await supabase
     .from("appointments")
     .select(
@@ -61,9 +66,11 @@ export default async function StaffAgenda() {
     `,
     )
     .eq("staff_id", user.id)
+    .gte("appointment_date", today.toISOString())
+    .lte("appointment_date", thirtyDaysLater.toISOString())
     .order("appointment_date", { ascending: true })
 
-  // Get ALL pending requests
+  // Get pending requests
   const { data: pendingRequests, error: pendingError } = await supabase
     .from("appointment_requests")
     .select(
@@ -77,7 +84,10 @@ export default async function StaffAgenda() {
     .eq("status", "pending")
     .order("created_at", { ascending: false })
 
-  // Get ALL approved requests
+  // Get approved requests within the next 30 days
+  const todayStr = today.toISOString().split("T")[0]
+  const thirtyDaysLaterStr = thirtyDaysLater.toISOString().split("T")[0]
+
   const { data: approvedRequests, error: approvedError } = await supabase
     .from("appointment_requests")
     .select(
@@ -89,6 +99,8 @@ export default async function StaffAgenda() {
     )
     .eq("staff_id", user.id)
     .in("status", ["approved", "modified"])
+    .gte("preferred_date", todayStr)
+    .lte("preferred_date", thirtyDaysLaterStr)
     .order("preferred_date", { ascending: true })
 
   // Group appointments by date
@@ -177,19 +189,6 @@ export default async function StaffAgenda() {
           </Card>
         )}
 
-        <Card className="mb-6 border-blue-500/20 bg-blue-500/5">
-          <CardHeader>
-            <CardTitle className="text-sm">Debug Info</CardTitle>
-          </CardHeader>
-          <CardContent className="text-sm space-y-1">
-            <p>Appointments encontrados: {appointments?.length || 0}</p>
-            <p>Solicitações pendentes: {pendingRequests?.length || 0}</p>
-            <p>Solicitações aprovadas: {approvedRequests?.length || 0}</p>
-            <p>Datas com agendamentos: {Object.keys(appointmentsByDate).length}</p>
-            <p>Staff ID: {user.id}</p>
-          </CardContent>
-        </Card>
-
         {pendingRequests && pendingRequests.length > 0 && (
           <Card className="mb-6 border-gold/20 bg-gold/5">
             <CardHeader>
@@ -225,29 +224,6 @@ export default async function StaffAgenda() {
             </CardContent>
           </Card>
         )}
-
-        <Card className="mb-6 border-gold/20">
-          <CardContent className="p-4">
-            <div className="flex flex-wrap gap-4 text-sm">
-              <div className="flex items-center gap-2">
-                <div className="w-4 h-4 rounded bg-green-500/50" />
-                <span className="text-muted-foreground">Assinante</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <div className="w-4 h-4 rounded bg-blue-500/50" />
-                <span className="text-muted-foreground">Cliente Padrão</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <div className="w-4 h-4 rounded bg-yellow-500/50" />
-                <span className="text-muted-foreground">Cliente Esporádico</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <div className="w-4 h-4 rounded bg-red-500/50" />
-                <span className="text-muted-foreground">Pagamento Pendente</span>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
 
         <div className="space-y-6">
           {appointmentsByDate && Object.keys(appointmentsByDate).length > 0 ? (
