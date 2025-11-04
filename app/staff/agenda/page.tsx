@@ -82,6 +82,9 @@ export default async function StaffAgenda() {
     .eq("status", "pending")
     .order("created_at", { ascending: false })
 
+  const startDate = today.toISOString().split("T")[0] // YYYY-MM-DD format
+  const endDate = thirtyDaysLater.toISOString().split("T")[0] // YYYY-MM-DD format
+
   const { data: approvedRequests } = await supabase
     .from("appointment_requests")
     .select(
@@ -93,8 +96,8 @@ export default async function StaffAgenda() {
     )
     .eq("staff_id", user.id)
     .in("status", ["approved", "modified"])
-    .gte("preferred_date", today.toISOString())
-    .lte("preferred_date", thirtyDaysLater.toISOString())
+    .gte("preferred_date", startDate)
+    .lte("preferred_date", endDate)
     .order("preferred_date", { ascending: true })
 
   // Group appointments by date
@@ -118,12 +121,16 @@ export default async function StaffAgenda() {
   )
 
   approvedRequests?.forEach((req) => {
-    const date = new Date(req.preferred_date).toLocaleDateString("pt-BR")
+    if (!req.preferred_date || !req.preferred_time) return
+
+    const dateTimeStr = `${req.preferred_date}T${req.preferred_time}`
+    const date = new Date(dateTimeStr).toLocaleDateString("pt-BR")
+
     if (!appointmentsByDate[date]) appointmentsByDate[date] = []
     appointmentsByDate[date].push({
       ...req,
       type: "approved_request",
-      appointment_date: req.preferred_date,
+      appointment_date: dateTimeStr,
     })
   })
 
@@ -171,10 +178,9 @@ export default async function StaffAgenda() {
                     <p className="text-sm text-muted-foreground">Cliente: {request.client?.full_name}</p>
                     <p className="text-sm text-muted-foreground">
                       Data solicitada:{" "}
-                      {new Date(request.requested_date).toLocaleString("pt-BR", {
-                        dateStyle: "short",
-                        timeStyle: "short",
-                      })}
+                      {request.preferred_date && request.preferred_time
+                        ? `${new Date(request.preferred_date + "T00:00:00").toLocaleDateString("pt-BR")} às ${request.preferred_time.substring(0, 5)}`
+                        : "Data não especificada"}
                     </p>
                     {request.notes && <p className="text-sm text-muted-foreground mt-1">Obs: {request.notes}</p>}
                   </div>

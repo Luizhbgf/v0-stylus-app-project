@@ -72,23 +72,42 @@ export default function GerenciarSolicitacao() {
       const appointmentDateTime = new Date(`${newDate}T${newTime}:00`)
 
       console.log("[v0] Approving request with date:", appointmentDateTime.toISOString())
+      console.log("[v0] Request data:", {
+        client_id: request.client_id,
+        staff_id: request.staff_id,
+        service_id: request.service_id,
+      })
 
-      // Create appointment
-      const { error: aptError } = await supabase.from("appointments").insert({
+      const appointmentData = {
         client_id: request.client_id,
         staff_id: request.staff_id,
         service_id: request.service_id,
         appointment_date: appointmentDateTime.toISOString(),
         status: "confirmed",
-        notes: request.notes,
+        notes: request.notes || null,
         payment_status: "pending",
         client_type: "registered",
-      })
+        is_recurring: false,
+        recurrence_type: null,
+        recurrence_days: null,
+        recurrence_end_date: null,
+      }
+
+      console.log("[v0] Creating appointment with data:", appointmentData)
+
+      const { data: newAppointment, error: aptError } = await supabase
+        .from("appointments")
+        .insert(appointmentData)
+        .select()
+        .single()
 
       if (aptError) {
         console.error("[v0] Error creating appointment:", aptError)
+        console.error("[v0] Error details:", JSON.stringify(aptError, null, 2))
         throw aptError
       }
+
+      console.log("[v0] Appointment created successfully:", newAppointment)
 
       // Update request status
       const { error: reqError } = await supabase
@@ -126,22 +145,38 @@ export default function GerenciarSolicitacao() {
 
       console.log("[v0] Modifying request with date:", appointmentDateTime.toISOString())
 
-      // Create appointment with modified date
-      const { error: aptError } = await supabase.from("appointments").insert({
+      const appointmentData = {
         client_id: request.client_id,
         staff_id: request.staff_id,
         service_id: request.service_id,
         appointment_date: appointmentDateTime.toISOString(),
         status: "confirmed",
-        notes: staffNotes ? `${request.notes || ""}\n\nModificado pelo profissional: ${staffNotes}` : request.notes,
+        notes: staffNotes
+          ? `${request.notes || ""}\n\nModificado pelo profissional: ${staffNotes}`
+          : request.notes || null,
         payment_status: "pending",
         client_type: "registered",
-      })
+        is_recurring: false,
+        recurrence_type: null,
+        recurrence_days: null,
+        recurrence_end_date: null,
+      }
+
+      console.log("[v0] Creating modified appointment with data:", appointmentData)
+
+      const { data: newAppointment, error: aptError } = await supabase
+        .from("appointments")
+        .insert(appointmentData)
+        .select()
+        .single()
 
       if (aptError) {
         console.error("[v0] Error creating appointment:", aptError)
+        console.error("[v0] Error details:", JSON.stringify(aptError, null, 2))
         throw aptError
       }
+
+      console.log("[v0] Modified appointment created successfully:", newAppointment)
 
       // Update request status
       const { error: reqError } = await supabase
@@ -199,6 +234,7 @@ export default function GerenciarSolicitacao() {
       const timeStr = request.preferred_time ? request.preferred_time.substring(0, 5) : "Horário não especificado"
       return `${dateStr} às ${timeStr}`
     } catch (error) {
+      console.error("[v0] Error formatting date:", error)
       return "Data inválida"
     }
   }
