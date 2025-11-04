@@ -9,7 +9,7 @@ import { Badge } from "@/components/ui/badge"
 
 function getAppointmentColor(appointment: any) {
   // Check if client has active subscription
-  if (appointment.client?.subscription_status === "active") {
+  if (appointment.client?.subscriptions?.[0]?.status === "active") {
     return "bg-green-500/20 border-green-500/50 text-green-700 dark:text-green-300"
   }
 
@@ -28,7 +28,7 @@ function getAppointmentColor(appointment: any) {
 }
 
 function getClientTypeLabel(appointment: any) {
-  if (appointment.client?.subscription_status === "active") return "Assinante"
+  if (appointment.client?.subscriptions?.[0]?.status === "active") return "Assinante"
   if (appointment.payment_status === "overdue") return "Devedor"
   if (appointment.client_type === "sporadic") return "Esporádico"
   return "Padrão"
@@ -61,7 +61,7 @@ export default async function StaffAgenda() {
         id,
         full_name,
         phone,
-        subscriptions(status)
+        subscriptions!client_id(status)
       )
     `,
     )
