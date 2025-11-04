@@ -56,8 +56,8 @@ export default async function StaffAgenda() {
     .select(
       `
       *,
-      service:services(*),
-      client:client_id(
+      service:services!service_id(*),
+      client:profiles!client_id(
         id,
         full_name,
         phone,
@@ -76,8 +76,8 @@ export default async function StaffAgenda() {
     .select(
       `
       *,
-      client:client_id(full_name, phone),
-      service:services(name, price, duration)
+      client:profiles!client_id(full_name, phone),
+      service:services!service_id(name, price, duration)
     `,
     )
     .eq("staff_id", user.id)
@@ -93,8 +93,8 @@ export default async function StaffAgenda() {
     .select(
       `
       *,
-      client:client_id(full_name, phone),
-      service:services(name, price, duration)
+      client:profiles!client_id(full_name, phone),
+      service:services!service_id(name, price, duration)
     `,
     )
     .eq("staff_id", user.id)
