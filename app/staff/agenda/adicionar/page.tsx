@@ -108,7 +108,7 @@ export default function AdicionarAgendamentoStaff() {
         appointment_date: appointmentDateTime.toISOString(),
         status: "confirmed",
         notes,
-        client_type: clientType === "none" ? null : clientType,
+        client_type: clientType === "sporadic" ? "sporadic" : null,
         sporadic_client_name: clientType === "sporadic" ? sporadicName : null,
         sporadic_client_phone: clientType === "sporadic" ? sporadicPhone : null,
         event_title: clientType === "none" ? eventTitle : null,

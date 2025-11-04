@@ -101,7 +101,7 @@ export default function GerenciarSolicitacao() {
         status: "confirmed",
         notes: request.notes || null,
         payment_status: "pending",
-        client_type: "registered",
+        client_type: null,
         is_recurring: false,
         recurrence_type: null,
         recurrence_days: null,
@@ -190,7 +190,7 @@ export default function GerenciarSolicitacao() {
           ? `${request.notes || ""}\n\nModificado pelo profissional: ${staffNotes}`
           : request.notes || null,
         payment_status: "pending",
-        client_type: "registered",
+        client_type: null,
         is_recurring: false,
         recurrence_type: null,
         recurrence_days: null,
