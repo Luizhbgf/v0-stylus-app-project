@@ -93,7 +93,12 @@ export default async function StaffAgenda() {
     .select(
       `
       *,
-      client:profiles!client_id(full_name, phone),
+      client:profiles!client_id(
+        id,
+        full_name,
+        phone,
+        subscriptions!client_id(status)
+      ),
       service:services!service_id(name, price, duration)
     `,
     )
@@ -145,6 +150,12 @@ export default async function StaffAgenda() {
         ...req,
         type: "approved_request",
         appointment_date: dateTimeStr,
+        client: req.client
+          ? {
+              ...req.client,
+              subscription_status: req.client.subscriptions?.[0]?.status || null,
+            }
+          : null,
       })
     } catch (error) {
       console.error("[v0] Error processing approved request:", error)
@@ -235,10 +246,7 @@ export default async function StaffAgenda() {
                 </h2>
                 <div className="grid gap-4">
                   {items.map((item) => (
-                    <Card
-                      key={item.id}
-                      className={`border ${item.type === "approved_request" ? "border-gold/50 bg-gold/5" : getAppointmentColor(item)}`}
-                    >
+                    <Card key={item.id} className={`border ${getAppointmentColor(item)}`}>
                       <CardContent className="p-4 sm:p-6">
                         <div className="flex flex-col sm:flex-row justify-between items-start gap-4">
                           <div className="flex-1">
@@ -317,13 +325,17 @@ export default async function StaffAgenda() {
                             {item.service?.price && (
                               <p className="text-sm text-muted-foreground mt-2">R$ {item.service.price}</p>
                             )}
-                            {item.type === "appointment" && (
-                              <Link href={`/staff/agenda/${item.id}`}>
-                                <Button size="sm" variant="outline" className="mt-2 w-full sm:w-auto bg-transparent">
-                                  Gerenciar
-                                </Button>
-                              </Link>
-                            )}
+                            <Link
+                              href={
+                                item.type === "approved_request"
+                                  ? `/staff/agenda/solicitacoes/${item.id}`
+                                  : `/staff/agenda/${item.id}`
+                              }
+                            >
+                              <Button size="sm" variant="outline" className="mt-2 w-full sm:w-auto bg-transparent">
+                                Gerenciar
+                              </Button>
+                            </Link>
                           </div>
                         </div>
                       </CardContent>
