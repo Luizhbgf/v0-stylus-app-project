@@ -295,6 +295,29 @@ export default function GerenciarSolicitacao() {
     }
   }
 
+  const handleComplete = async () => {
+    setIsLoading(true)
+    try {
+      const { error } = await supabase
+        .from("appointment_requests")
+        .update({
+          status: "completed",
+        })
+        .eq("id", request.id)
+
+      if (error) throw error
+
+      toast.success("Solicitação marcada como concluída")
+      router.push("/staff/agenda")
+      router.refresh()
+    } catch (error) {
+      console.error("Erro ao marcar como concluída:", error)
+      toast.error("Erro ao marcar como concluída")
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
   if (!profile || !request) return null
 
   const formatRequestedDateTime = () => {
@@ -620,6 +643,86 @@ export default function GerenciarSolicitacao() {
               )}
             </>
           )}
+
+          <Card className="border-gold/20">
+            <CardHeader>
+              <CardTitle>Ações</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <AlertDialog>
+                <AlertDialogTrigger asChild>
+                  <Button className="w-full bg-green-600 hover:bg-green-700 text-white" disabled={isLoading}>
+                    <Check className="mr-2 h-4 w-4" />
+                    Marcar como Concluído
+                  </Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>Confirmar conclusão</AlertDialogTitle>
+                    <AlertDialogDescription>
+                      Tem certeza que deseja marcar esta solicitação como concluída?
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                    <AlertDialogAction onClick={handleComplete} className="bg-green-600 hover:bg-green-700">
+                      Confirmar
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
+
+              <AlertDialog>
+                <AlertDialogTrigger asChild>
+                  <Button
+                    variant="outline"
+                    className="w-full border-orange-500/20 text-orange-500 hover:bg-orange-500/10 bg-transparent"
+                    disabled={isLoading}
+                  >
+                    <UserX className="mr-2 h-4 w-4" />
+                    Cliente Não Compareceu
+                  </Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>Confirmar não comparecimento</AlertDialogTitle>
+                    <AlertDialogDescription>
+                      Tem certeza que o cliente não compareceu à solicitação?
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                    <AlertDialogAction onClick={handleNoShow} className="bg-orange-500 hover:bg-orange-600">
+                      Confirmar
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
+
+              <AlertDialog>
+                <AlertDialogTrigger asChild>
+                  <Button variant="destructive" className="w-full" disabled={isLoading}>
+                    <X className="mr-2 h-4 w-4" />
+                    Cancelar Agendamento
+                  </Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>Confirmar cancelamento</AlertDialogTitle>
+                    <AlertDialogDescription>
+                      Tem certeza que deseja cancelar esta solicitação? Esta ação não pode ser desfeita.
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel>Voltar</AlertDialogCancel>
+                    <AlertDialogAction onClick={handleCancel} className="bg-red-600 hover:bg-red-700">
+                      Cancelar
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
+            </CardContent>
+          </Card>
         </div>
       </div>
     </div>
