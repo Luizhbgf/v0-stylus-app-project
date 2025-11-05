@@ -25,6 +25,46 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog"
 
+function getClientColor(client: any, paymentStatus?: string) {
+  // Check if client has active subscription
+  if (client?.subscriptions?.[0]?.status === "active") {
+    return "border-green-500/50 bg-green-500/5"
+  }
+
+  // Check payment status - overdue (debtor)
+  if (paymentStatus === "overdue") {
+    return "border-red-500/50 bg-red-500/5"
+  }
+
+  // Sporadic client (no client_id means sporadic)
+  if (!client) {
+    return "border-yellow-500/50 bg-yellow-500/5"
+  }
+
+  // Standard client
+  return "border-blue-500/50 bg-blue-500/5"
+}
+
+function getClientTypeLabel(client: any, paymentStatus?: string) {
+  if (client?.subscriptions?.[0]?.status === "active") return "Assinante"
+  if (paymentStatus === "overdue") return "Devedor"
+  if (!client) return "Esporádico"
+  return "Cliente Padrão"
+}
+
+function getClientTypeBadgeColor(client: any, paymentStatus?: string) {
+  if (client?.subscriptions?.[0]?.status === "active") {
+    return "bg-green-500/10 text-green-500 border-green-500/20"
+  }
+  if (paymentStatus === "overdue") {
+    return "bg-red-500/10 text-red-500 border-red-500/20"
+  }
+  if (!client) {
+    return "bg-yellow-500/10 text-yellow-500 border-yellow-500/20"
+  }
+  return "bg-blue-500/10 text-blue-500 border-blue-500/20"
+}
+
 export default function GerenciarSolicitacao() {
   const [profile, setProfile] = useState<any>(null)
   const [request, setRequest] = useState<any>(null)
@@ -58,7 +98,12 @@ export default function GerenciarSolicitacao() {
       .select(
         `
         *,
-        client:client_id(full_name, phone, email),
+        client:client_id(
+          full_name, 
+          phone, 
+          email,
+          subscriptions!client_id(status)
+        ),
         service:services(*)
       `,
       )
@@ -358,38 +403,43 @@ export default function GerenciarSolicitacao() {
         </div>
 
         <div className="space-y-6">
-          <Card className="border-gold/20">
+          <Card className={`border-2 ${getClientColor(request.client, request.payment_status)}`}>
             <CardHeader>
               <div className="flex items-center justify-between">
                 <CardTitle>Detalhes da Solicitação</CardTitle>
-                <Badge
-                  variant="outline"
-                  className={
-                    request.status === "approved"
-                      ? "bg-green-500/10 text-green-500 border-green-500/20"
+                <div className="flex gap-2">
+                  <Badge variant="outline" className={getClientTypeBadgeColor(request.client, request.payment_status)}>
+                    {getClientTypeLabel(request.client, request.payment_status)}
+                  </Badge>
+                  <Badge
+                    variant="outline"
+                    className={
+                      request.status === "approved"
+                        ? "bg-green-500/10 text-green-500 border-green-500/20"
+                        : request.status === "rejected"
+                          ? "bg-red-500/10 text-red-500 border-red-500/20"
+                          : request.status === "modified"
+                            ? "bg-blue-500/10 text-blue-500 border-blue-500/20"
+                            : request.status === "no_show"
+                              ? "bg-orange-500/10 text-orange-500 border-orange-500/20"
+                              : request.status === "cancelled"
+                                ? "bg-gray-500/10 text-gray-500 border-gray-500/20"
+                                : "bg-yellow-500/10 text-yellow-500 border-yellow-500/20"
+                    }
+                  >
+                    {request.status === "approved"
+                      ? "Aprovada"
                       : request.status === "rejected"
-                        ? "bg-red-500/10 text-red-500 border-red-500/20"
+                        ? "Rejeitada"
                         : request.status === "modified"
-                          ? "bg-blue-500/10 text-blue-500 border-blue-500/20"
+                          ? "Modificada"
                           : request.status === "no_show"
-                            ? "bg-orange-500/10 text-orange-500 border-orange-500/20"
+                            ? "Não Compareceu"
                             : request.status === "cancelled"
-                              ? "bg-gray-500/10 text-gray-500 border-gray-500/20"
-                              : "bg-yellow-500/10 text-yellow-500 border-yellow-500/20"
-                  }
-                >
-                  {request.status === "approved"
-                    ? "Aprovada"
-                    : request.status === "rejected"
-                      ? "Rejeitada"
-                      : request.status === "modified"
-                        ? "Modificada"
-                        : request.status === "no_show"
-                          ? "Não Compareceu"
-                          : request.status === "cancelled"
-                            ? "Cancelada"
-                            : "Pendente"}
-                </Badge>
+                              ? "Cancelada"
+                              : "Pendente"}
+                  </Badge>
+                </div>
               </div>
             </CardHeader>
             <CardContent className="space-y-4">
