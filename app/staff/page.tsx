@@ -21,18 +21,30 @@ export default async function StaffDashboard() {
     redirect("/cliente")
   }
 
-  // Get staff appointments
+  // Get staff appointments and appointment_requests
   const { data: appointments } = await supabase
     .from("appointments")
     .select(
       `
       *,
       service:services(*),
-      client:client_id(full_name, email, phone)
+      client:profiles!client_id(full_name, email, phone)
     `,
     )
     .eq("staff_id", user.id)
     .order("appointment_date", { ascending: true })
+
+  const { data: requests } = await supabase
+    .from("appointment_requests")
+    .select(
+      `
+      *,
+      service:services(*),
+      client:profiles!client_id(full_name, email, phone)
+    `,
+    )
+    .eq("staff_id", user.id)
+    .order("preferred_date", { ascending: true })
 
   const today = new Date()
   today.setHours(0, 0, 0, 0)
@@ -45,24 +57,25 @@ export default async function StaffDashboard() {
     return aptDate.getTime() === today.getTime() && apt.status !== "cancelled"
   })
 
-  const completedToday = todayAppointments?.filter((apt) => apt.status === "completed").length
+  const todayRequests = requests?.filter((req) => {
+    const reqDate = new Date(req.preferred_date)
+    reqDate.setHours(0, 0, 0, 0)
+    return reqDate.getTime() === today.getTime() && req.status === "approved"
+  })
 
-  // Get total clients
-  const { count: totalClients } = await supabase
-    .from("staff_clients")
-    .select("*", { count: "exact", head: true })
-    .eq("staff_id", user.id)
+  const completedToday = todayAppointments?.filter((apt) => apt.status === "completed").length || 0
 
-  // Get monthly earnings
+  const clientIds = new Set()
+  appointments?.forEach((apt) => apt.client_id && clientIds.add(apt.client_id))
+  requests?.forEach((req) => req.client_id && clientIds.add(req.client_id))
+  const totalClients = clientIds.size
+
   const firstDayOfMonth = new Date(today.getFullYear(), today.getMonth(), 1)
-  const { data: monthlyEarnings } = await supabase
-    .from("staff_earnings")
-    .select("amount")
-    .eq("staff_id", user.id)
-    .gte("payment_date", firstDayOfMonth.toISOString().split("T")[0])
-    .eq("status", "paid")
-
-  const totalEarnings = monthlyEarnings?.reduce((sum, e) => sum + Number(e.amount), 0) || 0
+  const monthlyAppointments = appointments?.filter(
+    (apt) =>
+      new Date(apt.appointment_date) >= firstDayOfMonth && apt.status === "completed" && apt.payment_status === "paid",
+  )
+  const totalEarnings = monthlyAppointments?.reduce((sum, apt) => sum + Number(apt.service?.price || 0), 0) || 0
 
   return (
     <div className="min-h-screen bg-background">
@@ -82,7 +95,9 @@ export default async function StaffDashboard() {
               <Calendar className="h-4 w-4 text-gold" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold text-foreground">{todayAppointments?.length || 0}</div>
+              <div className="text-2xl font-bold text-foreground">
+                {(todayAppointments?.length || 0) + (todayRequests?.length || 0)}
+              </div>
               <p className="text-xs text-muted-foreground">agendamentos</p>
             </CardContent>
           </Card>
@@ -93,7 +108,7 @@ export default async function StaffDashboard() {
               <CheckCircle className="h-4 w-4 text-gold" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold text-foreground">{completedToday || 0}</div>
+              <div className="text-2xl font-bold text-foreground">{completedToday}</div>
               <p className="text-xs text-muted-foreground">hoje</p>
             </CardContent>
           </Card>
@@ -104,7 +119,7 @@ export default async function StaffDashboard() {
               <Users className="h-4 w-4 text-gold" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold text-foreground">{totalClients || 0}</div>
+              <div className="text-2xl font-bold text-foreground">{totalClients}</div>
               <p className="text-xs text-muted-foreground">total</p>
             </CardContent>
           </Card>
@@ -210,10 +225,10 @@ export default async function StaffDashboard() {
         {/* Today's Appointments */}
         <div>
           <h2 className="text-2xl font-bold text-foreground mb-4">Agendamentos de Hoje</h2>
-          {todayAppointments && todayAppointments.length > 0 ? (
+          {(todayAppointments && todayAppointments.length > 0) || (todayRequests && todayRequests.length > 0) ? (
             <div className="grid gap-4">
-              {todayAppointments.map((appointment) => (
-                <Card key={appointment.id} className="border-gold/20">
+              {todayAppointments?.map((appointment) => (
+                <Card key={`apt-${appointment.id}`} className="border-gold/20">
                   <CardContent className="p-6">
                     <div className="flex justify-between items-start">
                       <div className="flex-1">
@@ -247,6 +262,31 @@ export default async function StaffDashboard() {
                               : "Pendente"}
                         </span>
                         <p className="text-sm text-muted-foreground">{appointment.service?.duration} min</p>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+              {todayRequests?.map((request) => (
+                <Card key={`req-${request.id}`} className="border-gold/20">
+                  <CardContent className="p-6">
+                    <div className="flex justify-between items-start">
+                      <div className="flex-1">
+                        <h3 className="text-lg font-semibold text-foreground mb-2">{request.service?.name}</h3>
+                        <p className="text-sm text-muted-foreground mb-1">Cliente: {request.client?.full_name}</p>
+                        <p className="text-sm text-muted-foreground mb-1">
+                          Telefone: {request.client?.phone || "Não informado"}
+                        </p>
+                        <p className="text-sm text-muted-foreground">
+                          Horário:{" "}
+                          {request.preferred_time ? request.preferred_time.substring(0, 5) : "Horário não definido"}
+                        </p>
+                      </div>
+                      <div className="text-right">
+                        <span className="inline-block px-3 py-1 rounded-full text-xs font-medium mb-2 bg-green-500/10 text-green-500">
+                          Solicitação Aprovada
+                        </span>
+                        <p className="text-sm text-muted-foreground">{request.service?.duration} min</p>
                       </div>
                     </div>
                   </CardContent>

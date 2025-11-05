@@ -15,16 +15,98 @@ export default async function StaffClientes() {
   const { data: profile } = await supabase.from("profiles").select("*").eq("id", user.id).single()
   if (!profile || profile.user_level < 20) redirect("/cliente")
 
-  const { data: clients } = await supabase
-    .from("staff_clients")
+  const { data: appointmentsData } = await supabase
+    .from("appointments")
     .select(
       `
-      *,
-      client:client_id(full_name, email, phone)
+      id,
+      appointment_date,
+      status,
+      payment_status,
+      client_id,
+      service:services(price),
+      client:profiles!client_id(id, full_name, email, phone)
     `,
     )
     .eq("staff_id", user.id)
-    .order("last_visit", { ascending: false })
+
+  const { data: requestsData } = await supabase
+    .from("appointment_requests")
+    .select(
+      `
+      id,
+      preferred_date,
+      status,
+      client_id,
+      service:services(price),
+      client:profiles!client_id(id, full_name, email, phone)
+    `,
+    )
+    .eq("staff_id", user.id)
+
+  // Aggregate client data
+  const clientsMap = new Map()
+
+  // Process appointments
+  appointmentsData?.forEach((apt) => {
+    if (!apt.client_id || !apt.client) return
+
+    const clientId = apt.client_id
+    if (!clientsMap.has(clientId)) {
+      clientsMap.set(clientId, {
+        id: clientId,
+        full_name: apt.client.full_name,
+        email: apt.client.email,
+        phone: apt.client.phone,
+        total_visits: 0,
+        total_spent: 0,
+        first_visit: apt.appointment_date,
+        last_visit: apt.appointment_date,
+        is_favorite: false,
+      })
+    }
+
+    const client = clientsMap.get(clientId)
+    if (apt.status === "completed") {
+      client.total_visits++
+      if (apt.payment_status === "paid" && apt.service?.price) {
+        client.total_spent += Number(apt.service.price)
+      }
+    }
+
+    // Update first and last visit dates
+    if (new Date(apt.appointment_date) < new Date(client.first_visit)) {
+      client.first_visit = apt.appointment_date
+    }
+    if (new Date(apt.appointment_date) > new Date(client.last_visit)) {
+      client.last_visit = apt.appointment_date
+    }
+  })
+
+  // Process appointment requests
+  requestsData?.forEach((req) => {
+    if (!req.client_id || !req.client) return
+
+    const clientId = req.client_id
+    if (!clientsMap.has(clientId)) {
+      clientsMap.set(clientId, {
+        id: clientId,
+        full_name: req.client.full_name,
+        email: req.client.email,
+        phone: req.client.phone,
+        total_visits: 0,
+        total_spent: 0,
+        first_visit: req.preferred_date,
+        last_visit: req.preferred_date,
+        is_favorite: false,
+      })
+    }
+  })
+
+  // Convert map to array and sort by last visit
+  const clients = Array.from(clientsMap.values()).sort(
+    (a, b) => new Date(b.last_visit).getTime() - new Date(a.last_visit).getTime(),
+  )
 
   return (
     <div className="min-h-screen bg-background">
@@ -44,11 +126,11 @@ export default async function StaffClientes() {
                   <div className="flex justify-between items-start">
                     <div className="flex-1">
                       <div className="flex items-center gap-2 mb-2">
-                        <h3 className="text-lg font-semibold text-foreground">{client.client?.full_name}</h3>
+                        <h3 className="text-lg font-semibold text-foreground">{client.full_name}</h3>
                         {client.is_favorite && <Star className="h-4 w-4 text-gold fill-gold" />}
                       </div>
-                      <p className="text-sm text-muted-foreground mb-1">Email: {client.client?.email}</p>
-                      <p className="text-sm text-muted-foreground mb-1">Telefone: {client.client?.phone}</p>
+                      <p className="text-sm text-muted-foreground mb-1">Email: {client.email}</p>
+                      <p className="text-sm text-muted-foreground mb-1">Telefone: {client.phone}</p>
                       <p className="text-sm text-muted-foreground">
                         Primeira visita: {new Date(client.first_visit).toLocaleDateString("pt-BR")}
                       </p>
@@ -67,13 +149,6 @@ export default async function StaffClientes() {
                       </div>
                     </div>
                   </div>
-                  {client.notes && (
-                    <div className="mt-4 p-3 bg-muted/50 rounded-md">
-                      <p className="text-sm text-muted-foreground">
-                        <strong>Observações:</strong> {client.notes}
-                      </p>
-                    </div>
-                  )}
                 </CardContent>
               </Card>
             ))

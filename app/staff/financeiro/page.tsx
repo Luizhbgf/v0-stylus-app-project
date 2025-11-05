@@ -15,23 +15,85 @@ export default async function StaffFinanceiro() {
   const { data: profile } = await supabase.from("profiles").select("*").eq("id", user.id).single()
   if (!profile || profile.user_level < 20) redirect("/cliente")
 
-  const { data: earnings } = await supabase
-    .from("staff_earnings")
-    .select("*")
+  const { data: appointments } = await supabase
+    .from("appointments")
+    .select(
+      `
+      id,
+      appointment_date,
+      status,
+      payment_status,
+      payment_method,
+      service:services(name, price),
+      client:profiles!client_id(full_name)
+    `,
+    )
     .eq("staff_id", user.id)
-    .order("payment_date", { ascending: false })
+    .order("appointment_date", { ascending: false })
 
-  const totalPaid = earnings?.filter((e) => e.status === "paid").reduce((sum, e) => sum + Number(e.amount), 0) || 0
-  const totalPending =
-    earnings?.filter((e) => e.status === "pending").reduce((sum, e) => sum + Number(e.amount), 0) || 0
+  const { data: requests } = await supabase
+    .from("appointment_requests")
+    .select(
+      `
+      id,
+      preferred_date,
+      status,
+      service:services(name, price),
+      client:profiles!client_id(full_name)
+    `,
+    )
+    .eq("staff_id", user.id)
+    .order("preferred_date", { ascending: false })
+
+  // Combine and process earnings
+  const earnings: any[] = []
+
+  // Process appointments
+  appointments?.forEach((apt) => {
+    if (apt.service?.price) {
+      earnings.push({
+        id: apt.id,
+        type: "appointment",
+        amount: apt.service.price,
+        payment_date: apt.appointment_date,
+        payment_method: apt.payment_method || "Não informado",
+        status: apt.payment_status === "paid" ? "paid" : apt.status === "cancelled" ? "cancelled" : "pending",
+        service_name: apt.service.name,
+        client_name: apt.client?.full_name || "Cliente não identificado",
+        notes: `${apt.service.name} - ${apt.client?.full_name || "Cliente"}`,
+      })
+    }
+  })
+
+  // Process approved requests
+  requests?.forEach((req) => {
+    if (req.status === "approved" && req.service?.price) {
+      earnings.push({
+        id: req.id,
+        type: "request",
+        amount: req.service.price,
+        payment_date: req.preferred_date,
+        payment_method: "Não informado",
+        status: "pending",
+        service_name: req.service.name,
+        client_name: req.client?.full_name || "Cliente não identificado",
+        notes: `${req.service.name} - ${req.client?.full_name || "Cliente"} (Solicitação aprovada)`,
+      })
+    }
+  })
+
+  // Sort by date
+  earnings.sort((a, b) => new Date(b.payment_date).getTime() - new Date(a.payment_date).getTime())
+
+  const totalPaid = earnings.filter((e) => e.status === "paid").reduce((sum, e) => sum + Number(e.amount), 0)
+  const totalPending = earnings.filter((e) => e.status === "pending").reduce((sum, e) => sum + Number(e.amount), 0)
 
   // Calculate this month earnings
   const today = new Date()
   const firstDayOfMonth = new Date(today.getFullYear(), today.getMonth(), 1)
-  const monthlyEarnings =
-    earnings
-      ?.filter((e) => new Date(e.payment_date) >= firstDayOfMonth && e.status === "paid")
-      .reduce((sum, e) => sum + Number(e.amount), 0) || 0
+  const monthlyEarnings = earnings
+    .filter((e) => new Date(e.payment_date) >= firstDayOfMonth && e.status === "paid")
+    .reduce((sum, e) => sum + Number(e.amount), 0)
 
   return (
     <div className="min-h-screen bg-background">
@@ -80,7 +142,7 @@ export default async function StaffFinanceiro() {
           <div className="grid gap-4">
             {earnings && earnings.length > 0 ? (
               earnings.map((earning) => (
-                <Card key={earning.id} className="border-gold/20">
+                <Card key={`${earning.type}-${earning.id}`} className="border-gold/20">
                   <CardContent className="p-6">
                     <div className="flex justify-between items-start">
                       <div>
@@ -90,30 +152,33 @@ export default async function StaffFinanceiro() {
                         <p className="text-sm text-muted-foreground mb-1">
                           Data: {new Date(earning.payment_date).toLocaleDateString("pt-BR")}
                         </p>
+                        <p className="text-sm text-muted-foreground mb-1">Cliente: {earning.client_name}</p>
+                        <p className="text-sm text-muted-foreground mb-1">Serviço: {earning.service_name}</p>
                         {earning.payment_method && (
                           <p className="text-sm text-muted-foreground">Método: {earning.payment_method}</p>
                         )}
-                        {earning.commission_rate && (
-                          <p className="text-sm text-muted-foreground">Comissão: {earning.commission_rate}%</p>
-                        )}
                       </div>
-                      <span
-                        className={`px-3 py-1 rounded-full text-xs font-medium ${
-                          earning.status === "paid"
-                            ? "bg-green-500/10 text-green-500"
+                      <div className="flex flex-col items-end gap-2">
+                        <span
+                          className={`px-3 py-1 rounded-full text-xs font-medium ${
+                            earning.status === "paid"
+                              ? "bg-green-500/10 text-green-500"
+                              : earning.status === "cancelled"
+                                ? "bg-red-500/10 text-red-500"
+                                : "bg-yellow-500/10 text-yellow-500"
+                          }`}
+                        >
+                          {earning.status === "paid"
+                            ? "Pago"
                             : earning.status === "cancelled"
-                              ? "bg-red-500/10 text-red-500"
-                              : "bg-yellow-500/10 text-yellow-500"
-                        }`}
-                      >
-                        {earning.status === "paid" ? "Pago" : earning.status === "cancelled" ? "Cancelado" : "Pendente"}
-                      </span>
-                    </div>
-                    {earning.notes && (
-                      <div className="mt-4 p-3 bg-muted/50 rounded-md">
-                        <p className="text-sm text-muted-foreground">{earning.notes}</p>
+                              ? "Cancelado"
+                              : "Pendente"}
+                        </span>
+                        <span className="px-2 py-1 rounded-full text-xs font-medium bg-blue-500/10 text-blue-500">
+                          {earning.type === "appointment" ? "Agendamento" : "Solicitação"}
+                        </span>
                       </div>
-                    )}
+                    </div>
                   </CardContent>
                 </Card>
               ))
