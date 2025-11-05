@@ -10,7 +10,7 @@ import { Textarea } from "@/components/ui/textarea"
 import { Navbar } from "@/components/navbar"
 import { useRouter, useParams } from "next/navigation"
 import { toast } from "sonner"
-import { ArrowLeft, Check, X, Edit, Calendar, Clock, User, DollarSign, UserX } from "lucide-react"
+import { ArrowLeft, Check, X, Edit, Calendar, Clock, User, DollarSign } from "lucide-react"
 import Link from "next/link"
 import { Badge } from "@/components/ui/badge"
 import {
@@ -226,52 +226,6 @@ export default function GerenciarSolicitacao() {
     }
   }
 
-  const handleNoShow = async () => {
-    setIsLoading(true)
-    try {
-      const { error } = await supabase
-        .from("appointment_requests")
-        .update({
-          status: "no_show",
-        })
-        .eq("id", request.id)
-
-      if (error) throw error
-
-      toast.success("Cliente marcado como não compareceu")
-      router.push("/staff/agenda")
-      router.refresh()
-    } catch (error) {
-      console.error("Erro ao marcar não comparecimento:", error)
-      toast.error("Erro ao marcar não comparecimento")
-    } finally {
-      setIsLoading(false)
-    }
-  }
-
-  const handleCancel = async () => {
-    setIsLoading(true)
-    try {
-      const { error } = await supabase
-        .from("appointment_requests")
-        .update({
-          status: "cancelled",
-        })
-        .eq("id", request.id)
-
-      if (error) throw error
-
-      toast.success("Solicitação cancelada")
-      router.push("/staff/agenda")
-      router.refresh()
-    } catch (error) {
-      console.error("Erro ao cancelar solicitação:", error)
-      toast.error("Erro ao cancelar solicitação")
-    } finally {
-      setIsLoading(false)
-    }
-  }
-
   const handleReject = async () => {
     setIsLoading(true)
     try {
@@ -290,29 +244,6 @@ export default function GerenciarSolicitacao() {
     } catch (error) {
       console.error("Erro ao rejeitar solicitação:", error)
       toast.error("Erro ao rejeitar solicitação")
-    } finally {
-      setIsLoading(false)
-    }
-  }
-
-  const handleComplete = async () => {
-    setIsLoading(true)
-    try {
-      const { error } = await supabase
-        .from("appointment_requests")
-        .update({
-          status: "completed",
-        })
-        .eq("id", request.id)
-
-      if (error) throw error
-
-      toast.success("Solicitação marcada como concluída")
-      router.push("/staff/agenda")
-      router.refresh()
-    } catch (error) {
-      console.error("Erro ao marcar como concluída:", error)
-      toast.error("Erro ao marcar como concluída")
     } finally {
       setIsLoading(false)
     }
@@ -449,7 +380,7 @@ export default function GerenciarSolicitacao() {
               {!showModifyForm && (
                 <Card className="border-gold/20">
                   <CardHeader>
-                    <CardTitle>Ações Rápidas</CardTitle>
+                    <CardTitle>Ações</CardTitle>
                   </CardHeader>
                   <CardContent className="space-y-3">
                     <AlertDialog>
@@ -481,67 +412,14 @@ export default function GerenciarSolicitacao() {
                       disabled={isLoading}
                     >
                       <Edit className="mr-2 h-4 w-4" />
-                      Modificar Data/Hora
+                      Modificar
                     </Button>
-
-                    <AlertDialog>
-                      <AlertDialogTrigger asChild>
-                        <Button
-                          variant="outline"
-                          className="w-full border-orange-500/20 text-orange-500 hover:bg-orange-500/10 bg-transparent"
-                          disabled={isLoading}
-                        >
-                          <UserX className="mr-2 h-4 w-4" />
-                          Cliente Não Compareceu
-                        </Button>
-                      </AlertDialogTrigger>
-                      <AlertDialogContent>
-                        <AlertDialogHeader>
-                          <AlertDialogTitle>Confirmar não comparecimento</AlertDialogTitle>
-                          <AlertDialogDescription>
-                            Tem certeza que o cliente não compareceu à solicitação?
-                          </AlertDialogDescription>
-                        </AlertDialogHeader>
-                        <AlertDialogFooter>
-                          <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                          <AlertDialogAction onClick={handleNoShow} className="bg-orange-500 hover:bg-orange-600">
-                            Confirmar
-                          </AlertDialogAction>
-                        </AlertDialogFooter>
-                      </AlertDialogContent>
-                    </AlertDialog>
 
                     <AlertDialog>
                       <AlertDialogTrigger asChild>
                         <Button variant="destructive" className="w-full" disabled={isLoading}>
                           <X className="mr-2 h-4 w-4" />
-                          Cancelar Solicitação
-                        </Button>
-                      </AlertDialogTrigger>
-                      <AlertDialogContent>
-                        <AlertDialogHeader>
-                          <AlertDialogTitle>Confirmar cancelamento</AlertDialogTitle>
-                          <AlertDialogDescription>
-                            Tem certeza que deseja cancelar esta solicitação? Esta ação não pode ser desfeita.
-                          </AlertDialogDescription>
-                        </AlertDialogHeader>
-                        <AlertDialogFooter>
-                          <AlertDialogCancel>Voltar</AlertDialogCancel>
-                          <AlertDialogAction onClick={handleCancel} className="bg-red-600 hover:bg-red-700">
-                            Cancelar Solicitação
-                          </AlertDialogAction>
-                        </AlertDialogFooter>
-                      </AlertDialogContent>
-                    </AlertDialog>
-
-                    <AlertDialog>
-                      <AlertDialogTrigger asChild>
-                        <Button
-                          variant="outline"
-                          className="w-full border-red-500/20 bg-transparent"
-                          disabled={isLoading}
-                        >
-                          Rejeitar Solicitação
+                          Rejeitar
                         </Button>
                       </AlertDialogTrigger>
                       <AlertDialogContent>
@@ -643,86 +521,6 @@ export default function GerenciarSolicitacao() {
               )}
             </>
           )}
-
-          <Card className="border-gold/20">
-            <CardHeader>
-              <CardTitle>Ações</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              <AlertDialog>
-                <AlertDialogTrigger asChild>
-                  <Button className="w-full bg-green-600 hover:bg-green-700 text-white" disabled={isLoading}>
-                    <Check className="mr-2 h-4 w-4" />
-                    Marcar como Concluído
-                  </Button>
-                </AlertDialogTrigger>
-                <AlertDialogContent>
-                  <AlertDialogHeader>
-                    <AlertDialogTitle>Confirmar conclusão</AlertDialogTitle>
-                    <AlertDialogDescription>
-                      Tem certeza que deseja marcar esta solicitação como concluída?
-                    </AlertDialogDescription>
-                  </AlertDialogHeader>
-                  <AlertDialogFooter>
-                    <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                    <AlertDialogAction onClick={handleComplete} className="bg-green-600 hover:bg-green-700">
-                      Confirmar
-                    </AlertDialogAction>
-                  </AlertDialogFooter>
-                </AlertDialogContent>
-              </AlertDialog>
-
-              <AlertDialog>
-                <AlertDialogTrigger asChild>
-                  <Button
-                    variant="outline"
-                    className="w-full border-orange-500/20 text-orange-500 hover:bg-orange-500/10 bg-transparent"
-                    disabled={isLoading}
-                  >
-                    <UserX className="mr-2 h-4 w-4" />
-                    Cliente Não Compareceu
-                  </Button>
-                </AlertDialogTrigger>
-                <AlertDialogContent>
-                  <AlertDialogHeader>
-                    <AlertDialogTitle>Confirmar não comparecimento</AlertDialogTitle>
-                    <AlertDialogDescription>
-                      Tem certeza que o cliente não compareceu à solicitação?
-                    </AlertDialogDescription>
-                  </AlertDialogHeader>
-                  <AlertDialogFooter>
-                    <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                    <AlertDialogAction onClick={handleNoShow} className="bg-orange-500 hover:bg-orange-600">
-                      Confirmar
-                    </AlertDialogAction>
-                  </AlertDialogFooter>
-                </AlertDialogContent>
-              </AlertDialog>
-
-              <AlertDialog>
-                <AlertDialogTrigger asChild>
-                  <Button variant="destructive" className="w-full" disabled={isLoading}>
-                    <X className="mr-2 h-4 w-4" />
-                    Cancelar Agendamento
-                  </Button>
-                </AlertDialogTrigger>
-                <AlertDialogContent>
-                  <AlertDialogHeader>
-                    <AlertDialogTitle>Confirmar cancelamento</AlertDialogTitle>
-                    <AlertDialogDescription>
-                      Tem certeza que deseja cancelar esta solicitação? Esta ação não pode ser desfeita.
-                    </AlertDialogDescription>
-                  </AlertDialogHeader>
-                  <AlertDialogFooter>
-                    <AlertDialogCancel>Voltar</AlertDialogCancel>
-                    <AlertDialogAction onClick={handleCancel} className="bg-red-600 hover:bg-red-700">
-                      Cancelar
-                    </AlertDialogAction>
-                  </AlertDialogFooter>
-                </AlertDialogContent>
-              </AlertDialog>
-            </CardContent>
-          </Card>
         </div>
       </div>
     </div>
