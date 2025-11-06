@@ -31,6 +31,9 @@ export default async function StaffFinanceiro() {
     .eq("staff_id", user.id)
     .order("appointment_date", { ascending: false })
 
+  console.log("[v0] Appointments fetched:", appointments?.length || 0)
+  console.log("[v0] Appointments data:", JSON.stringify(appointments, null, 2))
+
   const { data: requests } = await supabase
     .from("appointment_requests")
     .select(
@@ -45,10 +48,24 @@ export default async function StaffFinanceiro() {
     .eq("staff_id", user.id)
     .order("preferred_date", { ascending: false })
 
+  console.log("[v0] Requests fetched:", requests?.length || 0)
+  console.log("[v0] Requests data:", JSON.stringify(requests, null, 2))
+
   // Combine and process earnings
   const earnings: any[] = []
 
   appointments?.forEach((apt) => {
+    console.log(
+      "[v0] Processing appointment:",
+      apt.id,
+      "Status:",
+      apt.status,
+      "Payment Status:",
+      apt.payment_status,
+      "Service Price:",
+      apt.service?.price,
+    )
+
     if (apt.service?.price) {
       const isPaid = apt.payment_status === "paid" || apt.status === "completed"
       earnings.push({
@@ -62,11 +79,16 @@ export default async function StaffFinanceiro() {
         client_name: apt.client?.full_name || "Cliente não identificado",
         notes: `${apt.service.name} - ${apt.client?.full_name || "Cliente"}`,
       })
+      console.log("[v0] Added appointment to earnings")
+    } else {
+      console.log("[v0] Skipped appointment - no service price")
     }
   })
 
   // Only show completed requests as paid in financeiro
   requests?.forEach((req) => {
+    console.log("[v0] Processing request:", req.id, "Status:", req.status, "Service Price:", req.service?.price)
+
     if (req.service?.price && req.status === "completed") {
       earnings.push({
         id: req.id,
@@ -79,8 +101,17 @@ export default async function StaffFinanceiro() {
         client_name: req.client?.full_name || "Cliente não identificado",
         notes: `${req.service.name} - ${req.client?.full_name || "Cliente"} (Concluída)`,
       })
+      console.log("[v0] Added request to earnings")
+    } else {
+      console.log("[v0] Skipped request - status:", req.status, "or no price")
     }
   })
+
+  console.log("[v0] Total earnings entries:", earnings.length)
+  console.log(
+    "[v0] Earnings breakdown:",
+    earnings.map((e) => ({ type: e.type, status: e.status, amount: e.amount })),
+  )
 
   // Sort by date
   earnings.sort((a, b) => new Date(b.payment_date).getTime() - new Date(a.payment_date).getTime())
