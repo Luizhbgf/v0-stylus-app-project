@@ -38,6 +38,7 @@ export default async function StaffFinanceiro() {
       id,
       preferred_date,
       status,
+      payment_status,
       service:services(name, price),
       client:profiles!client_id(full_name)
     `,
@@ -66,17 +67,21 @@ export default async function StaffFinanceiro() {
   })
 
   requests?.forEach((req) => {
-    if ((req.status === "approved" || req.status === "completed") && req.service?.price) {
+    if (
+      req.service?.price &&
+      (req.status === "approved" || req.status === "completed" || req.payment_status === "paid")
+    ) {
+      const isPaid = req.payment_status === "paid" || req.status === "completed"
       earnings.push({
         id: req.id,
         type: "request",
         amount: req.service.price,
         payment_date: req.preferred_date,
         payment_method: "Não informado",
-        status: req.status === "completed" ? "paid" : "pending",
+        status: isPaid ? "paid" : "pending",
         service_name: req.service.name,
         client_name: req.client?.full_name || "Cliente não identificado",
-        notes: `${req.service.name} - ${req.client?.full_name || "Cliente"} (${req.status === "completed" ? "Concluída" : "Aprovada"})`,
+        notes: `${req.service.name} - ${req.client?.full_name || "Cliente"} (${isPaid ? "Concluída" : "Aprovada"})`,
       })
     }
   })

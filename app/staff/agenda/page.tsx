@@ -66,6 +66,7 @@ export default async function StaffAgenda() {
     `,
     )
     .eq("staff_id", user.id)
+    .neq("payment_status", "paid")
     .gte("appointment_date", today.toISOString())
     .lte("appointment_date", thirtyDaysLater.toISOString())
     .order("appointment_date", { ascending: true })
@@ -104,6 +105,7 @@ export default async function StaffAgenda() {
     )
     .eq("staff_id", user.id)
     .in("status", ["approved", "modified", "completed"])
+    .neq("payment_status", "paid")
     .gte("preferred_date", todayStr)
     .lte("preferred_date", thirtyDaysLaterStr)
     .order("preferred_date", { ascending: true })
