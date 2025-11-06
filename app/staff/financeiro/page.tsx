@@ -25,14 +25,13 @@ export default async function StaffFinanceiro() {
       payment_status,
       payment_method,
       service:services(name, price),
-      client:profiles!client_id(full_name)
+      client:profiles!client_id(full_name),
+      sporadic_client_name,
+      client_type
     `,
     )
     .eq("staff_id", user.id)
     .order("appointment_date", { ascending: false })
-
-  console.log("[v0] Appointments fetched:", appointments?.length || 0)
-  console.log("[v0] Appointments data:", JSON.stringify(appointments, null, 2))
 
   const { data: requests } = await supabase
     .from("appointment_requests")
@@ -48,70 +47,47 @@ export default async function StaffFinanceiro() {
     .eq("staff_id", user.id)
     .order("preferred_date", { ascending: false })
 
-  console.log("[v0] Requests fetched:", requests?.length || 0)
-  console.log("[v0] Requests data:", JSON.stringify(requests, null, 2))
-
   // Combine and process earnings
   const earnings: any[] = []
 
   appointments?.forEach((apt) => {
-    console.log(
-      "[v0] Processing appointment:",
-      apt.id,
-      "Status:",
-      apt.status,
-      "Payment Status:",
-      apt.payment_status,
-      "Service Price:",
-      apt.service?.price,
-    )
+    // Determinar se está pago
+    const isPaid = apt.payment_status === "paid" || apt.status === "completed"
+    const isCancelled = apt.status === "cancelled"
 
-    if (apt.service?.price) {
-      const isPaid = apt.payment_status === "paid" || apt.status === "completed"
-      earnings.push({
-        id: apt.id,
-        type: "appointment",
-        amount: apt.service.price,
-        payment_date: apt.appointment_date,
-        payment_method: apt.payment_method || "Não informado",
-        status: apt.status === "cancelled" ? "cancelled" : isPaid ? "paid" : "pending",
-        service_name: apt.service.name,
-        client_name: apt.client?.full_name || "Cliente não identificado",
-        notes: `${apt.service.name} - ${apt.client?.full_name || "Cliente"}`,
-      })
-      console.log("[v0] Added appointment to earnings")
-    } else {
-      console.log("[v0] Skipped appointment - no service price")
-    }
+    // Pegar o nome do cliente
+    const clientName =
+      apt.client_type === "sporadic" ? apt.sporadic_client_name : apt.client?.full_name || "Cliente não identificado"
+
+    earnings.push({
+      id: apt.id,
+      type: "appointment",
+      amount: apt.service?.price || 0,
+      payment_date: apt.appointment_date,
+      payment_method: apt.payment_method || "Não informado",
+      status: isCancelled ? "cancelled" : isPaid ? "paid" : "pending",
+      service_name: apt.service?.name || "Serviço não especificado",
+      client_name: clientName,
+      notes: `${apt.service?.name || "Serviço"} - ${clientName}`,
+    })
   })
 
-  // Only show completed requests as paid in financeiro
   requests?.forEach((req) => {
-    console.log("[v0] Processing request:", req.id, "Status:", req.status, "Service Price:", req.service?.price)
-
-    if (req.service?.price && req.status === "completed") {
+    // Apenas mostrar requests concluídos no financeiro
+    if (req.status === "completed") {
       earnings.push({
         id: req.id,
         type: "request",
-        amount: req.service.price,
+        amount: req.service?.price || 0,
         payment_date: req.preferred_date,
         payment_method: "Não informado",
         status: "paid",
-        service_name: req.service.name,
+        service_name: req.service?.name || "Serviço não especificado",
         client_name: req.client?.full_name || "Cliente não identificado",
-        notes: `${req.service.name} - ${req.client?.full_name || "Cliente"} (Concluída)`,
+        notes: `${req.service?.name || "Serviço"} - ${req.client?.full_name || "Cliente"} (Solicitação)`,
       })
-      console.log("[v0] Added request to earnings")
-    } else {
-      console.log("[v0] Skipped request - status:", req.status, "or no price")
     }
   })
-
-  console.log("[v0] Total earnings entries:", earnings.length)
-  console.log(
-    "[v0] Earnings breakdown:",
-    earnings.map((e) => ({ type: e.type, status: e.status, amount: e.amount })),
-  )
 
   // Sort by date
   earnings.sort((a, b) => new Date(b.payment_date).getTime() - new Date(a.payment_date).getTime())
