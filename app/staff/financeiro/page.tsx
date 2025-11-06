@@ -38,7 +38,6 @@ export default async function StaffFinanceiro() {
       id,
       preferred_date,
       status,
-      payment_status,
       service:services(name, price),
       client:profiles!client_id(full_name)
     `,
@@ -66,22 +65,19 @@ export default async function StaffFinanceiro() {
     }
   })
 
+  // Only show completed requests as paid in financeiro
   requests?.forEach((req) => {
-    if (
-      req.service?.price &&
-      (req.status === "approved" || req.status === "completed" || req.payment_status === "paid")
-    ) {
-      const isPaid = req.payment_status === "paid" || req.status === "completed"
+    if (req.service?.price && req.status === "completed") {
       earnings.push({
         id: req.id,
         type: "request",
         amount: req.service.price,
         payment_date: req.preferred_date,
         payment_method: "Não informado",
-        status: isPaid ? "paid" : "pending",
+        status: "paid",
         service_name: req.service.name,
         client_name: req.client?.full_name || "Cliente não identificado",
-        notes: `${req.service.name} - ${req.client?.full_name || "Cliente"} (${isPaid ? "Concluída" : "Aprovada"})`,
+        notes: `${req.service.name} - ${req.client?.full_name || "Cliente"} (Concluída)`,
       })
     }
   })
