@@ -71,11 +71,20 @@ export default async function StaffDashboard() {
   const totalClients = clientIds.size
 
   const firstDayOfMonth = new Date(today.getFullYear(), today.getMonth(), 1)
+
   const monthlyAppointments = appointments?.filter(
     (apt) =>
-      new Date(apt.appointment_date) >= firstDayOfMonth && apt.status === "completed" && apt.payment_status === "paid",
+      new Date(apt.appointment_date) >= firstDayOfMonth &&
+      (apt.status === "completed" || apt.payment_status === "paid"),
   )
-  const totalEarnings = monthlyAppointments?.reduce((sum, apt) => sum + Number(apt.service?.price || 0), 0) || 0
+  const appointmentsEarnings = monthlyAppointments?.reduce((sum, apt) => sum + Number(apt.service?.price || 0), 0) || 0
+
+  const monthlyRequests = requests?.filter(
+    (req) => new Date(req.preferred_date) >= firstDayOfMonth && req.status === "completed",
+  )
+  const requestsEarnings = monthlyRequests?.reduce((sum, req) => sum + Number(req.service?.price || 0), 0) || 0
+
+  const totalEarnings = appointmentsEarnings + requestsEarnings
 
   return (
     <div className="min-h-screen bg-background">

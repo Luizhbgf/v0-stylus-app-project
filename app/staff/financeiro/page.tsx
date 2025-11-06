@@ -48,16 +48,16 @@ export default async function StaffFinanceiro() {
   // Combine and process earnings
   const earnings: any[] = []
 
-  // Process appointments
   appointments?.forEach((apt) => {
     if (apt.service?.price) {
+      const isPaid = apt.payment_status === "paid" || apt.status === "completed"
       earnings.push({
         id: apt.id,
         type: "appointment",
         amount: apt.service.price,
         payment_date: apt.appointment_date,
         payment_method: apt.payment_method || "Não informado",
-        status: apt.payment_status === "paid" ? "paid" : apt.status === "cancelled" ? "cancelled" : "pending",
+        status: apt.status === "cancelled" ? "cancelled" : isPaid ? "paid" : "pending",
         service_name: apt.service.name,
         client_name: apt.client?.full_name || "Cliente não identificado",
         notes: `${apt.service.name} - ${apt.client?.full_name || "Cliente"}`,
@@ -65,7 +65,6 @@ export default async function StaffFinanceiro() {
     }
   })
 
-  // Process approved and completed requests
   requests?.forEach((req) => {
     if ((req.status === "approved" || req.status === "completed") && req.service?.price) {
       earnings.push({

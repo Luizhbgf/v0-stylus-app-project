@@ -103,7 +103,7 @@ export default async function StaffAgenda() {
     `,
     )
     .eq("staff_id", user.id)
-    .in("status", ["approved", "modified"])
+    .in("status", ["approved", "modified", "completed"])
     .gte("preferred_date", todayStr)
     .lte("preferred_date", thirtyDaysLaterStr)
     .order("preferred_date", { ascending: true })
