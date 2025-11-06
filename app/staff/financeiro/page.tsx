@@ -15,7 +15,12 @@ export default async function StaffFinanceiro() {
   const { data: profile } = await supabase.from("profiles").select("*").eq("id", user.id).single()
   if (!profile || profile.user_level < 20) redirect("/cliente")
 
-  const { data: appointments } = await supabase
+  console.log("[v0] ===== INÍCIO DO DEBUG =====")
+  console.log("[v0] ID do usuário logado:", user.id)
+  console.log("[v0] Nome do usuário:", profile.full_name)
+  console.log("[v0] ===========================")
+
+  const { data: appointments, error: appointmentsError } = await supabase
     .from("appointments")
     .select(
       `
@@ -24,6 +29,7 @@ export default async function StaffFinanceiro() {
       status,
       payment_status,
       payment_method,
+      staff_id,
       service:services(name, price),
       client:profiles!client_id(full_name),
       sporadic_client_name,
@@ -33,22 +39,31 @@ export default async function StaffFinanceiro() {
     .eq("staff_id", user.id)
     .order("appointment_date", { ascending: false })
 
+  if (appointmentsError) {
+    console.error("[v0] ERRO ao buscar appointments:", appointmentsError)
+  }
+
   console.log("[v0] Total de appointments buscados:", appointments?.length || 0)
   console.log("[v0] Appointments completos:", JSON.stringify(appointments, null, 2))
 
-  const { data: requests } = await supabase
+  const { data: requests, error: requestsError } = await supabase
     .from("appointment_requests")
     .select(
       `
       id,
       preferred_date,
       status,
+      staff_id,
       service:services(name, price),
       client:profiles!client_id(full_name)
     `,
     )
     .eq("staff_id", user.id)
     .order("preferred_date", { ascending: false })
+
+  if (requestsError) {
+    console.error("[v0] ERRO ao buscar requests:", requestsError)
+  }
 
   console.log("[v0] Total de requests buscados:", requests?.length || 0)
   console.log("[v0] Requests completos:", JSON.stringify(requests, null, 2))
@@ -59,6 +74,7 @@ export default async function StaffFinanceiro() {
   appointments?.forEach((apt) => {
     console.log("[v0] Processando appointment:", {
       id: apt.id,
+      staff_id: apt.staff_id,
       status: apt.status,
       payment_status: apt.payment_status,
       service_name: apt.service?.name,
