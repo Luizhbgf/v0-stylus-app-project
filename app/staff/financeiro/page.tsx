@@ -65,19 +65,19 @@ export default async function StaffFinanceiro() {
     }
   })
 
-  // Process approved requests
+  // Process approved and completed requests
   requests?.forEach((req) => {
-    if (req.status === "approved" && req.service?.price) {
+    if ((req.status === "approved" || req.status === "completed") && req.service?.price) {
       earnings.push({
         id: req.id,
         type: "request",
         amount: req.service.price,
         payment_date: req.preferred_date,
         payment_method: "Não informado",
-        status: "pending",
+        status: req.status === "completed" ? "paid" : "pending",
         service_name: req.service.name,
         client_name: req.client?.full_name || "Cliente não identificado",
-        notes: `${req.service.name} - ${req.client?.full_name || "Cliente"} (Solicitação aprovada)`,
+        notes: `${req.service.name} - ${req.client?.full_name || "Cliente"} (${req.status === "completed" ? "Concluída" : "Aprovada"})`,
       })
     }
   })

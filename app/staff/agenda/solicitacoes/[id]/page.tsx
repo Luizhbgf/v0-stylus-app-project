@@ -120,67 +120,14 @@ export default function GerenciarSolicitacao() {
   const handleApprove = async () => {
     setIsLoading(true)
     try {
-      if (!newDate || !newTime) {
-        toast.error("Data e horário são obrigatórios")
-        setIsLoading(false)
-        return
-      }
-
-      const {
-        data: { user },
-      } = await supabase.auth.getUser()
-      if (!user) {
-        toast.error("Usuário não autenticado")
-        setIsLoading(false)
-        return
-      }
-
-      const timeFormatted = newTime.length > 5 ? newTime.substring(0, 5) : newTime
-      const appointmentDateTime = new Date(`${newDate}T${timeFormatted}:00`)
-
-      if (isNaN(appointmentDateTime.getTime())) {
-        toast.error("Data ou horário inválido")
-        setIsLoading(false)
-        return
-      }
-
-      if (!request.client_id) {
-        toast.error("Cliente não encontrado na solicitação")
-        setIsLoading(false)
-        return
-      }
-
-      const appointmentData = {
-        client_id: request.client_id,
-        staff_id: user.id,
-        service_id: request.service_id,
-        appointment_date: appointmentDateTime.toISOString(),
-        status: "confirmed",
-        notes: request.notes || null,
-        payment_status: "pending",
-        client_type: null,
-        is_recurring: false,
-        recurrence_type: null,
-        recurrence_days: null,
-        recurrence_end_date: null,
-      }
-
-      const { data: newAppointment, error: aptError } = await supabase
-        .from("appointments")
-        .insert(appointmentData)
-        .select()
-        .single()
-
-      if (aptError) throw aptError
-
-      const { error: reqError } = await supabase
+      const { error } = await supabase
         .from("appointment_requests")
         .update({
           status: "approved",
         })
         .eq("id", request.id)
 
-      if (reqError) throw reqError
+      if (error) throw error
 
       toast.success("Solicitação aprovada!")
       router.push("/staff/agenda")
@@ -202,63 +149,19 @@ export default function GerenciarSolicitacao() {
         return
       }
 
-      const {
-        data: { user },
-      } = await supabase.auth.getUser()
-      if (!user) {
-        toast.error("Usuário não autenticado")
-        setIsLoading(false)
-        return
-      }
-
-      const timeFormatted = newTime.length > 5 ? newTime.substring(0, 5) : newTime
-      const appointmentDateTime = new Date(`${newDate}T${timeFormatted}:00`)
-
-      if (isNaN(appointmentDateTime.getTime())) {
-        toast.error("Data ou horário inválido")
-        setIsLoading(false)
-        return
-      }
-
-      if (!request.client_id) {
-        toast.error("Cliente não encontrado na solicitação")
-        setIsLoading(false)
-        return
-      }
-
-      const appointmentData = {
-        client_id: request.client_id,
-        staff_id: user.id,
-        service_id: request.service_id,
-        appointment_date: appointmentDateTime.toISOString(),
-        status: "confirmed",
-        notes: staffNotes
-          ? `${request.notes || ""}\n\nModificado pelo profissional: ${staffNotes}`
-          : request.notes || null,
-        payment_status: "pending",
-        client_type: null,
-        is_recurring: false,
-        recurrence_type: null,
-        recurrence_days: null,
-        recurrence_end_date: null,
-      }
-
-      const { data: newAppointment, error: aptError } = await supabase
-        .from("appointments")
-        .insert(appointmentData)
-        .select()
-        .single()
-
-      if (aptError) throw aptError
-
-      const { error: reqError } = await supabase
+      const { error } = await supabase
         .from("appointment_requests")
         .update({
-          status: "modified",
+          preferred_date: newDate,
+          preferred_time: newTime,
+          status: "approved",
+          notes: staffNotes
+            ? `${request.notes || ""}\n\nModificado pelo profissional: ${staffNotes}`
+            : request.notes || null,
         })
         .eq("id", request.id)
 
-      if (reqError) throw reqError
+      if (error) throw error
 
       toast.success("Solicitação modificada e aprovada!")
       router.push("/staff/agenda")
