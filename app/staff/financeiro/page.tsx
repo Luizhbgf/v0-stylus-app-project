@@ -33,6 +33,9 @@ export default async function StaffFinanceiro() {
     .eq("staff_id", user.id)
     .order("appointment_date", { ascending: false })
 
+  console.log("[v0] Total de appointments buscados:", appointments?.length || 0)
+  console.log("[v0] Appointments completos:", JSON.stringify(appointments, null, 2))
+
   const { data: requests } = await supabase
     .from("appointment_requests")
     .select(
@@ -47,10 +50,22 @@ export default async function StaffFinanceiro() {
     .eq("staff_id", user.id)
     .order("preferred_date", { ascending: false })
 
+  console.log("[v0] Total de requests buscados:", requests?.length || 0)
+  console.log("[v0] Requests completos:", JSON.stringify(requests, null, 2))
+
   // Combine and process earnings
   const earnings: any[] = []
 
   appointments?.forEach((apt) => {
+    console.log("[v0] Processando appointment:", {
+      id: apt.id,
+      status: apt.status,
+      payment_status: apt.payment_status,
+      service_name: apt.service?.name,
+      service_price: apt.service?.price,
+      client_name: apt.client?.full_name || apt.sporadic_client_name,
+    })
+
     // Determinar se está pago
     const isPaid = apt.payment_status === "paid" || apt.status === "completed"
     const isCancelled = apt.status === "cancelled"
@@ -73,6 +88,14 @@ export default async function StaffFinanceiro() {
   })
 
   requests?.forEach((req) => {
+    console.log("[v0] Processando request:", {
+      id: req.id,
+      status: req.status,
+      service_name: req.service?.name,
+      service_price: req.service?.price,
+      client_name: req.client?.full_name,
+    })
+
     // Apenas mostrar requests concluídos no financeiro
     if (req.status === "completed") {
       earnings.push({
@@ -88,6 +111,9 @@ export default async function StaffFinanceiro() {
       })
     }
   })
+
+  console.log("[v0] Total de earnings processados:", earnings.length)
+  console.log("[v0] Earnings completos:", JSON.stringify(earnings, null, 2))
 
   // Sort by date
   earnings.sort((a, b) => new Date(b.payment_date).getTime() - new Date(a.payment_date).getTime())
