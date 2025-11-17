@@ -25,7 +25,6 @@ export default async function StaffFinanceiro() {
       appointment_date,
       status,
       payment_status,
-      payment_method,
       staff_id,
       service:services(name, price),
       client:profiles!client_id(full_name),
@@ -35,6 +34,14 @@ export default async function StaffFinanceiro() {
     )
     .eq("staff_id", user.id)
     .order("appointment_date", { ascending: false })
+
+  const appointmentIds = appointments?.map(apt => apt.id) || []
+  const { data: payments } = await supabase
+    .from("payments")
+    .select("appointment_id, payment_method, status")
+    .in("appointment_id", appointmentIds)
+
+  const paymentMap = new Map(payments?.map(p => [p.appointment_id, p.payment_method]) || [])
 
   const debugInfo = {
     userId: user.id,
@@ -48,6 +55,7 @@ export default async function StaffFinanceiro() {
       price: apt.service?.price,
       serviceName: apt.service?.name,
       clientType: apt.client_type,
+      paymentMethod: paymentMap.get(apt.id),
     }))
   }
 
@@ -66,7 +74,7 @@ export default async function StaffFinanceiro() {
       type: "appointment",
       amount: apt.service?.price || 0,
       payment_date: apt.appointment_date,
-      payment_method: apt.payment_method || "Não informado",
+      payment_method: paymentMap.get(apt.id) || "Não informado",
       status: isPaid ? "paid" : "pending",
       service_name: apt.service?.name || "Serviço não especificado",
       client_name: clientName,
