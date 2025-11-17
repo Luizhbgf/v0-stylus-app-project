@@ -8,6 +8,13 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
 import { Navbar } from "@/components/navbar"
 import { useRouter } from 'next/navigation'
 import { toast } from "sonner"
@@ -25,6 +32,9 @@ export default function CriarAssinatura() {
   const [name, setName] = useState("")
   const [description, setDescription] = useState("")
   const [price, setPrice] = useState("")
+  const [billingFrequency, setBillingFrequency] = useState<'weekly' | 'biweekly' | 'monthly'>('monthly')
+  const [serviceFrequency, setServiceFrequency] = useState<'weekly' | 'biweekly' | 'monthly'>('weekly')
+  const [servicesPerPeriod, setServicesPerPeriod] = useState("1")
   const [terms, setTerms] = useState("")
   const [observations, setObservations] = useState("")
   const [features, setFeatures] = useState<Feature[]>([])
@@ -94,9 +104,13 @@ export default function CriarAssinatura() {
           name,
           description,
           price: Number.parseFloat(price),
+          billing_frequency: billingFrequency,
+          service_frequency: serviceFrequency,
+          services_per_period: Number.parseInt(servicesPerPeriod),
+          frequency_per_week: 0, // Valor padrão para compatibilidade
           terms: terms || null,
           observations: observations || null,
-          service_type: 'general', // Set service_type as optional with default value
+          service_type: null,
           is_active: true,
           created_by: user.id,
         })
@@ -180,19 +194,68 @@ export default function CriarAssinatura() {
                 />
               </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="price">Preço Mensal (R$) *</Label>
-                <Input
-                  id="price"
-                  type="number"
-                  step="0.01"
-                  min="0"
-                  value={price}
-                  onChange={(e) => setPrice(e.target.value)}
-                  placeholder="0.00"
-                  className="border-primary/20"
-                  required
-                />
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="billingFrequency">Periodicidade do Plano *</Label>
+                  <Select value={billingFrequency} onValueChange={(value: any) => setBillingFrequency(value)}>
+                    <SelectTrigger className="border-primary/20">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="weekly">Semanal</SelectItem>
+                      <SelectItem value="biweekly">Quinzenal</SelectItem>
+                      <SelectItem value="monthly">Mensal</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <p className="text-xs text-muted-foreground">Frequência de cobrança do plano</p>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="price">Preço (R$) *</Label>
+                  <Input
+                    id="price"
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    value={price}
+                    onChange={(e) => setPrice(e.target.value)}
+                    placeholder="0.00"
+                    className="border-primary/20"
+                    required
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="serviceFrequency">Frequência de Cortes *</Label>
+                  <Select value={serviceFrequency} onValueChange={(value: any) => setServiceFrequency(value)}>
+                    <SelectTrigger className="border-primary/20">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="weekly">Semanal</SelectItem>
+                      <SelectItem value="biweekly">Quinzenal</SelectItem>
+                      <SelectItem value="monthly">Mensal</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <p className="text-xs text-muted-foreground">Com que frequência pode usar os serviços</p>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="servicesPerPeriod">Quantidade de Cortes *</Label>
+                  <Input
+                    id="servicesPerPeriod"
+                    type="number"
+                    min="1"
+                    value={servicesPerPeriod}
+                    onChange={(e) => setServicesPerPeriod(e.target.value)}
+                    placeholder="1"
+                    className="border-primary/20"
+                    required
+                  />
+                  <p className="text-xs text-muted-foreground">Cortes incluídos por período</p>
+                </div>
               </div>
             </CardContent>
           </Card>
