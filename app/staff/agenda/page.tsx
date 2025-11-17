@@ -1,57 +1,46 @@
-import { redirect } from 'next/navigation'
-import { createClient } from "@/lib/supabase/server"
+"use client"
+
+import { useState, useEffect } from "react"
+import { createClient as createClientClient } from "@/lib/supabase/client"
+import { useRouter } from 'next/navigation'
 import { Navbar } from "@/components/navbar"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Calendar, Plus, Clock, AlertCircle } from 'lucide-react'
+import { Calendar, Plus, Clock } from 'lucide-react'
 import { Button } from "@/components/ui/button"
 import Link from "next/link"
 import { Badge } from "@/components/ui/badge"
 import { Label } from "@/components/ui/label"
 import { Input } from "@/components/ui/input"
-import { useState, useEffect } from "react"
-import { createClient as createClientClient } from "@/lib/supabase/client"
-import { useRouter } from 'next/navigation'
-
-function getAppointmentColor(appointment: any) {
-  // Check if client has active subscription
-  if (appointment.client?.subscriptions?.[0]?.status === "active") {
-    return "bg-green-500/20 border-green-500/50 text-green-700 dark:text-green-300"
-  }
-
-  // Check payment status - overdue (debtor)
-  if (appointment.payment_status === "overdue") {
-    return "bg-red-500/20 border-red-500/50 text-red-700 dark:text-red-300"
-  }
-
-  // Sporadic client (no registration)
-  if (appointment.client_type === "sporadic") {
-    return "bg-yellow-500/20 border-yellow-500/50 text-yellow-700 dark:text-yellow-300"
-  }
-
-  // Standard client
-  return "bg-blue-500/20 border-blue-500/50 text-blue-700 dark:text-blue-300"
-}
-
-function getClientTypeLabel(appointment: any) {
-  if (appointment.client?.subscriptions?.[0]?.status === "active") return "Assinante"
-  if (appointment.payment_status === "overdue") return "Devedor"
-  if (appointment.client_type === "sporadic") return "Esporádico"
-  return "Padrão"
-}
-
-"use client"
 
 export default function StaffAgenda() {
   const [profile, setProfile] = useState<any>(null)
   const [appointments, setAppointments] = useState<any[]>([])
   const [isLoading, setIsLoading] = useState(true)
-  
-  // Adicionando filtros de data
   const [startDate, setStartDate] = useState("")
   const [endDate, setEndDate] = useState("")
 
   const router = useRouter()
   const supabase = createClientClient()
+
+  const getAppointmentColor = (appointment: any) => {
+    if (appointment.client?.subscriptions?.[0]?.status === "active") {
+      return "bg-green-500/20 border-green-500/50 text-green-700 dark:text-green-300"
+    }
+    if (appointment.payment_status === "overdue") {
+      return "bg-red-500/20 border-red-500/50 text-red-700 dark:text-red-300"
+    }
+    if (appointment.client_type === "sporadic") {
+      return "bg-yellow-500/20 border-yellow-500/50 text-yellow-700 dark:text-yellow-300"
+    }
+    return "bg-blue-500/20 border-blue-500/50 text-blue-700 dark:text-blue-300"
+  }
+
+  const getClientTypeLabel = (appointment: any) => {
+    if (appointment.client?.subscriptions?.[0]?.status === "active") return "Assinante"
+    if (appointment.payment_status === "overdue") return "Devedor"
+    if (appointment.client_type === "sporadic") return "Esporádico"
+    return "Padrão"
+  }
 
   useEffect(() => {
     loadData()
@@ -102,7 +91,6 @@ export default function StaffAgenda() {
       .eq("staff_id", staffId)
       .neq("status", "cancelled")
 
-    // Aplicando filtros de data se definidos
     if (startDate) {
       query = query.gte("appointment_date", new Date(startDate).toISOString())
     } else {
@@ -227,7 +215,7 @@ export default function StaffAgenda() {
 
         {!isLoading && appointments && Object.keys(appointmentsByDate).length > 0 ? (
           Object.entries(appointmentsByDate).map(([date, items]) => (
-            <div key={date}>
+            <div key={date} className="mb-8">
               <h2 className="text-xl font-bold text-foreground mb-4 flex items-center gap-2">
                 <Calendar className="h-5 w-5 text-gold" />
                 {date}
@@ -309,12 +297,14 @@ export default function StaffAgenda() {
             </div>
           ))
         ) : (
-          <Card className="border-gold/20">
-            <CardContent className="p-12 text-center">
-              <Calendar className="h-12 w-12 text-gold mx-auto mb-4" />
-              <p className="text-muted-foreground">Nenhum agendamento nos próximos 30 dias</p>
-            </CardContent>
-          </Card>
+          !isLoading && (
+            <Card className="border-gold/20">
+              <CardContent className="p-12 text-center">
+                <Calendar className="h-12 w-12 text-gold mx-auto mb-4" />
+                <p className="text-muted-foreground">Nenhum agendamento encontrado no período selecionado</p>
+              </CardContent>
+            </Card>
+          )
         )}
       </div>
     </div>

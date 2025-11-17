@@ -16,11 +16,11 @@ import Link from "next/link"
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import { Textarea } from "@/components/ui/textarea"
 import { Checkbox } from "@/components/ui/checkbox"
-import { Combobox } from "@/components/ui/combobox"
 
 export default function AdicionarAgendamentoStaff() {
   const [profile, setProfile] = useState<any>(null)
   const [clients, setClients] = useState<any[]>([])
+  const [filteredClients, setFilteredClients] = useState<any[]>([])
   const [services, setServices] = useState<any[]>([])
   const [selectedClient, setSelectedClient] = useState("")
   const [selectedService, setSelectedService] = useState("")
@@ -48,6 +48,22 @@ export default function AdicionarAgendamentoStaff() {
     loadData()
   }, [])
 
+  useEffect(() => {
+    if (clientSearch.trim() === "") {
+      setFilteredClients(clients)
+    } else {
+      const search = clientSearch.toLowerCase()
+      setFilteredClients(
+        clients.filter(
+          (client) =>
+            client.full_name?.toLowerCase().includes(search) ||
+            client.email?.toLowerCase().includes(search) ||
+            client.phone?.toLowerCase().includes(search)
+        )
+      )
+    }
+  }, [clientSearch, clients])
+
   const loadData = async () => {
     const {
       data: { user },
@@ -60,11 +76,10 @@ export default function AdicionarAgendamentoStaff() {
     const { data: profileData } = await supabase.from("profiles").select("*").eq("id", user.id).single()
     setProfile(profileData)
 
-    // Load clients
     const { data: clientsData } = await supabase.from("profiles").select("*").eq("user_level", 10).order("full_name")
     setClients(clientsData || [])
+    setFilteredClients(clientsData || [])
 
-    // Load staff services
     const { data: staffServicesData } = await supabase
       .from("staff_services")
       .select("service_id, services(*)")
@@ -122,8 +137,6 @@ export default function AdicionarAgendamentoStaff() {
         recurrence_end_date: isRecurring && recurrenceEndDate ? new Date(recurrenceEndDate).toISOString() : null,
       }
 
-      console.log("[v0] Creating appointment with data:", appointmentData)
-
       const { data: newAppointment, error } = await supabase
         .from("appointments")
         .insert(appointmentData)
@@ -131,11 +144,9 @@ export default function AdicionarAgendamentoStaff() {
         .single()
 
       if (error) {
-        console.error("[v0] Error creating appointment:", error)
+        console.error("Error creating appointment:", error)
         throw error
       }
-
-      console.log("[v0] Appointment created successfully:", newAppointment)
 
       if (isRecurring && newAppointment) {
         const futureAppointments = generateRecurringAppointments(
@@ -188,7 +199,6 @@ export default function AdicionarAgendamentoStaff() {
           nextDate.setDate(currentDate.getDate() + 14)
           break
         case "twice_weekly":
-          // Find next occurrence of selected days
           const currentDay = currentDate.getDay()
           const sortedDays = [...days].sort((a, b) => a - b)
           let daysToAdd = 0
@@ -283,19 +293,29 @@ export default function AdicionarAgendamentoStaff() {
 
               {clientType === "registered" && (
                 <div className="space-y-2">
-                  <Label htmlFor="client">Cliente *</Label>
-                  <Combobox
-                    options={clients.map((client) => ({
-                      value: client.id,
-                      label: `${client.full_name} - ${client.email}`,
-                    }))}
-                    value={selectedClient}
-                    onValueChange={setSelectedClient}
-                    placeholder="Busque e selecione um cliente"
-                    searchPlaceholder="Digite o nome do cliente..."
-                    emptyMessage="Nenhum cliente encontrado."
-                    className="border-gold/20"
+                  <Label htmlFor="clientSearch">Buscar Cliente *</Label>
+                  <Input
+                    id="clientSearch"
+                    value={clientSearch}
+                    onChange={(e) => setClientSearch(e.target.value)}
+                    placeholder="Digite nome, email ou telefone..."
+                    className="border-gold/20 mb-2"
                   />
+                  <Select value={selectedClient} onValueChange={setSelectedClient} required>
+                    <SelectTrigger className="border-gold/20">
+                      <SelectValue placeholder="Selecione o cliente" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {filteredClients.map((client) => (
+                        <SelectItem key={client.id} value={client.id}>
+                          {client.full_name} - {client.email}
+                        </SelectItem>
+                      ))}
+                      {filteredClients.length === 0 && (
+                        <div className="p-2 text-sm text-muted-foreground">Nenhum cliente encontrado</div>
+                      )}
+                    </SelectContent>
+                  </Select>
                 </div>
               )}
 
