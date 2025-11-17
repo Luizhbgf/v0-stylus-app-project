@@ -4,6 +4,8 @@ import { Navbar } from "@/components/navbar"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { DollarSign, TrendingUp, Calendar } from 'lucide-react'
 
+export const revalidate = 0
+
 export default async function StaffFinanceiro() {
   const supabase = await createClient()
 
@@ -14,6 +16,10 @@ export default async function StaffFinanceiro() {
 
   const { data: profile } = await supabase.from("profiles").select("*").eq("id", user.id).single()
   if (!profile || profile.user_level < 20) redirect("/cliente")
+
+  console.log("[v0] ========== FINANCEIRO ==========")
+  console.log("[v0] User ID:", user.id)
+  console.log("[v0] Buscando appointments do staff_id:", user.id)
 
   const { data: appointments, error: appointmentsError } = await supabase
     .from("appointments")
@@ -35,25 +41,39 @@ export default async function StaffFinanceiro() {
     .order("appointment_date", { ascending: false })
 
   if (appointmentsError) {
-    console.error("[v0] ERRO ao buscar appointments:", appointmentsError)
+    console.error("[v0] ❌ ERRO ao buscar appointments:", appointmentsError)
   }
 
-  console.log("[v0] Total de appointments encontrados:", appointments?.length)
-  console.log("[v0] Appointments:", appointments)
+  console.log("[v0] ✅ Total de appointments encontrados:", appointments?.length || 0)
+  
+  appointments?.forEach((apt, index) => {
+    console.log(`[v0] --- Appointment ${index + 1} ---`)
+    console.log(`[v0] ID: ${apt.id}`)
+    console.log(`[v0] Status: ${apt.status}`)
+    console.log(`[v0] Payment Status: ${apt.payment_status}`)
+    console.log(`[v0] Staff ID: ${apt.staff_id}`)
+    console.log(`[v0] Service: ${apt.service?.name} - R$ ${apt.service?.price}`)
+    console.log(`[v0] Client Type: ${apt.client_type}`)
+    console.log(`[v0] Client Name: ${apt.client_type === 'sporadic' ? apt.sporadic_client_name : apt.client?.full_name}`)
+  })
 
   const earnings: any[] = []
 
   appointments?.forEach((apt) => {
-    if (apt.status === "cancelled") return
+    console.log(`[v0] 🔄 Processando appointment ${apt.id}`)
+    
+    if (apt.status === "cancelled") {
+      console.log(`[v0] ⏭️ Pulando appointment ${apt.id} - cancelado`)
+      return
+    }
 
     const isPaid = apt.payment_status === "paid" || apt.status === "completed"
+    console.log(`[v0] 💰 isPaid: ${isPaid} (payment_status: ${apt.payment_status}, status: ${apt.status})`)
 
     const clientName =
       apt.client_type === "sporadic" ? apt.sporadic_client_name : apt.client?.full_name || "Cliente não identificado"
 
-    console.log(`[v0] Processando appointment ${apt.id}: isPaid=${isPaid}, status=${apt.status}, cliente=${clientName}`)
-
-    earnings.push({
+    const earning = {
       id: apt.id,
       type: "appointment",
       amount: apt.service?.price || 0,
@@ -63,11 +83,15 @@ export default async function StaffFinanceiro() {
       service_name: apt.service?.name || "Serviço não especificado",
       client_name: clientName,
       notes: `${apt.service?.name || "Serviço"} - ${clientName}`,
-    })
+    }
+    
+    console.log(`[v0] ✅ Adicionado ao earnings:`, earning)
+    earnings.push(earning)
   })
 
-  console.log("[v0] Total de earnings processados:", earnings.length)
-  console.log("[v0] Earnings pagos:", earnings.filter((e) => e.status === "paid").length)
+  console.log("[v0] 📊 Total de earnings processados:", earnings.length)
+  console.log("[v0] 💵 Earnings pagos:", earnings.filter((e) => e.status === "paid").length)
+  console.log("[v0] ⏳ Earnings pendentes:", earnings.filter((e) => e.status === "pending").length)
 
   // Sort by date
   earnings.sort((a, b) => new Date(b.payment_date).getTime() - new Date(a.payment_date).getTime())
@@ -75,12 +99,18 @@ export default async function StaffFinanceiro() {
   const totalPaid = earnings.filter((e) => e.status === "paid").reduce((sum, e) => sum + Number(e.amount), 0)
   const totalPending = earnings.filter((e) => e.status === "pending").reduce((sum, e) => sum + Number(e.amount), 0)
 
+  console.log("[v0] 💰 Total Pago: R$", totalPaid.toFixed(2))
+  console.log("[v0] ⏳ Total Pendente: R$", totalPending.toFixed(2))
+
   // Calculate this month earnings
   const today = new Date()
   const firstDayOfMonth = new Date(today.getFullYear(), today.getMonth(), 1)
   const monthlyEarnings = earnings
     .filter((e) => new Date(e.payment_date) >= firstDayOfMonth && e.status === "paid")
     .reduce((sum, e) => sum + Number(e.amount), 0)
+
+  console.log("[v0] 📅 Ganhos do mês: R$", monthlyEarnings.toFixed(2))
+  console.log("[v0] ========== FIM ==========")
 
   return (
     <div className="min-h-screen bg-background">
