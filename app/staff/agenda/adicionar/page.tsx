@@ -158,6 +158,22 @@ export default function AdicionarAgendamentoStaff() {
         throw error
       }
 
+      if (newAppointment && selectedClientId) {
+        try {
+          await fetch('/api/send-notification', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              appointmentId: newAppointment.id,
+              type: 'created'
+            })
+          })
+        } catch (notificationError) {
+          console.error('[v0] Erro ao enviar notificação:', notificationError)
+          // Não bloqueia o fluxo se a notificação falhar
+        }
+      }
+
       if (isRecurring && newAppointment) {
         const futureAppointments = generateRecurringAppointments(
           appointmentDateTime,
