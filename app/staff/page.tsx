@@ -71,58 +71,6 @@ export default async function StaffDashboard() {
       <Navbar user={profile} />
 
       <div className="container mx-auto px-4 py-8">
-        <div className="mb-8">
-          <h1 className="text-4xl font-bold text-foreground mb-2">Painel do Profissional</h1>
-          <p className="text-muted-foreground">Olá, {profile.full_name}! Gerencie seu trabalho</p>
-        </div>
-
-        {/* Quick Stats */}
-        <div className="grid md:grid-cols-4 gap-6 mb-8">
-          <Card className="border-gold/20">
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Hoje</CardTitle>
-              <Calendar className="h-4 w-4 text-gold" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold text-foreground">{todayAppointments?.length || 0}</div>
-              <p className="text-xs text-muted-foreground">agendamentos</p>
-            </CardContent>
-          </Card>
-
-          <Card className="border-gold/20">
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Concluídos</CardTitle>
-              <CheckCircle className="h-4 w-4 text-gold" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold text-foreground">{completedToday}</div>
-              <p className="text-xs text-muted-foreground">hoje</p>
-            </CardContent>
-          </Card>
-
-          <Card className="border-gold/20">
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Clientes</CardTitle>
-              <Users className="h-4 w-4 text-gold" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold text-foreground">{totalClients}</div>
-              <p className="text-xs text-muted-foreground">total</p>
-            </CardContent>
-          </Card>
-
-          <Card className="border-gold/20">
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Ganhos</CardTitle>
-              <DollarSign className="h-4 w-4 text-gold" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold text-foreground">R$ {totalEarnings.toFixed(2)}</div>
-              <p className="text-xs text-muted-foreground">este mês</p>
-            </CardContent>
-          </Card>
-        </div>
-
         {/* Quick Access Menu */}
         <div className="mb-8">
           <h2 className="text-2xl font-bold text-foreground mb-4">Acesso Rápido</h2>
@@ -197,6 +145,58 @@ export default async function StaffDashboard() {
               </Card>
             </Link>
           </div>
+        </div>
+
+        <div className="mb-8">
+          <h1 className="text-4xl font-bold text-foreground mb-2">Painel do Profissional</h1>
+          <p className="text-muted-foreground">Olá, {profile.full_name}! Gerencie seu trabalho</p>
+        </div>
+
+        {/* Quick Stats */}
+        <div className="grid md:grid-cols-4 gap-6 mb-8">
+          <Card className="border-gold/20">
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Hoje</CardTitle>
+              <Calendar className="h-4 w-4 text-gold" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold text-foreground">{todayAppointments?.length || 0}</div>
+              <p className="text-xs text-muted-foreground">agendamentos</p>
+            </CardContent>
+          </Card>
+
+          <Card className="border-gold/20">
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Concluídos</CardTitle>
+              <CheckCircle className="h-4 w-4 text-gold" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold text-foreground">{completedToday}</div>
+              <p className="text-xs text-muted-foreground">hoje</p>
+            </CardContent>
+          </Card>
+
+          <Card className="border-gold/20">
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Clientes</CardTitle>
+              <Users className="h-4 w-4 text-gold" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold text-foreground">{totalClients}</div>
+              <p className="text-xs text-muted-foreground">total</p>
+            </CardContent>
+          </Card>
+
+          <Card className="border-gold/20">
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Ganhos</CardTitle>
+              <DollarSign className="h-4 w-4 text-gold" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold text-foreground">R$ {totalEarnings.toFixed(2)}</div>
+              <p className="text-xs text-muted-foreground">este mês</p>
+            </CardContent>
+          </Card>
         </div>
 
         {/* Today's Appointments */}

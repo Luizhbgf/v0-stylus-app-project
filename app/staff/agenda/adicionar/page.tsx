@@ -9,13 +9,14 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Navbar } from "@/components/navbar"
-import { useRouter } from "next/navigation"
+import { useRouter } from 'next/navigation'
 import { toast } from "sonner"
-import { ArrowLeft } from "lucide-react"
+import { ArrowLeft } from 'lucide-react'
 import Link from "next/link"
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import { Textarea } from "@/components/ui/textarea"
 import { Checkbox } from "@/components/ui/checkbox"
+import { Combobox } from "@/components/ui/combobox"
 
 export default function AdicionarAgendamentoStaff() {
   const [profile, setProfile] = useState<any>(null)
@@ -40,6 +41,8 @@ export default function AdicionarAgendamentoStaff() {
   const [recurrenceType, setRecurrenceType] = useState<"weekly" | "biweekly" | "twice_weekly" | "monthly">("weekly")
   const [recurrenceDays, setRecurrenceDays] = useState<number[]>([])
   const [recurrenceEndDate, setRecurrenceEndDate] = useState("")
+
+  const [clientSearch, setClientSearch] = useState("")
 
   useEffect(() => {
     loadData()
@@ -281,18 +284,18 @@ export default function AdicionarAgendamentoStaff() {
               {clientType === "registered" && (
                 <div className="space-y-2">
                   <Label htmlFor="client">Cliente *</Label>
-                  <Select value={selectedClient} onValueChange={setSelectedClient} required>
-                    <SelectTrigger className="border-gold/20">
-                      <SelectValue placeholder="Selecione um cliente" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {clients.map((client) => (
-                        <SelectItem key={client.id} value={client.id}>
-                          {client.full_name} - {client.email}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  <Combobox
+                    options={clients.map((client) => ({
+                      value: client.id,
+                      label: `${client.full_name} - ${client.email}`,
+                    }))}
+                    value={selectedClient}
+                    onValueChange={setSelectedClient}
+                    placeholder="Busque e selecione um cliente"
+                    searchPlaceholder="Digite o nome do cliente..."
+                    emptyMessage="Nenhum cliente encontrado."
+                    className="border-gold/20"
+                  />
                 </div>
               )}
 

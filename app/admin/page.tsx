@@ -1,8 +1,8 @@
-import { redirect } from "next/navigation"
+import { redirect } from 'next/navigation'
 import { createClient } from "@/lib/supabase/server"
 import { Navbar } from "@/components/navbar"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Calendar, Users, DollarSign, TrendingUp, Settings, Briefcase } from "lucide-react"
+import { Calendar, Users, DollarSign, TrendingUp, Settings, Briefcase } from 'lucide-react'
 import { Button } from "@/components/ui/button"
 import Link from "next/link"
 
@@ -58,6 +58,200 @@ export default async function AdminDashboard() {
           <p className="text-muted-foreground">Visão geral do negócio e gerenciamento</p>
         </div>
 
+        <div className="mb-8">
+          <h2 className="text-2xl font-bold text-foreground mb-4">Acesso Rápido</h2>
+          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+            <Card className="border-gold/20 hover:shadow-lg transition-shadow">
+              <CardContent className="p-6">
+                <div className="flex items-center gap-4">
+                  <div className="p-3 bg-gold/10 rounded-lg">
+                    <Calendar className="h-6 w-6 text-gold" />
+                  </div>
+                  <div>
+                    <h3 className="font-semibold text-foreground">Agenda</h3>
+                    <p className="text-sm text-muted-foreground">Ver agenda de todos</p>
+                  </div>
+                </div>
+                <Button asChild className="w-full mt-4 bg-gold hover:bg-gold/90 text-black">
+                  <Link href="/admin/agenda">Acessar</Link>
+                </Button>
+              </CardContent>
+            </Card>
+
+            <Card className="border-gold/20 hover:shadow-lg transition-shadow">
+              <CardContent className="p-6">
+                <div className="flex items-center gap-4">
+                  <div className="p-3 bg-gold/10 rounded-lg">
+                    <Users className="h-6 w-6 text-gold" />
+                  </div>
+                  <div>
+                    <h3 className="font-semibold text-foreground">Clientes</h3>
+                    <p className="text-sm text-muted-foreground">Gerenciar todos os clientes</p>
+                  </div>
+                </div>
+                <Button asChild className="w-full mt-4 bg-gold hover:bg-gold/90 text-black">
+                  <Link href="/admin/clientes">Acessar</Link>
+                </Button>
+              </CardContent>
+            </Card>
+
+            <Card className="border-gold/20 hover:shadow-lg transition-shadow">
+              <CardContent className="p-6">
+                <div className="flex items-center gap-4">
+                  <div className="p-3 bg-gold/10 rounded-lg">
+                    <Briefcase className="h-6 w-6 text-gold" />
+                  </div>
+                  <div>
+                    <h3 className="font-semibold text-foreground">Cursos</h3>
+                    <p className="text-sm text-muted-foreground">Gerenciar cursos e treinamentos</p>
+                  </div>
+                </div>
+                <Button asChild className="w-full mt-4 bg-gold hover:bg-gold/90 text-black">
+                  <Link href="/admin/cursos">Acessar</Link>
+                </Button>
+              </CardContent>
+            </Card>
+
+            <Card className="border-gold/20 hover:shadow-lg transition-shadow">
+              <CardContent className="p-6">
+                <div className="flex items-center gap-4">
+                  <div className="p-3 bg-gold/10 rounded-lg">
+                    <DollarSign className="h-6 w-6 text-gold" />
+                  </div>
+                  <div>
+                    <h3 className="font-semibold text-foreground">Financeiro</h3>
+                    <p className="text-sm text-muted-foreground">Visão financeira completa</p>
+                  </div>
+                </div>
+                <Button asChild className="w-full mt-4 bg-gold hover:bg-gold/90 text-black">
+                  <Link href="/admin/financeiro">Acessar</Link>
+                </Button>
+              </CardContent>
+            </Card>
+
+            <Card className="border-gold/20 hover:shadow-lg transition-shadow">
+              <CardContent className="p-6">
+                <div className="flex items-center gap-4">
+                  <div className="p-3 bg-gold/10 rounded-lg">
+                    <Users className="h-6 w-6 text-gold" />
+                  </div>
+                  <div>
+                    <h3 className="font-semibold text-foreground">Planos</h3>
+                    <p className="text-sm text-muted-foreground">Gerenciar planos de assinatura</p>
+                  </div>
+                </div>
+                <Button asChild className="w-full mt-4 bg-gold hover:bg-gold/90 text-black">
+                  <Link href="/admin/planos">Acessar</Link>
+                </Button>
+              </CardContent>
+            </Card>
+
+            <Card className="border-gold/20 hover:shadow-lg transition-shadow">
+              <CardContent className="p-6">
+                <div className="flex items-center gap-4">
+                  <div className="p-3 bg-gold/10 rounded-lg">
+                    <TrendingUp className="h-6 w-6 text-gold" />
+                  </div>
+                  <div>
+                    <h3 className="font-semibold text-foreground">Relatórios</h3>
+                    <p className="text-sm text-muted-foreground">Análises e relatórios</p>
+                  </div>
+                </div>
+                <Button asChild className="w-full mt-4 bg-gold hover:bg-gold/90 text-black">
+                  <Link href="/admin/relatorios">Acessar</Link>
+                </Button>
+              </CardContent>
+            </Card>
+
+            <Card className="border-gold/20 hover:shadow-lg transition-shadow">
+              <CardContent className="p-6">
+                <div className="flex items-center gap-4">
+                  <div className="p-3 bg-gold/10 rounded-lg">
+                    <Briefcase className="h-6 w-6 text-gold" />
+                  </div>
+                  <div>
+                    <h3 className="font-semibold text-foreground">Serviços</h3>
+                    <p className="text-sm text-muted-foreground">Gerenciar todos os serviços</p>
+                  </div>
+                </div>
+                <Button asChild className="w-full mt-4 bg-gold hover:bg-gold/90 text-black">
+                  <Link href="/admin/servicos">Acessar</Link>
+                </Button>
+              </CardContent>
+            </Card>
+
+            <Card className="border-gold/20 hover:shadow-lg transition-shadow">
+              <CardContent className="p-6">
+                <div className="flex items-center gap-4">
+                  <div className="p-3 bg-gold/10 rounded-lg">
+                    <Users className="h-6 w-6 text-gold" />
+                  </div>
+                  <div>
+                    <h3 className="font-semibold text-foreground">Perfil</h3>
+                    <p className="text-sm text-muted-foreground">Gerenciar perfil</p>
+                  </div>
+                </div>
+                <Button asChild className="w-full mt-4 bg-gold hover:bg-gold/90 text-black">
+                  <Link href="/admin/perfil">Acessar</Link>
+                </Button>
+              </CardContent>
+            </Card>
+
+            {profile.user_level >= 40 && (
+              <Card className="border-gold/20 hover:shadow-lg transition-shadow">
+                <CardContent className="p-6">
+                  <div className="flex items-center gap-4">
+                    <div className="p-3 bg-gold/10 rounded-lg">
+                      <Settings className="h-6 w-6 text-gold" />
+                    </div>
+                    <div>
+                      <h3 className="font-semibold text-foreground">Configurações</h3>
+                      <p className="text-sm text-muted-foreground">Configurações do sistema</p>
+                    </div>
+                  </div>
+                  <Button asChild className="w-full mt-4 bg-gold hover:bg-gold/90 text-black">
+                    <Link href="/admin/configuracoes">Acessar</Link>
+                  </Button>
+                </CardContent>
+              </Card>
+            )}
+
+            <Card className="border-gold/20 hover:shadow-lg transition-shadow">
+              <CardContent className="p-6">
+                <div className="flex items-center gap-4">
+                  <div className="p-3 bg-gold/10 rounded-lg">
+                    <Users className="h-6 w-6 text-gold" />
+                  </div>
+                  <div>
+                    <h3 className="font-semibold text-foreground">Usuários</h3>
+                    <p className="text-sm text-muted-foreground">Gerenciar todos os usuários</p>
+                  </div>
+                </div>
+                <Button asChild className="w-full mt-4 bg-gold hover:bg-gold/90 text-black">
+                  <Link href="/admin/usuarios">Acessar</Link>
+                </Button>
+              </CardContent>
+            </Card>
+
+            <Card className="border-gold/20 hover:shadow-lg transition-shadow">
+              <CardContent className="p-6">
+                <div className="flex items-center gap-4">
+                  <div className="p-3 bg-gold/10 rounded-lg">
+                    <Users className="h-6 w-6 text-gold" />
+                  </div>
+                  <div>
+                    <h3 className="font-semibold text-foreground">Assinaturas</h3>
+                    <p className="text-sm text-muted-foreground">Gerenciar planos de assinatura</p>
+                  </div>
+                </div>
+                <Button asChild className="w-full mt-4 bg-gold hover:bg-gold/90 text-black">
+                  <Link href="/admin/assinaturas">Acessar</Link>
+                </Button>
+              </CardContent>
+            </Card>
+          </div>
+        </div>
+
         <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
           <Card className="border-gold/20">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -96,197 +290,6 @@ export default async function AdminDashboard() {
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold text-foreground">{staff?.length || 0}</div>
-            </CardContent>
-          </Card>
-        </div>
-
-        <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
-          <Card className="border-gold/20 hover:shadow-lg transition-shadow">
-            <CardContent className="p-6">
-              <div className="flex items-center gap-4">
-                <div className="p-3 bg-gold/10 rounded-lg">
-                  <Calendar className="h-6 w-6 text-gold" />
-                </div>
-                <div>
-                  <h3 className="font-semibold text-foreground">Agenda</h3>
-                  <p className="text-sm text-muted-foreground">Ver agenda de todos</p>
-                </div>
-              </div>
-              <Button asChild className="w-full mt-4 bg-gold hover:bg-gold/90 text-black">
-                <Link href="/admin/agenda">Acessar</Link>
-              </Button>
-            </CardContent>
-          </Card>
-
-          <Card className="border-gold/20 hover:shadow-lg transition-shadow">
-            <CardContent className="p-6">
-              <div className="flex items-center gap-4">
-                <div className="p-3 bg-gold/10 rounded-lg">
-                  <Users className="h-6 w-6 text-gold" />
-                </div>
-                <div>
-                  <h3 className="font-semibold text-foreground">Clientes</h3>
-                  <p className="text-sm text-muted-foreground">Gerenciar todos os clientes</p>
-                </div>
-              </div>
-              <Button asChild className="w-full mt-4 bg-gold hover:bg-gold/90 text-black">
-                <Link href="/admin/clientes">Acessar</Link>
-              </Button>
-            </CardContent>
-          </Card>
-
-          <Card className="border-gold/20 hover:shadow-lg transition-shadow">
-            <CardContent className="p-6">
-              <div className="flex items-center gap-4">
-                <div className="p-3 bg-gold/10 rounded-lg">
-                  <Briefcase className="h-6 w-6 text-gold" />
-                </div>
-                <div>
-                  <h3 className="font-semibold text-foreground">Cursos</h3>
-                  <p className="text-sm text-muted-foreground">Gerenciar cursos e treinamentos</p>
-                </div>
-              </div>
-              <Button asChild className="w-full mt-4 bg-gold hover:bg-gold/90 text-black">
-                <Link href="/admin/cursos">Acessar</Link>
-              </Button>
-            </CardContent>
-          </Card>
-
-          <Card className="border-gold/20 hover:shadow-lg transition-shadow">
-            <CardContent className="p-6">
-              <div className="flex items-center gap-4">
-                <div className="p-3 bg-gold/10 rounded-lg">
-                  <DollarSign className="h-6 w-6 text-gold" />
-                </div>
-                <div>
-                  <h3 className="font-semibold text-foreground">Financeiro</h3>
-                  <p className="text-sm text-muted-foreground">Visão financeira completa</p>
-                </div>
-              </div>
-              <Button asChild className="w-full mt-4 bg-gold hover:bg-gold/90 text-black">
-                <Link href="/admin/financeiro">Acessar</Link>
-              </Button>
-            </CardContent>
-          </Card>
-
-          <Card className="border-gold/20 hover:shadow-lg transition-shadow">
-            <CardContent className="p-6">
-              <div className="flex items-center gap-4">
-                <div className="p-3 bg-gold/10 rounded-lg">
-                  <Users className="h-6 w-6 text-gold" />
-                </div>
-                <div>
-                  <h3 className="font-semibold text-foreground">Planos</h3>
-                  <p className="text-sm text-muted-foreground">Gerenciar planos de assinatura</p>
-                </div>
-              </div>
-              <Button asChild className="w-full mt-4 bg-gold hover:bg-gold/90 text-black">
-                <Link href="/admin/planos">Acessar</Link>
-              </Button>
-            </CardContent>
-          </Card>
-
-          <Card className="border-gold/20 hover:shadow-lg transition-shadow">
-            <CardContent className="p-6">
-              <div className="flex items-center gap-4">
-                <div className="p-3 bg-gold/10 rounded-lg">
-                  <TrendingUp className="h-6 w-6 text-gold" />
-                </div>
-                <div>
-                  <h3 className="font-semibold text-foreground">Relatórios</h3>
-                  <p className="text-sm text-muted-foreground">Análises e relatórios</p>
-                </div>
-              </div>
-              <Button asChild className="w-full mt-4 bg-gold hover:bg-gold/90 text-black">
-                <Link href="/admin/relatorios">Acessar</Link>
-              </Button>
-            </CardContent>
-          </Card>
-
-          <Card className="border-gold/20 hover:shadow-lg transition-shadow">
-            <CardContent className="p-6">
-              <div className="flex items-center gap-4">
-                <div className="p-3 bg-gold/10 rounded-lg">
-                  <Briefcase className="h-6 w-6 text-gold" />
-                </div>
-                <div>
-                  <h3 className="font-semibold text-foreground">Serviços</h3>
-                  <p className="text-sm text-muted-foreground">Gerenciar todos os serviços</p>
-                </div>
-              </div>
-              <Button asChild className="w-full mt-4 bg-gold hover:bg-gold/90 text-black">
-                <Link href="/admin/servicos">Acessar</Link>
-              </Button>
-            </CardContent>
-          </Card>
-
-          <Card className="border-gold/20 hover:shadow-lg transition-shadow">
-            <CardContent className="p-6">
-              <div className="flex items-center gap-4">
-                <div className="p-3 bg-gold/10 rounded-lg">
-                  <Users className="h-6 w-6 text-gold" />
-                </div>
-                <div>
-                  <h3 className="font-semibold text-foreground">Perfil</h3>
-                  <p className="text-sm text-muted-foreground">Gerenciar perfil</p>
-                </div>
-              </div>
-              <Button asChild className="w-full mt-4 bg-gold hover:bg-gold/90 text-black">
-                <Link href="/admin/perfil">Acessar</Link>
-              </Button>
-            </CardContent>
-          </Card>
-
-          {profile.user_level >= 40 && (
-            <Card className="border-gold/20 hover:shadow-lg transition-shadow">
-              <CardContent className="p-6">
-                <div className="flex items-center gap-4">
-                  <div className="p-3 bg-gold/10 rounded-lg">
-                    <Settings className="h-6 w-6 text-gold" />
-                  </div>
-                  <div>
-                    <h3 className="font-semibold text-foreground">Configurações</h3>
-                    <p className="text-sm text-muted-foreground">Configurações do sistema</p>
-                  </div>
-                </div>
-                <Button asChild className="w-full mt-4 bg-gold hover:bg-gold/90 text-black">
-                  <Link href="/admin/configuracoes">Acessar</Link>
-                </Button>
-              </CardContent>
-            </Card>
-          )}
-
-          <Card className="border-gold/20 hover:shadow-lg transition-shadow">
-            <CardContent className="p-6">
-              <div className="flex items-center gap-4">
-                <div className="p-3 bg-gold/10 rounded-lg">
-                  <Users className="h-6 w-6 text-gold" />
-                </div>
-                <div>
-                  <h3 className="font-semibold text-foreground">Usuários</h3>
-                  <p className="text-sm text-muted-foreground">Gerenciar todos os usuários</p>
-                </div>
-              </div>
-              <Button asChild className="w-full mt-4 bg-gold hover:bg-gold/90 text-black">
-                <Link href="/admin/usuarios">Acessar</Link>
-              </Button>
-            </CardContent>
-          </Card>
-
-          <Card className="border-gold/20 hover:shadow-lg transition-shadow">
-            <CardContent className="p-6">
-              <div className="flex items-center gap-4">
-                <div className="p-3 bg-gold/10 rounded-lg">
-                  <Users className="h-6 w-6 text-gold" />
-                </div>
-                <div>
-                  <h3 className="font-semibold text-foreground">Assinaturas</h3>
-                  <p className="text-sm text-muted-foreground">Gerenciar planos de assinatura</p>
-                </div>
-              </div>
-              <Button asChild className="w-full mt-4 bg-gold hover:bg-gold/90 text-black">
-                <Link href="/admin/assinaturas">Acessar</Link>
-              </Button>
             </CardContent>
           </Card>
         </div>

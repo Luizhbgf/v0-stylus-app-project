@@ -148,18 +148,23 @@ export default function AdicionarServicoAdmin() {
 
               <div className="space-y-2">
                 <Label htmlFor="name">Nome do Serviço *</Label>
-                <Select value={name} onValueChange={setName} required>
-                  <SelectTrigger className="border-primary/20">
-                    <SelectValue placeholder="Selecione um serviço" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {PREDEFINED_SERVICES.map((service) => (
-                      <SelectItem key={service} value={service}>
-                        {service}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <Input
+                  id="name"
+                  list="services-list"
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  placeholder="Selecione ou digite um serviço customizado"
+                  className="border-primary/20"
+                  required
+                />
+                <datalist id="services-list">
+                  {PREDEFINED_SERVICES.map((service) => (
+                    <option key={service} value={service} />
+                  ))}
+                </datalist>
+                <p className="text-xs text-muted-foreground">
+                  Selecione da lista ou digite um serviço personalizado
+                </p>
               </div>
 
               <div className="space-y-2">
