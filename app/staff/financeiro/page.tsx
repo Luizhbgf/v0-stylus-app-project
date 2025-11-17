@@ -17,7 +17,7 @@ export default async function StaffFinanceiro() {
   const { data: profile } = await supabase.from("profiles").select("*").eq("id", user.id).single()
   if (!profile || profile.user_level < 20) redirect("/cliente")
 
-  const { data: appointments, error: appointmentsError } = await supabase
+  const { data: appointments } = await supabase
     .from("appointments")
     .select(
       `
@@ -43,21 +43,6 @@ export default async function StaffFinanceiro() {
 
   const paymentMap = new Map(payments?.map(p => [p.appointment_id, p.payment_method]) || [])
 
-  const debugInfo = {
-    userId: user.id,
-    totalAppointments: appointments?.length || 0,
-    appointmentsError: appointmentsError?.message,
-    appointments: appointments?.map(apt => ({
-      id: apt.id,
-      date: apt.appointment_date,
-      status: apt.status,
-      paymentStatus: apt.payment_status,
-      price: apt.service?.price,
-      serviceName: apt.service?.name,
-      clientType: apt.client_type,
-      paymentMethod: paymentMap.get(apt.id),
-    }))
-  }
 
   const earnings: any[] = []
 
@@ -102,15 +87,6 @@ export default async function StaffFinanceiro() {
           <h1 className="text-4xl font-bold text-foreground mb-2">Financeiro</h1>
           <p className="text-muted-foreground">Acompanhe seus ganhos e pagamentos</p>
         </div>
-
-        <Card className="mb-6 border-red-500 bg-red-50 dark:bg-red-950">
-          <CardHeader>
-            <CardTitle className="text-red-700 dark:text-red-300">🐛 Debug Info (temporário)</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <pre className="text-xs overflow-auto">{JSON.stringify(debugInfo, null, 2)}</pre>
-          </CardContent>
-        </Card>
 
         <div className="grid md:grid-cols-3 gap-6 mb-8">
           <Card className="border-gold/20">
