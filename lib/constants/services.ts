@@ -1,0 +1,25 @@
+export const PREDEFINED_SERVICES = [
+  "Corte",
+  "Escova",
+  "Reflexo",
+  "Mechas",
+  "Maquiagem",
+  "Prancha",
+  "Balaiagem",
+  "Depilação",
+  "Tintura",
+  "Banho de brilho",
+  "Relaxamento",
+  "Corte C/ escova",
+  "Escova Progressiva",
+  "Estetica Facial e Corporal",
+  "Nutrição",
+  "Queratização",
+  "Sobrancelha",
+  "spa pés e mãos",
+  "Pés e Mãos",
+  "escova e Prancha",
+  "Prótese Capilar",
+] as const
+
+export type PredefinedService = typeof PREDEFINED_SERVICES[number]

@@ -10,10 +10,11 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { PREDEFINED_SERVICES } from "@/lib/constants/services"
 import { Navbar } from "@/components/navbar"
-import { useRouter } from "next/navigation"
+import { useRouter } from 'next/navigation'
 import { toast } from "sonner"
-import { ArrowLeft } from "lucide-react"
+import { ArrowLeft } from 'lucide-react'
 import Link from "next/link"
 
 export default function AdicionarServicoAdmin() {
@@ -147,14 +148,18 @@ export default function AdicionarServicoAdmin() {
 
               <div className="space-y-2">
                 <Label htmlFor="name">Nome do Serviço *</Label>
-                <Input
-                  id="name"
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                  placeholder="Ex: Corte de Cabelo"
-                  className="border-primary/20"
-                  required
-                />
+                <Select value={name} onValueChange={setName} required>
+                  <SelectTrigger className="border-primary/20">
+                    <SelectValue placeholder="Selecione um serviço" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {PREDEFINED_SERVICES.map((service) => (
+                      <SelectItem key={service} value={service}>
+                        {service}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
 
               <div className="space-y-2">

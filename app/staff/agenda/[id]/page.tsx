@@ -4,10 +4,12 @@ import { useState, useEffect } from "react"
 import { createClient } from "@/lib/supabase/client"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
 import { Navbar } from "@/components/navbar"
-import { useRouter, useParams } from "next/navigation"
+import { useRouter, useParams } from 'next/navigation'
 import { toast } from "sonner"
-import { ArrowLeft, Calendar, Clock, User, DollarSign, X, UserX, CheckCircle } from "lucide-react"
+import { ArrowLeft, Calendar, Clock, User, DollarSign, X, UserX, CheckCircle, Edit2 } from 'lucide-react'
 import Link from "next/link"
 import { Badge } from "@/components/ui/badge"
 import {
@@ -21,11 +23,22 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog"
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog"
 
 export default function GerenciarAgendamento() {
   const [profile, setProfile] = useState<any>(null)
   const [appointment, setAppointment] = useState<any>(null)
   const [isLoading, setIsLoading] = useState(false)
+  const [isEditingPrice, setIsEditingPrice] = useState(false)
+  const [newPrice, setNewPrice] = useState("")
   const router = useRouter()
   const params = useParams()
   const supabase = createClient()
@@ -62,6 +75,7 @@ export default function GerenciarAgendamento() {
 
     if (appointmentData) {
       setAppointment(appointmentData)
+      setNewPrice(appointmentData.service?.price?.toString() || "")
     }
   }
 
@@ -127,6 +141,33 @@ export default function GerenciarAgendamento() {
     } catch (error) {
       console.error("[v0] Erro ao cancelar agendamento:", error)
       toast.error("Erro ao cancelar agendamento")
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  const handleUpdatePrice = async () => {
+    setIsLoading(true)
+    try {
+      const priceValue = parseFloat(newPrice)
+      if (isNaN(priceValue) || priceValue < 0) {
+        toast.error("Preço inválido")
+        return
+      }
+
+      const { error } = await supabase
+        .from("services")
+        .update({ price: priceValue })
+        .eq("id", appointment.service.id)
+
+      if (error) throw error
+
+      toast.success("Preço atualizado com sucesso!")
+      setIsEditingPrice(false)
+      loadData()
+    } catch (error) {
+      console.error("[v0] Erro ao atualizar preço:", error)
+      toast.error("Erro ao atualizar preço")
     } finally {
       setIsLoading(false)
     }
@@ -246,25 +287,67 @@ export default function GerenciarAgendamento() {
               {appointment.service?.price && (
                 <div className="flex items-start gap-3">
                   <DollarSign className="h-5 w-5 text-gold mt-0.5" />
-                  <div>
+                  <div className="flex-1">
                     <p className="text-sm text-muted-foreground">Valor</p>
-                    <p className="text-foreground font-medium text-lg">R$ {appointment.service.price}</p>
-                    <Badge
-                      variant="outline"
-                      className={
-                        appointment.payment_status === "paid"
-                          ? "bg-green-500/10 text-green-500 border-green-500/20"
-                          : appointment.payment_status === "overdue"
-                            ? "bg-red-500/10 text-red-500 border-red-500/20"
-                            : "bg-yellow-500/10 text-yellow-500 border-yellow-500/20"
-                      }
-                    >
-                      {appointment.payment_status === "paid"
-                        ? "Pago"
-                        : appointment.payment_status === "overdue"
-                          ? "Atrasado"
-                          : "Pendente"}
-                    </Badge>
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="text-foreground font-medium text-lg">R$ {appointment.service.price}</p>
+                        <Badge
+                          variant="outline"
+                          className={
+                            appointment.payment_status === "paid"
+                              ? "bg-green-500/10 text-green-500 border-green-500/20"
+                              : appointment.payment_status === "overdue"
+                                ? "bg-red-500/10 text-red-500 border-red-500/20"
+                                : "bg-yellow-500/10 text-yellow-500 border-yellow-500/20"
+                          }
+                        >
+                          {appointment.payment_status === "paid"
+                            ? "Pago"
+                            : appointment.payment_status === "overdue"
+                              ? "Atrasado"
+                              : "Pendente"}
+                        </Badge>
+                      </div>
+                      <Dialog open={isEditingPrice} onOpenChange={setIsEditingPrice}>
+                        <DialogTrigger asChild>
+                          <Button variant="outline" size="sm">
+                            <Edit2 className="h-4 w-4 mr-2" />
+                            Editar Valor
+                          </Button>
+                        </DialogTrigger>
+                        <DialogContent>
+                          <DialogHeader>
+                            <DialogTitle>Editar Valor do Serviço</DialogTitle>
+                            <DialogDescription>
+                              Altere o valor do serviço para este agendamento
+                            </DialogDescription>
+                          </DialogHeader>
+                          <div className="space-y-4 py-4">
+                            <div className="space-y-2">
+                              <Label htmlFor="price">Novo Valor (R$)</Label>
+                              <Input
+                                id="price"
+                                type="number"
+                                step="0.01"
+                                min="0"
+                                value={newPrice}
+                                onChange={(e) => setNewPrice(e.target.value)}
+                                placeholder="0.00"
+                              />
+                            </div>
+                          </div>
+                          <DialogFooter>
+                            <Button variant="outline" onClick={() => setIsEditingPrice(false)}>
+                              Cancelar
+                            </Button>
+                            <Button onClick={handleUpdatePrice} disabled={isLoading}>
+                              {isLoading ? "Salvando..." : "Salvar"}
+                            </Button>
+                          </DialogFooter>
+                        </DialogContent>
+                      </Dialog>
+                    </div>
                   </div>
                 </div>
               )}

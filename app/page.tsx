@@ -1,10 +1,11 @@
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
-import { Calendar, Sparkles, Star, ArrowRight, Shield, Award } from "lucide-react"
+import { Calendar, Sparkles, Star, ArrowRight, Shield, Award, Scissors, Heart } from 'lucide-react'
 import Image from "next/image"
 import Link from "next/link"
 import { Navbar } from "@/components/navbar"
 import { createClient } from "@/lib/supabase/server"
+import { PREDEFINED_SERVICES } from "@/lib/constants/services"
 
 export default async function HomePage() {
   const supabase = await createClient()
@@ -51,15 +52,15 @@ export default async function HomePage() {
             </p>
 
             <div className="flex flex-col sm:flex-row items-center justify-center gap-3 md:gap-4 px-4">
-              <Link href="/agendar" className="w-full sm:w-auto">
+              <a href="#servicos" className="w-full sm:w-auto">
                 <Button
                   size="lg"
                   className="w-full sm:w-auto bg-primary hover:bg-primary/90 text-black font-semibold text-base md:text-lg px-8 md:px-10 py-5 md:py-6 h-auto shadow-lg shadow-primary/20 hover:shadow-xl hover:shadow-primary/30 transition-all"
                 >
-                  Agendar Horário
+                  Ver Serviços
                   <ArrowRight className="ml-2 h-4 w-4 md:h-5 md:w-5" />
                 </Button>
-              </Link>
+              </a>
               <Link href="/quiz" className="w-full sm:w-auto">
                 <Button
                   size="lg"
@@ -120,35 +121,35 @@ export default async function HomePage() {
             <div className="inline-block px-4 py-2 rounded-full bg-primary/10 text-primary text-sm font-semibold mb-4">
               NOSSOS SERVIÇOS
             </div>
-            <h2 className="font-serif text-5xl md:text-6xl font-bold text-foreground mb-6">Serviços Premium</h2>
+            <h2 className="font-serif text-5xl md:text-6xl font-bold text-foreground mb-6">Serviços Disponíveis</h2>
             <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
-              Oferecemos uma ampla gama de serviços para realçar sua beleza
+              Oferecemos uma ampla gama de serviços de estética e beleza para você
             </p>
           </div>
 
-          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8 max-w-7xl mx-auto">
-            {services.map((service, index) => (
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 max-w-7xl mx-auto">
+            {PREDEFINED_SERVICES.map((service, index) => (
               <Card
                 key={index}
-                className="overflow-hidden border-primary/10 hover:shadow-2xl hover:shadow-primary/5 transition-all duration-300 group bg-card"
+                className="overflow-hidden border-primary/10 hover:shadow-xl hover:shadow-primary/5 transition-all duration-300 group bg-card"
               >
-                <div className="aspect-[4/3] bg-gradient-to-br from-primary/20 via-primary/10 to-primary/5 relative overflow-hidden">
-                  <div className="absolute inset-0 flex items-center justify-center">
-                    <service.icon className="h-20 w-20 text-primary group-hover:scale-125 transition-transform duration-500" />
+                <div className="p-6 text-center">
+                  <div className="inline-flex items-center justify-center w-12 h-12 rounded-full bg-primary/10 text-primary mb-3 group-hover:scale-110 transition-transform">
+                    <Sparkles className="h-6 w-6" />
                   </div>
-                </div>
-                <div className="p-8">
-                  <h3 className="text-2xl font-bold mb-3 text-foreground">{service.name}</h3>
-                  <p className="text-muted-foreground mb-6 leading-relaxed">{service.description}</p>
-                  <div className="flex items-center justify-between">
-                    <span className="text-3xl font-bold text-primary">{service.price}</span>
-                    <Link href="/agendar">
-                      <Button className="bg-primary text-black hover:bg-primary/90 font-semibold">Agendar</Button>
-                    </Link>
-                  </div>
+                  <h3 className="text-base font-semibold text-foreground">{service}</h3>
                 </div>
               </Card>
             ))}
+          </div>
+
+          <div className="text-center mt-12">
+            <Link href="/quiz">
+              <Button size="lg" className="bg-primary hover:bg-primary/90 text-black font-semibold">
+                Encontrar Profissional
+                <ArrowRight className="ml-2 h-5 w-5" />
+              </Button>
+            </Link>
           </div>
         </div>
       </section>
@@ -206,14 +207,14 @@ export default async function HomePage() {
               Pronta Para Se Sentir <span className="text-primary">Incrível?</span>
             </h2>
             <p className="text-xl md:text-2xl text-muted-foreground mb-12 max-w-2xl mx-auto">
-              Agende seu horário agora e descubra o melhor da estética e beleza
+              Entre em contato com nossos profissionais e descubra o melhor da estética e beleza
             </p>
-            <Link href="/agendar">
+            <Link href="/quiz">
               <Button
                 size="lg"
                 className="bg-primary hover:bg-primary/90 text-black font-bold text-xl px-12 py-7 h-auto shadow-2xl shadow-primary/20 hover:shadow-primary/30 transition-all"
               >
-                Agendar Agora
+                Encontrar Profissional
                 <ArrowRight className="ml-3 h-6 w-6" />
               </Button>
             </Link>
@@ -300,45 +301,7 @@ export default async function HomePage() {
   )
 }
 
-const services = [
-  {
-    name: "Corte e Escova",
-    description: "Corte personalizado e escova profissional para realçar sua beleza",
-    price: "R$ 120",
-    icon: Sparkles,
-  },
-  {
-    name: "Manicure e Pedicure",
-    description: "Cuidados completos para suas unhas com produtos de qualidade",
-    price: "R$ 80",
-    icon: Star,
-  },
-  {
-    name: "Design de Sobrancelhas",
-    description: "Modelagem perfeita para valorizar seu olhar",
-    price: "R$ 60",
-    icon: Sparkles,
-  },
-  {
-    name: "Maquiagem",
-    description: "Maquiagem profissional para qualquer ocasião",
-    price: "R$ 150",
-    icon: Star,
-  },
-  {
-    name: "Tratamentos Faciais",
-    description: "Limpeza de pele e tratamentos estéticos faciais",
-    price: "R$ 180",
-    icon: Sparkles,
-  },
-  {
-    name: "Depilação",
-    description: "Depilação com cera de alta qualidade",
-    price: "R$ 90",
-    icon: Star,
-  },
-]
-
+// Kept testimonials
 const testimonials = [
   {
     name: "Maria Silva",
