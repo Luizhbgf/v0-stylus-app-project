@@ -20,9 +20,8 @@ import { Checkbox } from "@/components/ui/checkbox"
 export default function AdicionarAgendamentoStaff() {
   const [profile, setProfile] = useState<any>(null)
   const [clients, setClients] = useState<any[]>([])
-  const [filteredClients, setFilteredClients] = useState<any[]>([])
   const [services, setServices] = useState<any[]>([])
-  const [selectedClient, setSelectedClient] = useState("")
+  const [clientName, setClientName] = useState("")
   const [selectedService, setSelectedService] = useState("")
   const [appointmentDate, setAppointmentDate] = useState("")
   const [appointmentTime, setAppointmentTime] = useState("")
@@ -42,27 +41,9 @@ export default function AdicionarAgendamentoStaff() {
   const [recurrenceDays, setRecurrenceDays] = useState<number[]>([])
   const [recurrenceEndDate, setRecurrenceEndDate] = useState("")
 
-  const [clientSearch, setClientSearch] = useState("")
-
   useEffect(() => {
     loadData()
   }, [])
-
-  useEffect(() => {
-    if (clientSearch.trim() === "") {
-      setFilteredClients(clients)
-    } else {
-      const search = clientSearch.toLowerCase()
-      setFilteredClients(
-        clients.filter(
-          (client) =>
-            client.full_name?.toLowerCase().includes(search) ||
-            client.email?.toLowerCase().includes(search) ||
-            client.phone?.toLowerCase().includes(search)
-        )
-      )
-    }
-  }, [clientSearch, clients])
 
   const loadData = async () => {
     const {
@@ -78,7 +59,6 @@ export default function AdicionarAgendamentoStaff() {
 
     const { data: clientsData } = await supabase.from("profiles").select("*").eq("user_level", 10).order("full_name")
     setClients(clientsData || [])
-    setFilteredClients(clientsData || [])
 
     const { data: staffServicesData } = await supabase
       .from("staff_services")
@@ -99,10 +79,27 @@ export default function AdicionarAgendamentoStaff() {
       } = await supabase.auth.getUser()
       if (!user) throw new Error("Usuário não autenticado")
 
-      if (clientType === "registered" && !selectedClient) {
-        toast.error("Selecione um cliente")
-        setIsLoading(false)
-        return
+      let selectedClientId = null
+      if (clientType === "registered") {
+        if (!clientName.trim()) {
+          toast.error("Digite ou selecione um cliente")
+          setIsLoading(false)
+          return
+        }
+        
+        // Tentar encontrar o cliente pelo nome/email
+        const client = clients.find(
+          c => c.full_name === clientName || c.email === clientName || c.id === clientName
+        )
+        
+        if (client) {
+          selectedClientId = client.id
+        } else {
+          // Se não encontrou, trata como cliente esporádico
+          toast.error("Cliente não encontrado. Use 'Cliente Esporádico' para novos clientes.")
+          setIsLoading(false)
+          return
+        }
       }
 
       if (clientType === "sporadic" && (!sporadicName || !sporadicPhone)) {
@@ -120,7 +117,7 @@ export default function AdicionarAgendamentoStaff() {
       const appointmentDateTime = new Date(`${appointmentDate}T${appointmentTime}`)
 
       const appointmentData: any = {
-        client_id: clientType === "registered" ? selectedClient : null,
+        client_id: selectedClientId,
         staff_id: user.id,
         service_id: selectedService || null,
         appointment_date: appointmentDateTime.toISOString(),
@@ -293,29 +290,23 @@ export default function AdicionarAgendamentoStaff() {
 
               {clientType === "registered" && (
                 <div className="space-y-2">
-                  <Label htmlFor="clientSearch">Buscar Cliente *</Label>
+                  <Label htmlFor="clientName">Cliente *</Label>
                   <Input
-                    id="clientSearch"
-                    value={clientSearch}
-                    onChange={(e) => setClientSearch(e.target.value)}
-                    placeholder="Digite nome, email ou telefone..."
-                    className="border-gold/20 mb-2"
+                    id="clientName"
+                    list="clients-list"
+                    value={clientName}
+                    onChange={(e) => setClientName(e.target.value)}
+                    placeholder="Selecione ou digite o nome do cliente"
+                    className="border-gold/20"
+                    required
                   />
-                  <Select value={selectedClient} onValueChange={setSelectedClient} required>
-                    <SelectTrigger className="border-gold/20">
-                      <SelectValue placeholder="Selecione o cliente" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {filteredClients.map((client) => (
-                        <SelectItem key={client.id} value={client.id}>
-                          {client.full_name} - {client.email}
-                        </SelectItem>
-                      ))}
-                      {filteredClients.length === 0 && (
-                        <div className="p-2 text-sm text-muted-foreground">Nenhum cliente encontrado</div>
-                      )}
-                    </SelectContent>
-                  </Select>
+                  <datalist id="clients-list">
+                    {clients.map((client) => (
+                      <option key={client.id} value={client.full_name}>
+                        {client.email}
+                      </option>
+                    ))}
+                  </datalist>
                 </div>
               )}
 
