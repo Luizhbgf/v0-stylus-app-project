@@ -112,13 +112,17 @@ export default function EditarPerfilAdmin() {
 
     setIsLoading(true)
     try {
-      const { error } = await supabase.auth.updateUser({
-        phone: newPhone,
-      })
+      const {
+        data: { user },
+      } = await supabase.auth.getUser()
+      if (!user) throw new Error("Usuário não autenticado")
+
+      const { error } = await supabase.from("profiles").update({ phone: newPhone }).eq("id", user.id)
 
       if (error) throw error
 
-      toast.success("Código de verificação enviado via SMS!")
+      setPhone(newPhone)
+      toast.success("Telefone atualizado com sucesso!")
       setShowPhoneVerification(false)
       setNewPhone("")
     } catch (error) {

@@ -205,10 +205,7 @@ export default function EditarPerfilStaff() {
       } = await supabase.auth.getUser()
       if (!user) throw new Error("Usuário não autenticado")
 
-      const { error } = await supabase
-        .from("profiles")
-        .update({ phone: newPhone })
-        .eq("id", user.id)
+      const { error } = await supabase.from("profiles").update({ phone: newPhone }).eq("id", user.id)
 
       if (error) throw error
 

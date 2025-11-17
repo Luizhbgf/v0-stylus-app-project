@@ -9,9 +9,9 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Navbar } from "@/components/navbar"
-import { useRouter } from "next/navigation"
+import { useRouter } from 'next/navigation'
 import { toast } from "sonner"
-import { ArrowLeft, Upload, Camera } from "lucide-react"
+import { ArrowLeft, Upload, Camera } from 'lucide-react'
 import Link from "next/link"
 import Image from "next/image"
 
@@ -111,19 +111,22 @@ export default function EditarPerfilCliente() {
     }
 
     setIsLoading(true)
-
     try {
-      const { error } = await supabase.auth.updateUser({
-        phone: newPhone,
-      })
+      const {
+        data: { user },
+      } = await supabase.auth.getUser()
+      if (!user) throw new Error("Usuário não autenticado")
+
+      const { error } = await supabase.from("profiles").update({ phone: newPhone }).eq("id", user.id)
 
       if (error) throw error
 
-      toast.success("Código de verificação enviado via SMS!")
+      setPhone(newPhone)
+      toast.success("Telefone atualizado com sucesso!")
       setShowPhoneVerification(false)
       setNewPhone("")
     } catch (error) {
-      console.error("Erro ao alterar telefone:", error)
+      console.error("[v0] Erro ao alterar telefone:", error)
       toast.error("Erro ao alterar telefone")
     } finally {
       setIsLoading(false)
