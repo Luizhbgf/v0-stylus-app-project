@@ -1,8 +1,8 @@
-import { redirect } from "next/navigation"
+import { redirect } from 'next/navigation'
 import { createClient } from "@/lib/supabase/server"
 import { Navbar } from "@/components/navbar"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Calendar, Clock, Users, CheckCircle, DollarSign, TrendingUp, BookOpen, Briefcase } from "lucide-react"
+import { Calendar, Clock, Users, CheckCircle, DollarSign, TrendingUp, BookOpen, Briefcase } from 'lucide-react'
 import Link from "next/link"
 
 export default async function StaffDashboard() {
@@ -21,7 +21,7 @@ export default async function StaffDashboard() {
     redirect("/cliente")
   }
 
-  // Get staff appointments and appointment_requests
+  // Get staff appointments
   const { data: appointments } = await supabase
     .from("appointments")
     .select(
@@ -34,22 +34,8 @@ export default async function StaffDashboard() {
     .eq("staff_id", user.id)
     .order("appointment_date", { ascending: true })
 
-  const { data: requests } = await supabase
-    .from("appointment_requests")
-    .select(
-      `
-      *,
-      service:services(*),
-      client:profiles!client_id(full_name, email, phone)
-    `,
-    )
-    .eq("staff_id", user.id)
-    .order("preferred_date", { ascending: true })
-
   const today = new Date()
   today.setHours(0, 0, 0, 0)
-  const tomorrow = new Date(today)
-  tomorrow.setDate(tomorrow.getDate() + 1)
 
   const todayAppointments = appointments?.filter((apt) => {
     const aptDate = new Date(apt.appointment_date)
@@ -57,17 +43,10 @@ export default async function StaffDashboard() {
     return aptDate.getTime() === today.getTime() && apt.status !== "cancelled"
   })
 
-  const todayRequests = requests?.filter((req) => {
-    const reqDate = new Date(req.preferred_date)
-    reqDate.setHours(0, 0, 0, 0)
-    return reqDate.getTime() === today.getTime() && req.status === "approved"
-  })
-
   const completedToday = todayAppointments?.filter((apt) => apt.status === "completed").length || 0
 
   const clientIds = new Set()
   appointments?.forEach((apt) => apt.client_id && clientIds.add(apt.client_id))
-  requests?.forEach((req) => req.client_id && clientIds.add(req.client_id))
   const totalClients = clientIds.size
 
   const firstDayOfMonth = new Date(today.getFullYear(), today.getMonth(), 1)
@@ -77,14 +56,7 @@ export default async function StaffDashboard() {
       new Date(apt.appointment_date) >= firstDayOfMonth &&
       (apt.status === "completed" || apt.payment_status === "paid"),
   )
-  const appointmentsEarnings = monthlyAppointments?.reduce((sum, apt) => sum + Number(apt.service?.price || 0), 0) || 0
-
-  const monthlyRequests = requests?.filter(
-    (req) => new Date(req.preferred_date) >= firstDayOfMonth && req.status === "completed",
-  )
-  const requestsEarnings = monthlyRequests?.reduce((sum, req) => sum + Number(req.service?.price || 0), 0) || 0
-
-  const totalEarnings = appointmentsEarnings + requestsEarnings
+  const totalEarnings = monthlyAppointments?.reduce((sum, apt) => sum + Number(apt.service?.price || 0), 0) || 0
 
   return (
     <div className="min-h-screen bg-background">
@@ -104,9 +76,7 @@ export default async function StaffDashboard() {
               <Calendar className="h-4 w-4 text-gold" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold text-foreground">
-                {(todayAppointments?.length || 0) + (todayRequests?.length || 0)}
-              </div>
+              <div className="text-2xl font-bold text-foreground">{todayAppointments?.length || 0}</div>
               <p className="text-xs text-muted-foreground">agendamentos</p>
             </CardContent>
           </Card>
@@ -209,16 +179,6 @@ export default async function StaffDashboard() {
               </Card>
             </Link>
 
-            <Link href="/staff/solicitacoes">
-              <Card className="border-gold/20 hover:border-gold/40 transition-colors cursor-pointer">
-                <CardContent className="p-6 flex flex-col items-center text-center">
-                  <Clock className="h-8 w-8 text-gold mb-3" />
-                  <h3 className="font-semibold text-foreground">Solicitações</h3>
-                  <p className="text-sm text-muted-foreground mt-1">Aprovar pedidos</p>
-                </CardContent>
-              </Card>
-            </Link>
-
             <Link href="/staff/perfil">
               <Card className="border-gold/20 hover:border-gold/40 transition-colors cursor-pointer">
                 <CardContent className="p-6 flex flex-col items-center text-center">
@@ -234,10 +194,10 @@ export default async function StaffDashboard() {
         {/* Today's Appointments */}
         <div>
           <h2 className="text-2xl font-bold text-foreground mb-4">Agendamentos de Hoje</h2>
-          {(todayAppointments && todayAppointments.length > 0) || (todayRequests && todayRequests.length > 0) ? (
+          {todayAppointments && todayAppointments.length > 0 ? (
             <div className="grid gap-4">
-              {todayAppointments?.map((appointment) => (
-                <Card key={`apt-${appointment.id}`} className="border-gold/20">
+              {todayAppointments.map((appointment) => (
+                <Card key={appointment.id} className="border-gold/20">
                   <CardContent className="p-6">
                     <div className="flex justify-between items-start">
                       <div className="flex-1">
@@ -271,31 +231,6 @@ export default async function StaffDashboard() {
                               : "Pendente"}
                         </span>
                         <p className="text-sm text-muted-foreground">{appointment.service?.duration} min</p>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
-              {todayRequests?.map((request) => (
-                <Card key={`req-${request.id}`} className="border-gold/20">
-                  <CardContent className="p-6">
-                    <div className="flex justify-between items-start">
-                      <div className="flex-1">
-                        <h3 className="text-lg font-semibold text-foreground mb-2">{request.service?.name}</h3>
-                        <p className="text-sm text-muted-foreground mb-1">Cliente: {request.client?.full_name}</p>
-                        <p className="text-sm text-muted-foreground mb-1">
-                          Telefone: {request.client?.phone || "Não informado"}
-                        </p>
-                        <p className="text-sm text-muted-foreground">
-                          Horário:{" "}
-                          {request.preferred_time ? request.preferred_time.substring(0, 5) : "Horário não definido"}
-                        </p>
-                      </div>
-                      <div className="text-right">
-                        <span className="inline-block px-3 py-1 rounded-full text-xs font-medium mb-2 bg-green-500/10 text-green-500">
-                          Solicitação Aprovada
-                        </span>
-                        <p className="text-sm text-muted-foreground">{request.service?.duration} min</p>
                       </div>
                     </div>
                   </CardContent>

@@ -1,9 +1,9 @@
-import { redirect } from "next/navigation"
+import { redirect } from 'next/navigation'
 import { createClient } from "@/lib/supabase/server"
 import { Navbar } from "@/components/navbar"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import { Calendar, Clock, User, Bell, Heart, History, CreditCard, Package, FileText } from "lucide-react"
+import { Calendar, Clock, User, Package } from 'lucide-react'
 import Link from "next/link"
 
 export default async function ClienteDashboard() {
@@ -34,16 +34,6 @@ export default async function ClienteDashboard() {
     )
     .eq("client_id", user.id)
     .order("appointment_date", { ascending: true })
-
-  const { data: pendingRequests } = await supabase
-    .from("appointment_requests")
-    .select(`
-      *,
-      service:services(*)
-    `)
-    .eq("client_id", user.id)
-    .eq("status", "pending")
-    .order("created_at", { ascending: false })
 
   const { count: favoritesCount } = await supabase
     .from("favorites")
@@ -126,7 +116,7 @@ export default async function ClienteDashboard() {
           </Card>
         )}
 
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3 md:gap-4 mb-6 md:mb-8">
+        <div className="grid grid-cols-2 md:grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4 mb-6 md:mb-8">
           <Link href="/cliente/favoritos" className="block">
             <Card className="border-primary/20 hover:border-primary/40 transition-colors cursor-pointer h-full">
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 p-4">
@@ -143,7 +133,7 @@ export default async function ClienteDashboard() {
             <Card className="border-primary/20 hover:border-primary/40 transition-colors cursor-pointer h-full">
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 p-4">
                 <CardTitle className="text-xs md:text-sm font-medium">Histórico</CardTitle>
-                <History className="h-3 w-3 md:h-4 md:w-4 text-primary" />
+                <Clock className="h-3 w-3 md:h-4 md:w-4 text-primary" />
               </CardHeader>
               <CardContent className="p-4 pt-0">
                 <div className="text-xl md:text-2xl font-bold text-foreground">{pastAppointments?.length || 0}</div>
@@ -155,7 +145,7 @@ export default async function ClienteDashboard() {
             <Card className="border-primary/20 hover:border-primary/40 transition-colors cursor-pointer h-full">
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 p-4">
                 <CardTitle className="text-xs md:text-sm font-medium">Pagamentos</CardTitle>
-                <CreditCard className="h-3 w-3 md:h-4 md:w-4 text-primary" />
+                <Clock className="h-3 w-3 md:h-4 md:w-4 text-primary" />
               </CardHeader>
               <CardContent className="p-4 pt-0">
                 <div className="text-xs md:text-sm text-muted-foreground">Ver todos</div>
@@ -174,21 +164,9 @@ export default async function ClienteDashboard() {
               </CardContent>
             </Card>
           </Link>
-
-          <Link href="/cliente/solicitacoes" className="block col-span-2 md:col-span-1">
-            <Card className="border-primary/20 hover:border-primary/40 transition-colors cursor-pointer h-full">
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 p-4">
-                <CardTitle className="text-xs md:text-sm font-medium">Solicitações</CardTitle>
-                <FileText className="h-3 w-3 md:h-4 md:w-4 text-primary" />
-              </CardHeader>
-              <CardContent className="p-4 pt-0">
-                <div className="text-xl md:text-2xl font-bold text-foreground">{pendingRequests?.length || 0}</div>
-              </CardContent>
-            </Card>
-          </Link>
         </div>
 
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6 mb-6 md:mb-8">
+        <div className="grid grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6 mb-6 md:mb-8">
           <Card className="border-primary/20">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 p-4">
               <CardTitle className="text-xs md:text-sm font-medium">Próximos</CardTitle>
@@ -196,16 +174,6 @@ export default async function ClienteDashboard() {
             </CardHeader>
             <CardContent className="p-4 pt-0">
               <div className="text-xl md:text-2xl font-bold text-foreground">{upcomingAppointments?.length || 0}</div>
-            </CardContent>
-          </Card>
-
-          <Card className="border-primary/20">
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 p-4">
-              <CardTitle className="text-xs md:text-sm font-medium">Pendentes</CardTitle>
-              <Bell className="h-3 w-3 md:h-4 md:w-4 text-primary" />
-            </CardHeader>
-            <CardContent className="p-4 pt-0">
-              <div className="text-xl md:text-2xl font-bold text-foreground">{pendingRequests?.length || 0}</div>
             </CardContent>
           </Card>
 
@@ -230,50 +198,7 @@ export default async function ClienteDashboard() {
           </Card>
         </div>
 
-        <div className="mb-6">
-          <Button asChild className="w-full md:w-auto bg-primary hover:bg-primary/90 text-black" size="lg">
-            <Link href="/agendar">Nova Solicitação de Agendamento</Link>
-          </Button>
-        </div>
-
         <div className="space-y-6">
-          {pendingRequests && pendingRequests.length > 0 && (
-            <div>
-              <h2 className="text-2xl font-bold text-foreground mb-4">Solicitações Aguardando Aprovação</h2>
-              <div className="grid gap-4">
-                {pendingRequests.map((request) => (
-                  <Card key={request.id} className="border-yellow-500/20 bg-yellow-500/5">
-                    <CardContent className="p-6">
-                      <div className="flex justify-between items-start">
-                        <div>
-                          <h3 className="text-lg font-semibold text-foreground mb-2">{request.service?.name}</h3>
-                          <p className="text-sm text-muted-foreground mb-1">
-                            Data preferida: {new Date(request.preferred_date).toLocaleDateString("pt-BR")}
-                            {request.preferred_time && ` às ${request.preferred_time}`}
-                          </p>
-                          <p className="text-sm text-muted-foreground">
-                            Solicitado em: {new Date(request.created_at).toLocaleDateString("pt-BR")}
-                          </p>
-                          {request.notes && (
-                            <p className="text-sm text-muted-foreground mt-2">
-                              <strong>Observações:</strong> {request.notes}
-                            </p>
-                          )}
-                        </div>
-                        <div className="text-right">
-                          <span className="inline-block px-3 py-1 rounded-full text-xs font-medium bg-yellow-500/10 text-yellow-500">
-                            Aguardando Aprovação
-                          </span>
-                          <p className="text-lg font-bold text-gold mt-2">R$ {request.service?.price}</p>
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
-                ))}
-              </div>
-            </div>
-          )}
-
           <div>
             <h2 className="text-2xl font-bold text-foreground mb-4">Próximos Agendamentos</h2>
             {upcomingAppointments && upcomingAppointments.length > 0 ? (
