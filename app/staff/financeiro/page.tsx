@@ -38,14 +38,20 @@ export default async function StaffFinanceiro() {
     console.error("[v0] ERRO ao buscar appointments:", appointmentsError)
   }
 
+  console.log("[v0] Total de appointments encontrados:", appointments?.length)
+  console.log("[v0] Appointments:", appointments)
+
   const earnings: any[] = []
 
   appointments?.forEach((apt) => {
+    if (apt.status === "cancelled") return
+
     const isPaid = apt.payment_status === "paid" || apt.status === "completed"
-    const isCancelled = apt.status === "cancelled"
 
     const clientName =
       apt.client_type === "sporadic" ? apt.sporadic_client_name : apt.client?.full_name || "Cliente não identificado"
+
+    console.log(`[v0] Processando appointment ${apt.id}: isPaid=${isPaid}, status=${apt.status}, cliente=${clientName}`)
 
     earnings.push({
       id: apt.id,
@@ -53,12 +59,15 @@ export default async function StaffFinanceiro() {
       amount: apt.service?.price || 0,
       payment_date: apt.appointment_date,
       payment_method: apt.payment_method || "Não informado",
-      status: isCancelled ? "cancelled" : isPaid ? "paid" : "pending",
+      status: isPaid ? "paid" : "pending",
       service_name: apt.service?.name || "Serviço não especificado",
       client_name: clientName,
       notes: `${apt.service?.name || "Serviço"} - ${clientName}`,
     })
   })
+
+  console.log("[v0] Total de earnings processados:", earnings.length)
+  console.log("[v0] Earnings pagos:", earnings.filter((e) => e.status === "paid").length)
 
   // Sort by date
   earnings.sort((a, b) => new Date(b.payment_date).getTime() - new Date(a.payment_date).getTime())
@@ -141,16 +150,12 @@ export default async function StaffFinanceiro() {
                           className={`px-3 py-1 rounded-full text-xs font-medium ${
                             earning.status === "paid"
                               ? "bg-green-500/10 text-green-500"
-                              : earning.status === "cancelled"
-                                ? "bg-red-500/10 text-red-500"
-                                : "bg-yellow-500/10 text-yellow-500"
+                              : "bg-yellow-500/10 text-yellow-500"
                           }`}
                         >
                           {earning.status === "paid"
                             ? "Pago"
-                            : earning.status === "cancelled"
-                              ? "Cancelado"
-                              : "Pendente"}
+                            : "Pendente"}
                         </span>
                       </div>
                     </div>

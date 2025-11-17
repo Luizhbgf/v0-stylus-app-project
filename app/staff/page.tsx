@@ -46,7 +46,14 @@ export default async function StaffDashboard() {
   const completedToday = todayAppointments?.filter((apt) => apt.status === "completed").length || 0
 
   const clientIds = new Set()
-  appointments?.forEach((apt) => apt.client_id && clientIds.add(apt.client_id))
+  appointments?.forEach((apt) => {
+    if (apt.status === "cancelled") return
+    if (apt.client_type === "sporadic" && apt.sporadic_client_name) {
+      clientIds.add(`sporadic-${apt.sporadic_client_name}`)
+    } else if (apt.client_id) {
+      clientIds.add(apt.client_id)
+    }
+  })
   const totalClients = clientIds.size
 
   const firstDayOfMonth = new Date(today.getFullYear(), today.getMonth(), 1)
@@ -54,7 +61,8 @@ export default async function StaffDashboard() {
   const monthlyAppointments = appointments?.filter(
     (apt) =>
       new Date(apt.appointment_date) >= firstDayOfMonth &&
-      (apt.status === "completed" || apt.payment_status === "paid"),
+      (apt.status === "completed" || apt.payment_status === "paid") &&
+      apt.status !== "cancelled",
   )
   const totalEarnings = monthlyAppointments?.reduce((sum, apt) => sum + Number(apt.service?.price || 0), 0) || 0
 

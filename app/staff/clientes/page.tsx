@@ -24,38 +24,60 @@ export default async function StaffClientes() {
       status,
       payment_status,
       client_id,
+      client_type,
+      sporadic_client_name,
       service:services(price),
       client:profiles!client_id(id, full_name, email, phone)
     `,
     )
     .eq("staff_id", user.id)
+    .neq("status", "cancelled")
 
   const clientsMap = new Map()
 
   appointmentsData?.forEach((apt) => {
-    if (!apt.client_id || !apt.client) return
+    let clientId: string
+    let clientName: string
+    let clientEmail: string
+    let clientPhone: string
 
-    const clientId = apt.client_id
+    if (apt.client_type === "sporadic") {
+      clientId = `sporadic-${apt.sporadic_client_name}`
+      clientName = apt.sporadic_client_name || "Cliente Esporádico"
+      clientEmail = "N/A"
+      clientPhone = "N/A"
+    } else if (apt.client_id && apt.client) {
+      clientId = apt.client_id
+      clientName = apt.client.full_name
+      clientEmail = apt.client.email
+      clientPhone = apt.client.phone || "N/A"
+    } else {
+      return
+    }
+
     if (!clientsMap.has(clientId)) {
       clientsMap.set(clientId, {
         id: clientId,
-        full_name: apt.client.full_name,
-        email: apt.client.email,
-        phone: apt.client.phone,
+        full_name: clientName,
+        email: clientEmail,
+        phone: clientPhone,
         total_visits: 0,
         total_spent: 0,
         first_visit: apt.appointment_date,
         last_visit: apt.appointment_date,
         is_favorite: false,
+        is_sporadic: apt.client_type === "sporadic",
       })
     }
 
     const client = clientsMap.get(clientId)
-    if (apt.status === "completed") {
+    
+    if (apt.status === "completed" || apt.status === "confirmed") {
       client.total_visits++
-      if (apt.payment_status === "paid" && apt.service?.price) {
-        client.total_spent += Number(apt.service.price)
-      }
+    }
+    
+    if ((apt.payment_status === "paid" || apt.status === "completed") && apt.service?.price) {
+      client.total_spent += Number(apt.service.price)
     }
 
     if (new Date(apt.appointment_date) < new Date(client.first_visit)) {
@@ -90,6 +112,11 @@ export default async function StaffClientes() {
                       <div className="flex items-center gap-2 mb-2">
                         <h3 className="text-lg font-semibold text-foreground">{client.full_name}</h3>
                         {client.is_favorite && <Star className="h-4 w-4 text-gold fill-gold" />}
+                        {client.is_sporadic && (
+                          <span className="px-2 py-0.5 rounded-full text-xs bg-muted text-muted-foreground">
+                            Esporádico
+                          </span>
+                        )}
                       </div>
                       <p className="text-sm text-muted-foreground mb-1">Email: {client.email}</p>
                       <p className="text-sm text-muted-foreground mb-1">Telefone: {client.phone}</p>
