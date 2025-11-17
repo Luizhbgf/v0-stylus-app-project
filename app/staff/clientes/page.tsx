@@ -1,8 +1,8 @@
-import { redirect } from "next/navigation"
+import { redirect } from 'next/navigation'
 import { createClient } from "@/lib/supabase/server"
 import { Navbar } from "@/components/navbar"
 import { Card, CardContent } from "@/components/ui/card"
-import { Users, Star } from "lucide-react"
+import { Users, Star } from 'lucide-react'
 
 export default async function StaffClientes() {
   const supabase = await createClient()
@@ -30,24 +30,8 @@ export default async function StaffClientes() {
     )
     .eq("staff_id", user.id)
 
-  const { data: requestsData } = await supabase
-    .from("appointment_requests")
-    .select(
-      `
-      id,
-      preferred_date,
-      status,
-      client_id,
-      service:services(price),
-      client:profiles!client_id(id, full_name, email, phone)
-    `,
-    )
-    .eq("staff_id", user.id)
-
-  // Aggregate client data
   const clientsMap = new Map()
 
-  // Process appointments
   appointmentsData?.forEach((apt) => {
     if (!apt.client_id || !apt.client) return
 
@@ -74,7 +58,6 @@ export default async function StaffClientes() {
       }
     }
 
-    // Update first and last visit dates
     if (new Date(apt.appointment_date) < new Date(client.first_visit)) {
       client.first_visit = apt.appointment_date
     }
@@ -83,27 +66,6 @@ export default async function StaffClientes() {
     }
   })
 
-  // Process appointment requests
-  requestsData?.forEach((req) => {
-    if (!req.client_id || !req.client) return
-
-    const clientId = req.client_id
-    if (!clientsMap.has(clientId)) {
-      clientsMap.set(clientId, {
-        id: clientId,
-        full_name: req.client.full_name,
-        email: req.client.email,
-        phone: req.client.phone,
-        total_visits: 0,
-        total_spent: 0,
-        first_visit: req.preferred_date,
-        last_visit: req.preferred_date,
-        is_favorite: false,
-      })
-    }
-  })
-
-  // Convert map to array and sort by last visit
   const clients = Array.from(clientsMap.values()).sort(
     (a, b) => new Date(b.last_visit).getTime() - new Date(a.last_visit).getTime(),
   )

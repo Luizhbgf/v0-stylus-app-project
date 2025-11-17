@@ -1,8 +1,8 @@
-import { redirect } from "next/navigation"
+import { redirect } from 'next/navigation'
 import { createClient } from "@/lib/supabase/server"
 import { Navbar } from "@/components/navbar"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { DollarSign, TrendingUp, Calendar } from "lucide-react"
+import { DollarSign, TrendingUp, Calendar } from 'lucide-react'
 
 export default async function StaffFinanceiro() {
   const supabase = await createClient()
@@ -14,11 +14,6 @@ export default async function StaffFinanceiro() {
 
   const { data: profile } = await supabase.from("profiles").select("*").eq("id", user.id).single()
   if (!profile || profile.user_level < 20) redirect("/cliente")
-
-  console.log("[v0] ===== INÍCIO DO DEBUG =====")
-  console.log("[v0] ID do usuário logado:", user.id)
-  console.log("[v0] Nome do usuário:", profile.full_name)
-  console.log("[v0] ===========================")
 
   const { data: appointments, error: appointmentsError } = await supabase
     .from("appointments")
@@ -43,50 +38,12 @@ export default async function StaffFinanceiro() {
     console.error("[v0] ERRO ao buscar appointments:", appointmentsError)
   }
 
-  console.log("[v0] Total de appointments buscados:", appointments?.length || 0)
-  console.log("[v0] Appointments completos:", JSON.stringify(appointments, null, 2))
-
-  const { data: requests, error: requestsError } = await supabase
-    .from("appointment_requests")
-    .select(
-      `
-      id,
-      preferred_date,
-      status,
-      staff_id,
-      service:services(name, price),
-      client:profiles!client_id(full_name)
-    `,
-    )
-    .eq("staff_id", user.id)
-    .order("preferred_date", { ascending: false })
-
-  if (requestsError) {
-    console.error("[v0] ERRO ao buscar requests:", requestsError)
-  }
-
-  console.log("[v0] Total de requests buscados:", requests?.length || 0)
-  console.log("[v0] Requests completos:", JSON.stringify(requests, null, 2))
-
-  // Combine and process earnings
   const earnings: any[] = []
 
   appointments?.forEach((apt) => {
-    console.log("[v0] Processando appointment:", {
-      id: apt.id,
-      staff_id: apt.staff_id,
-      status: apt.status,
-      payment_status: apt.payment_status,
-      service_name: apt.service?.name,
-      service_price: apt.service?.price,
-      client_name: apt.client?.full_name || apt.sporadic_client_name,
-    })
-
-    // Determinar se está pago
     const isPaid = apt.payment_status === "paid" || apt.status === "completed"
     const isCancelled = apt.status === "cancelled"
 
-    // Pegar o nome do cliente
     const clientName =
       apt.client_type === "sporadic" ? apt.sporadic_client_name : apt.client?.full_name || "Cliente não identificado"
 
@@ -102,34 +59,6 @@ export default async function StaffFinanceiro() {
       notes: `${apt.service?.name || "Serviço"} - ${clientName}`,
     })
   })
-
-  requests?.forEach((req) => {
-    console.log("[v0] Processando request:", {
-      id: req.id,
-      status: req.status,
-      service_name: req.service?.name,
-      service_price: req.service?.price,
-      client_name: req.client?.full_name,
-    })
-
-    // Apenas mostrar requests concluídos no financeiro
-    if (req.status === "completed") {
-      earnings.push({
-        id: req.id,
-        type: "request",
-        amount: req.service?.price || 0,
-        payment_date: req.preferred_date,
-        payment_method: "Não informado",
-        status: "paid",
-        service_name: req.service?.name || "Serviço não especificado",
-        client_name: req.client?.full_name || "Cliente não identificado",
-        notes: `${req.service?.name || "Serviço"} - ${req.client?.full_name || "Cliente"} (Solicitação)`,
-      })
-    }
-  })
-
-  console.log("[v0] Total de earnings processados:", earnings.length)
-  console.log("[v0] Earnings completos:", JSON.stringify(earnings, null, 2))
 
   // Sort by date
   earnings.sort((a, b) => new Date(b.payment_date).getTime() - new Date(a.payment_date).getTime())
@@ -222,9 +151,6 @@ export default async function StaffFinanceiro() {
                             : earning.status === "cancelled"
                               ? "Cancelado"
                               : "Pendente"}
-                        </span>
-                        <span className="px-2 py-1 rounded-full text-xs font-medium bg-blue-500/10 text-blue-500">
-                          {earning.type === "appointment" ? "Agendamento" : "Solicitação"}
                         </span>
                       </div>
                     </div>

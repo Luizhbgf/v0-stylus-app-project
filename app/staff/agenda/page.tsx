@@ -1,8 +1,8 @@
-import { redirect } from "next/navigation"
+import { redirect } from 'next/navigation'
 import { createClient } from "@/lib/supabase/server"
 import { Navbar } from "@/components/navbar"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Calendar, Plus, Clock, AlertCircle } from "lucide-react"
+import { Calendar, Plus, Clock, AlertCircle } from 'lucide-react'
 import { Button } from "@/components/ui/button"
 import Link from "next/link"
 import { Badge } from "@/components/ui/badge"
@@ -71,48 +71,9 @@ export default async function StaffAgenda() {
     .lte("appointment_date", thirtyDaysLater.toISOString())
     .order("appointment_date", { ascending: true })
 
-  // Get pending requests
-  const { data: pendingRequests, error: pendingError } = await supabase
-    .from("appointment_requests")
-    .select(
-      `
-      *,
-      client:profiles!client_id(full_name, phone),
-      service:services!service_id(name, price, duration)
-    `,
-    )
-    .eq("staff_id", user.id)
-    .eq("status", "pending")
-    .order("created_at", { ascending: false })
-
-  // Get approved requests within the next 30 days
-  const todayStr = today.toISOString().split("T")[0]
-  const thirtyDaysLaterStr = thirtyDaysLater.toISOString().split("T")[0]
-
-  const { data: approvedRequests, error: approvedError } = await supabase
-    .from("appointment_requests")
-    .select(
-      `
-      *,
-      client:profiles!client_id(
-        id,
-        full_name,
-        phone,
-        subscriptions!client_id(status)
-      ),
-      service:services!service_id(name, price, duration)
-    `,
-    )
-    .eq("staff_id", user.id)
-    .in("status", ["approved", "modified"])
-    .gte("preferred_date", todayStr)
-    .lte("preferred_date", thirtyDaysLaterStr)
-    .order("preferred_date", { ascending: true })
-
   // Group appointments by date
   const appointmentsByDate: Record<string, any[]> = {}
 
-  // Add regular appointments
   appointments?.forEach((apt) => {
     try {
       const date = new Date(apt.appointment_date).toLocaleDateString("pt-BR")
@@ -128,38 +89,7 @@ export default async function StaffAgenda() {
           : null,
       })
     } catch (error) {
-      console.error("[v0] Error processing appointment:", error)
-    }
-  })
-
-  // Add approved requests
-  approvedRequests?.forEach((req) => {
-    // Skip if date or time is missing
-    if (!req.preferred_date || !req.preferred_time) return
-
-    try {
-      const dateTimeStr = `${req.preferred_date}T${req.preferred_time}`
-      const dateObj = new Date(dateTimeStr)
-
-      // Skip if date is invalid
-      if (isNaN(dateObj.getTime())) return
-
-      const date = dateObj.toLocaleDateString("pt-BR")
-
-      if (!appointmentsByDate[date]) appointmentsByDate[date] = []
-      appointmentsByDate[date].push({
-        ...req,
-        type: "approved_request",
-        appointment_date: dateTimeStr,
-        client: req.client
-          ? {
-              ...req.client,
-              subscription_status: req.client.subscriptions?.[0]?.status || null,
-            }
-          : null,
-      })
-    } catch (error) {
-      console.error("[v0] Error processing approved request:", error)
+      console.error("Error processing appointment:", error)
     }
   })
 
@@ -188,51 +118,13 @@ export default async function StaffAgenda() {
           </Link>
         </div>
 
-        {(appointmentsError || pendingError || approvedError) && (
+        {appointmentsError && (
           <Card className="mb-6 border-red-500/20 bg-red-500/5">
             <CardHeader>
-              <CardTitle className="text-red-500">Erros ao carregar dados</CardTitle>
+              <CardTitle className="text-red-500">Erro ao carregar dados</CardTitle>
             </CardHeader>
             <CardContent>
-              {appointmentsError && <p className="text-sm text-red-500">Appointments: {appointmentsError.message}</p>}
-              {pendingError && <p className="text-sm text-red-500">Pending: {pendingError.message}</p>}
-              {approvedError && <p className="text-sm text-red-500">Approved: {approvedError.message}</p>}
-            </CardContent>
-          </Card>
-        )}
-
-        {pendingRequests && pendingRequests.length > 0 && (
-          <Card className="mb-6 border-gold/20 bg-gold/5">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-foreground">
-                <AlertCircle className="h-5 w-5 text-gold" />
-                Solicitações Pendentes ({pendingRequests.length})
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              {pendingRequests.map((request) => (
-                <div
-                  key={request.id}
-                  className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 p-4 bg-background rounded-lg border border-gold/20"
-                >
-                  <div className="flex-1">
-                    <h3 className="font-semibold text-foreground">{request.service?.name}</h3>
-                    <p className="text-sm text-muted-foreground">Cliente: {request.client?.full_name}</p>
-                    <p className="text-sm text-muted-foreground">
-                      Data solicitada:{" "}
-                      {request.preferred_date && request.preferred_time
-                        ? `${new Date(request.preferred_date + "T00:00:00").toLocaleDateString("pt-BR")} às ${request.preferred_time.substring(0, 5)}`
-                        : "Data não especificada"}
-                    </p>
-                    {request.notes && <p className="text-sm text-muted-foreground mt-1">Obs: {request.notes}</p>}
-                  </div>
-                  <Link href={`/staff/agenda/solicitacoes/${request.id}`}>
-                    <Button size="sm" variant="outline" className="border-gold/20 w-full sm:w-auto bg-transparent">
-                      Gerenciar
-                    </Button>
-                  </Link>
-                </div>
-              ))}
+              <p className="text-sm text-red-500">{appointmentsError.message}</p>
             </CardContent>
           </Card>
         )}
@@ -253,20 +145,13 @@ export default async function StaffAgenda() {
                           <div className="flex-1">
                             <div className="flex items-start gap-2 mb-2">
                               <h3 className="text-lg font-semibold text-foreground">
-                                {item.type === "approved_request"
-                                  ? item.service?.name
-                                  : item.event_title || item.service?.name}
+                                {item.event_title || item.service?.name}
                               </h3>
                               <Badge variant="outline" className="text-xs">
-                                {item.type === "approved_request" ? "Solicitação Aprovada" : getClientTypeLabel(item)}
+                                {getClientTypeLabel(item)}
                               </Badge>
                             </div>
-                            {item.type === "approved_request" ? (
-                              <>
-                                <p className="text-sm text-muted-foreground mb-1">Cliente: {item.client?.full_name}</p>
-                                <p className="text-sm text-muted-foreground mb-1">Telefone: {item.client?.phone}</p>
-                              </>
-                            ) : item.client_type === "sporadic" ? (
+                            {item.client_type === "sporadic" ? (
                               <>
                                 <p className="text-sm text-muted-foreground mb-1">
                                   Cliente: {item.sporadic_client_name}
@@ -291,48 +176,31 @@ export default async function StaffAgenda() {
                               })}
                             </div>
                             {item.notes && <p className="text-sm text-muted-foreground mt-2">Obs: {item.notes}</p>}
-                            {item.staff_notes && (
-                              <p className="text-sm text-muted-foreground mt-2">
-                                Observações do profissional: {item.staff_notes}
-                              </p>
-                            )}
                           </div>
                           <div className="text-left sm:text-right w-full sm:w-auto">
-                            {item.type === "approved_request" ? (
-                              <span className="inline-block px-3 py-1 rounded-full text-xs font-medium bg-gold/20 text-gold">
-                                Aprovada
-                              </span>
-                            ) : (
-                              <span
-                                className={`inline-block px-3 py-1 rounded-full text-xs font-medium ${
-                                  item.status === "completed"
-                                    ? "bg-green-500/10 text-green-500"
-                                    : item.status === "confirmed"
-                                      ? "bg-blue-500/10 text-blue-500"
-                                      : item.status === "cancelled"
-                                        ? "bg-red-500/10 text-red-500"
-                                        : "bg-yellow-500/10 text-yellow-500"
-                                }`}
-                              >
-                                {item.status === "completed"
-                                  ? "Concluído"
+                            <span
+                              className={`inline-block px-3 py-1 rounded-full text-xs font-medium ${
+                                item.status === "completed"
+                                  ? "bg-green-500/10 text-green-500"
                                   : item.status === "confirmed"
-                                    ? "Confirmado"
+                                    ? "bg-blue-500/10 text-blue-500"
                                     : item.status === "cancelled"
-                                      ? "Cancelado"
-                                      : "Pendente"}
-                              </span>
-                            )}
+                                      ? "bg-red-500/10 text-red-500"
+                                      : "bg-yellow-500/10 text-yellow-500"
+                              }`}
+                            >
+                              {item.status === "completed"
+                                ? "Concluído"
+                                : item.status === "confirmed"
+                                  ? "Confirmado"
+                                  : item.status === "cancelled"
+                                    ? "Cancelado"
+                                    : "Pendente"}
+                            </span>
                             {item.service?.price && (
                               <p className="text-sm text-muted-foreground mt-2">R$ {item.service.price}</p>
                             )}
-                            <Link
-                              href={
-                                item.type === "approved_request"
-                                  ? `/staff/agenda/solicitacoes/${item.id}`
-                                  : `/staff/agenda/${item.id}`
-                              }
-                            >
+                            <Link href={`/staff/agenda/${item.id}`}>
                               <Button size="sm" variant="outline" className="mt-2 w-full sm:w-auto bg-transparent">
                                 Gerenciar
                               </Button>
