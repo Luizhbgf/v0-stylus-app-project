@@ -5,12 +5,12 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import { Label } from "@/components/ui/label"
-import { ArrowLeft, ArrowRight, Sparkles } from "lucide-react"
+import { ArrowLeft, ArrowRight, Sparkles } from 'lucide-react'
 import Link from "next/link"
 import Image from "next/image"
 import { ThemeToggle } from "@/components/theme-toggle"
 import { createClient } from "@/lib/supabase/client"
-import { useRouter } from "next/navigation"
+import { useRouter } from 'next/navigation'
 import { toast } from "sonner"
 
 export default function QuizPage() {
@@ -63,7 +63,6 @@ export default function QuizPage() {
   const calculateResult = async () => {
     setLoading(true)
     try {
-      // Calculate specialty scores based on answers
       const specialtyScores: Record<string, number> = {}
 
       questions.forEach((question) => {
@@ -76,11 +75,14 @@ export default function QuizPage() {
         }
       })
 
-      // Find staff members with matching specialties
-      const { data: staffMembers } = await supabase.from("profiles").select("*").eq("user_level", 20)
+      const { data: staffMembers } = await supabase
+        .from("profiles")
+        .select("*")
+        .eq("user_level", 20)
+        .eq("is_active", true)
+        .neq("staff_status", "inactive")
 
       if (staffMembers && staffMembers.length > 0) {
-        // Score each staff member based on specialty match
         const staffScores = staffMembers.map((staff) => {
           let score = 0
           if (staff.specialties) {
@@ -91,21 +93,32 @@ export default function QuizPage() {
           return { ...staff, score }
         })
 
-        // Sort by score and get the best match
         staffScores.sort((a, b) => b.score - a.score)
         const bestMatch = staffScores[0]
 
-        // Save result if user is logged in
-        if (user) {
-          await supabase.from("quiz_results").insert({
-            client_id: user.id,
-            recommended_staff_id: bestMatch.id,
-            answers: answers,
-            score: bestMatch.score,
-          })
-        }
+        const [servicesData, coursesData, subscriptionsData] = await Promise.all([
+          supabase
+            .from("staff_services")
+            .select("*, services(*)")
+            .eq("staff_id", bestMatch.id),
+          supabase
+            .from("staff_courses")
+            .select("*, courses(*)")
+            .eq("staff_id", bestMatch.id)
+            .eq("progress", 100),
+          supabase
+            .from("subscription_plans")
+            .select("*")
+            .eq("staff_id", bestMatch.id)
+            .eq("is_active", true)
+        ])
 
-        setResult(bestMatch)
+        setResult({
+          ...bestMatch,
+          services: servicesData.data || [],
+          courses: coursesData.data || [],
+          subscriptions: subscriptionsData.data || []
+        })
       }
     } catch (error) {
       console.error("[v0] Error calculating quiz result:", error)
@@ -162,20 +175,66 @@ export default function QuizPage() {
                 </div>
                 <CardTitle className="text-2xl">{result.full_name}</CardTitle>
               </CardHeader>
-              <CardContent className="space-y-4">
+              <CardContent className="space-y-6">
                 {result.bio && <p className="text-muted-foreground">{result.bio}</p>}
+                
                 {result.specialties && result.specialties.length > 0 && (
                   <div>
                     <p className="text-sm font-semibold text-foreground mb-2">Especialidades:</p>
                     <div className="flex flex-wrap gap-2 justify-center">
                       {result.specialties.map((specialty: string) => (
                         <span key={specialty} className="px-3 py-1 bg-gold/10 text-gold rounded-full text-sm">
-                          {specialty.replace(/_/g, " ")}
+                          {specialty}
                         </span>
                       ))}
                     </div>
                   </div>
                 )}
+
+                {result.services && result.services.length > 0 && (
+                  <div>
+                    <p className="text-sm font-semibold text-foreground mb-2">Serviços Oferecidos:</p>
+                    <div className="grid gap-2">
+                      {result.services.map((item: any) => (
+                        <div key={item.id} className="p-3 border border-gold/20 rounded-lg">
+                          <p className="font-medium">{item.services.name}</p>
+                          <p className="text-sm text-muted-foreground">{item.services.description}</p>
+                          <p className="text-sm text-gold mt-1">R$ {Number(item.services.price).toFixed(2)}</p>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {result.courses && result.courses.length > 0 && (
+                  <div>
+                    <p className="text-sm font-semibold text-foreground mb-2">Cursos Concluídos:</p>
+                    <div className="grid gap-2">
+                      {result.courses.map((item: any) => (
+                        <div key={item.id} className="p-3 border border-gold/20 rounded-lg">
+                          <p className="font-medium">{item.courses.title}</p>
+                          <p className="text-sm text-muted-foreground">{item.courses.description}</p>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {result.subscriptions && result.subscriptions.length > 0 && (
+                  <div>
+                    <p className="text-sm font-semibold text-foreground mb-2">Planos de Assinatura:</p>
+                    <div className="grid gap-2">
+                      {result.subscriptions.map((plan: any) => (
+                        <div key={plan.id} className="p-3 border border-gold/20 rounded-lg">
+                          <p className="font-medium">{plan.name}</p>
+                          <p className="text-sm text-muted-foreground">{plan.description}</p>
+                          <p className="text-sm text-gold mt-1">R$ {Number(plan.price).toFixed(2)}/mês</p>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                
                 <div className="pt-4">
                   <Link href={`/agendar?staff=${result.id}`}>
                     <Button className="w-full bg-gold hover:bg-gold/90 text-black">
@@ -225,7 +284,6 @@ export default function QuizPage() {
             </p>
           </div>
 
-          {/* Progress Bar */}
           <div className="mb-8">
             <div className="flex items-center justify-between mb-2">
               <span className="text-sm text-muted-foreground">

@@ -55,6 +55,19 @@ export default function AdicionarAgendamentoStaff() {
     }
 
     const { data: profileData } = await supabase.from("profiles").select("*").eq("id", user.id).single()
+    
+    if (profileData && !profileData.is_active) {
+      toast.error("Sua conta está inativa. Entre em contato com o administrador.")
+      router.push("/cliente")
+      return
+    }
+    
+    if (profileData && profileData.staff_status === 'inactive') {
+      toast.error("Seu status está como inativo. Entre em contato com o administrador.")
+      router.push("/cliente")
+      return
+    }
+    
     setProfile(profileData)
 
     const { data: clientsData } = await supabase.from("profiles").select("*").eq("user_level", 10).order("full_name")

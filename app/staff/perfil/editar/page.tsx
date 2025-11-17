@@ -9,9 +9,9 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Navbar } from "@/components/navbar"
-import { useRouter } from "next/navigation"
+import { useRouter } from 'next/navigation'
 import { toast } from "sonner"
-import { ArrowLeft, Upload, Camera, X } from "lucide-react"
+import { ArrowLeft, Upload, Camera, X } from 'lucide-react'
 import Link from "next/link"
 import Image from "next/image"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
@@ -58,7 +58,7 @@ export default function EditarPerfilStaff() {
       setPhone(profileData.phone || "")
       setBio(profileData.bio || "")
       setSpecialties(profileData.specialties?.join(", ") || "")
-      setPhotoUrl(profileData.photo_url || "")
+      setPhotoUrl(profileData.avatar_url || "")
       setPortfolioImages(profileData.portfolio_images || [])
       setWorkStartTime(profileData.work_start_time || "09:00")
       setWorkEndTime(profileData.work_end_time || "18:00")
@@ -146,7 +146,7 @@ export default function EditarPerfilStaff() {
           phone,
           bio,
           specialties: specialtiesArray,
-          photo_url: photoUrl,
+          avatar_url: photoUrl,
           portfolio_images: portfolioImages,
           work_start_time: workStartTime,
           work_end_time: workEndTime,

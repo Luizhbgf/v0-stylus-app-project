@@ -9,9 +9,9 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Navbar } from "@/components/navbar"
-import { useRouter } from "next/navigation"
+import { useRouter } from 'next/navigation'
 import { toast } from "sonner"
-import { ArrowLeft, Upload, Camera } from "lucide-react"
+import { ArrowLeft, Upload, Camera } from 'lucide-react'
 import Link from "next/link"
 import Image from "next/image"
 
@@ -24,7 +24,6 @@ export default function EditarPerfilAdmin() {
   const [newPhone, setNewPhone] = useState("")
   const [showEmailVerification, setShowEmailVerification] = useState(false)
   const [showPhoneVerification, setShowPhoneVerification] = useState(false)
-  // </CHANGE>
   const [isLoading, setIsLoading] = useState(false)
   const [isUploadingPhoto, setIsUploadingPhoto] = useState(false)
   const router = useRouter()
@@ -48,7 +47,7 @@ export default function EditarPerfilAdmin() {
       setProfile(profileData)
       setFullName(profileData.full_name || "")
       setPhone(profileData.phone || "")
-      setPhotoUrl(profileData.photo_url || "")
+      setPhotoUrl(profileData.avatar_url || "")
     }
   }
 
@@ -129,7 +128,6 @@ export default function EditarPerfilAdmin() {
       setIsLoading(false)
     }
   }
-  // </CHANGE>
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -146,7 +144,7 @@ export default function EditarPerfilAdmin() {
         .update({
           full_name: fullName,
           phone,
-          photo_url: photoUrl,
+          avatar_url: photoUrl,
         })
         .eq("id", user.id)
 
@@ -224,7 +222,6 @@ export default function EditarPerfilAdmin() {
                   </div>
                 </div>
               </div>
-              {/* </CHANGE> */}
 
               <div className="space-y-2">
                 <Label htmlFor="email">Email</Label>
@@ -263,7 +260,6 @@ export default function EditarPerfilAdmin() {
                   </div>
                 )}
               </div>
-              {/* </CHANGE> */}
 
               <div className="space-y-2">
                 <Label htmlFor="userLevel">Nível de Acesso</Label>
@@ -327,7 +323,6 @@ export default function EditarPerfilAdmin() {
                   </div>
                 )}
               </div>
-              {/* </CHANGE> */}
 
               <div className="flex gap-4">
                 <Button

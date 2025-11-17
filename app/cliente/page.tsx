@@ -3,10 +3,15 @@ import { createClient } from "@/lib/supabase/server"
 import { Navbar } from "@/components/navbar"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import { Calendar, Clock, User, Package } from 'lucide-react'
+import { Calendar, Clock, User, Package, Heart, AlertTriangle } from 'lucide-react'
 import Link from "next/link"
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 
-export default async function ClienteDashboard() {
+export default async function ClienteDashboard({
+  searchParams,
+}: {
+  searchParams: { error?: string }
+}) {
   const supabase = await createClient()
 
   const {
@@ -71,6 +76,16 @@ export default async function ClienteDashboard() {
       <Navbar user={profile} />
 
       <div className="container mx-auto px-4 py-6 md:py-8">
+        {searchParams.error === "inactive_account" && (
+          <Alert variant="destructive" className="mb-6">
+            <AlertTriangle className="h-4 w-4" />
+            <AlertTitle>Acesso Negado</AlertTitle>
+            <AlertDescription>
+              Sua conta está inativa ou seu status profissional foi alterado. Entre em contato com o administrador para mais informações.
+            </AlertDescription>
+          </Alert>
+        )}
+
         <div className="mb-6 md:mb-8">
           <h1 className="text-3xl md:text-4xl font-bold text-foreground mb-2">
             Olá, {profile.full_name || "Cliente"}!

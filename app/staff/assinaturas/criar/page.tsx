@@ -9,9 +9,9 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Navbar } from "@/components/navbar"
-import { useRouter } from "next/navigation"
+import { useRouter } from 'next/navigation'
 import { toast } from "sonner"
-import { ArrowLeft, Plus, X, Check } from "lucide-react"
+import { ArrowLeft, Plus, X, Check } from 'lucide-react'
 import Link from "next/link"
 
 interface Feature {
@@ -96,6 +96,7 @@ export default function CriarAssinatura() {
           price: Number.parseFloat(price),
           terms: terms || null,
           observations: observations || null,
+          service_type: 'general', // Set service_type as optional with default value
           is_active: true,
           created_by: user.id,
         })

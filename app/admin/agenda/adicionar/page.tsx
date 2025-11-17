@@ -9,9 +9,9 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Navbar } from "@/components/navbar"
-import { useRouter } from "next/navigation"
+import { useRouter } from 'next/navigation'
 import { toast } from "sonner"
-import { ArrowLeft } from "lucide-react"
+import { ArrowLeft } from 'lucide-react'
 import Link from "next/link"
 import { Checkbox } from "@/components/ui/checkbox"
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
@@ -68,7 +68,15 @@ export default function AdicionarAgendamentoAdmin() {
     const { data: clientsData } = await supabase.from("profiles").select("*").eq("user_level", 10).order("full_name")
     setClients(clientsData || [])
 
-    const { data: staffData } = await supabase.from("profiles").select("*").gte("user_level", 20).order("full_name")
+    const { data: staffData } = await supabase
+      .from("profiles")
+      .select("*")
+      .gte("user_level", 20)
+      .eq("is_active", true)
+      .neq("staff_status", "inactive")
+      .neq("staff_status", "vacation")
+      .order("full_name")
+    
     setStaffMembers(staffData || [])
   }
 
