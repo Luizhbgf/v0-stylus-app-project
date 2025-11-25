@@ -28,7 +28,13 @@ const defaultTestimonials = [
 export default async function HomePage() {
   const supabase = await createClient()
 
-  const { data: homepageSettings } = await supabase.from("homepage_settings").select("*").single()
+  let homepageSettings = null
+  try {
+    const { data } = await supabase.from("homepage_settings").select("*").single()
+    homepageSettings = data
+  } catch (error) {
+    console.log("[v0] homepage_settings table not found, using defaults")
+  }
 
   const {
     data: { user },

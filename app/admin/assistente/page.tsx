@@ -3,7 +3,6 @@
 import type React from "react"
 
 import { useState } from "react"
-import { useChat } from "ai/react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -12,10 +11,59 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Loader2, Send, Sparkles, TrendingUp, TrendingDown, AlertCircle, CheckCircle } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 
+interface Message {
+  id: string
+  role: "user" | "assistant"
+  content: string
+}
+
 export default function AssistenteIA() {
-  const { messages, input, handleInputChange, handleSubmit, isLoading } = useChat({
-    api: "/api/admin-assistant",
-  })
+  const [messages, setMessages] = useState<Message[]>([])
+  const [input, setInput] = useState("")
+  const [isLoading, setIsLoading] = useState(false)
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!input.trim() || isLoading) return
+
+    const userMessage: Message = {
+      id: Date.now().toString(),
+      role: "user",
+      content: input,
+    }
+
+    setMessages((prev) => [...prev, userMessage])
+    setInput("")
+    setIsLoading(true)
+
+    try {
+      const response = await fetch("/api/admin-assistant", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ messages: [...messages, userMessage] }),
+      })
+
+      const data = await response.json()
+
+      const assistantMessage: Message = {
+        id: (Date.now() + 1).toString(),
+        role: "assistant",
+        content: data.message || "Desculpe, não consegui processar sua solicitação.",
+      }
+
+      setMessages((prev) => [...prev, assistantMessage])
+    } catch (error) {
+      console.error("[v0] Error calling assistant:", error)
+      const errorMessage: Message = {
+        id: (Date.now() + 1).toString(),
+        role: "assistant",
+        content: "Desculpe, ocorreu um erro ao processar sua solicitação.",
+      }
+      setMessages((prev) => [...prev, errorMessage])
+    } finally {
+      setIsLoading(false)
+    }
+  }
 
   const [suggestions] = useState([
     "Analise o desempenho financeiro deste mês",
@@ -121,9 +169,7 @@ export default function AssistenteIA() {
                         const event = {
                           preventDefault: () => {},
                         } as React.FormEvent<HTMLFormElement>
-                        handleInputChange({
-                          target: { value: suggestion },
-                        } as React.ChangeEvent<HTMLInputElement>)
+                        setInput(suggestion)
                         setTimeout(() => handleSubmit(event), 100)
                       }}
                     >
@@ -175,7 +221,7 @@ export default function AssistenteIA() {
           <form onSubmit={handleSubmit} className="flex gap-2">
             <Input
               value={input}
-              onChange={handleInputChange}
+              onChange={(e) => setInput(e.target.value)}
               placeholder="Faça uma pergunta sobre seu negócio..."
               disabled={isLoading}
               className="flex-1"
