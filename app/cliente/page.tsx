@@ -3,16 +3,14 @@ import { createClient } from "@/lib/supabase/server"
 import { Navbar } from "@/components/navbar"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import { Calendar, Clock, User, Package, Heart, AlertTriangle, Filter } from "lucide-react"
+import { Calendar, Clock, User, Package, Heart, AlertTriangle } from "lucide-react"
 import Link from "next/link"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
 
 export default async function ClienteDashboard({
   searchParams,
 }: {
-  searchParams: { error?: string; status?: string; dateFrom?: string; dateTo?: string }
+  searchParams: { error?: string }
 }) {
   const supabase = await createClient()
 
@@ -30,7 +28,7 @@ export default async function ClienteDashboard({
   }
 
   // Get user appointments
-  let appointmentsQuery = supabase
+  const { data: appointments } = await supabase
     .from("appointments")
     .select(
       `
@@ -40,20 +38,7 @@ export default async function ClienteDashboard({
     `,
     )
     .eq("client_id", user.id)
-
-  if (searchParams.status) {
-    appointmentsQuery = appointmentsQuery.eq("status", searchParams.status)
-  }
-
-  if (searchParams.dateFrom) {
-    appointmentsQuery = appointmentsQuery.gte("appointment_date", searchParams.dateFrom)
-  }
-
-  if (searchParams.dateTo) {
-    appointmentsQuery = appointmentsQuery.lte("appointment_date", searchParams.dateTo)
-  }
-
-  const { data: appointments } = await appointmentsQuery.order("appointment_date", { ascending: true })
+    .order("appointment_date", { ascending: true })
 
   const { count: favoritesCount } = await supabase
     .from("favorites")
@@ -101,64 +86,6 @@ export default async function ClienteDashboard({
             </AlertDescription>
           </Alert>
         )}
-
-        <Card className="border-gold/20 mb-6 md:mb-8">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Filter className="h-5 w-5" />
-              Filtros
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <form action="" method="get" className="space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="status">Status</Label>
-                  <select
-                    id="status"
-                    name="status"
-                    defaultValue={searchParams.status || ""}
-                    className="w-full border border-gold/20 rounded-md px-3 py-2 bg-background"
-                  >
-                    <option value="">Todos</option>
-                    <option value="pending">Pendente</option>
-                    <option value="confirmed">Confirmado</option>
-                    <option value="completed">Concluído</option>
-                    <option value="cancelled">Cancelado</option>
-                  </select>
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="dateFrom">Data Inicial</Label>
-                  <Input
-                    type="date"
-                    id="dateFrom"
-                    name="dateFrom"
-                    defaultValue={searchParams.dateFrom || ""}
-                    className="border-gold/20"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="dateTo">Data Final</Label>
-                  <Input
-                    type="date"
-                    id="dateTo"
-                    name="dateTo"
-                    defaultValue={searchParams.dateTo || ""}
-                    className="border-gold/20"
-                  />
-                </div>
-              </div>
-              <div className="flex gap-2">
-                <Button type="submit" className="bg-gold hover:bg-gold/90 text-black">
-                  Aplicar Filtros
-                </Button>
-                <Button type="button" variant="outline" asChild>
-                  <Link href="/cliente">Limpar</Link>
-                </Button>
-              </div>
-            </form>
-          </CardContent>
-        </Card>
 
         <div className="mb-6 md:mb-8">
           <h1 className="text-3xl md:text-4xl font-bold text-foreground mb-2">

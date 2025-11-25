@@ -1,10 +1,18 @@
-import { redirect } from 'next/navigation'
+import { redirect } from "next/navigation"
 import { createClient } from "@/lib/supabase/server"
 import { Navbar } from "@/components/navbar"
-import { Card, CardContent } from "@/components/ui/card"
-import { Users, Star } from 'lucide-react'
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Button } from "@/components/ui/button"
+import { Users, Star, Filter } from "lucide-react"
+import Link from "next/link"
+import { Label } from "@/components/ui/label"
+import { Input } from "@/components/ui/input"
 
-export default async function StaffClientes() {
+export default async function StaffClientes({
+  searchParams,
+}: {
+  searchParams: { search?: string; minVisits?: string; dateFrom?: string; dateTo?: string }
+}) {
   const supabase = await createClient()
 
   const {
@@ -15,7 +23,7 @@ export default async function StaffClientes() {
   const { data: profile } = await supabase.from("profiles").select("*").eq("id", user.id).single()
   if (!profile || profile.user_level < 20) redirect("/cliente")
 
-  const { data: appointmentsData } = await supabase
+  let appointmentsQuery = supabase
     .from("appointments")
     .select(
       `
@@ -32,6 +40,16 @@ export default async function StaffClientes() {
     )
     .eq("staff_id", user.id)
     .neq("status", "cancelled")
+
+  if (searchParams.dateFrom) {
+    appointmentsQuery = appointmentsQuery.gte("appointment_date", searchParams.dateFrom)
+  }
+
+  if (searchParams.dateTo) {
+    appointmentsQuery = appointmentsQuery.lte("appointment_date", searchParams.dateTo)
+  }
+
+  const { data: appointmentsData } = await appointmentsQuery
 
   const clientsMap = new Map()
 
@@ -71,11 +89,11 @@ export default async function StaffClientes() {
     }
 
     const client = clientsMap.get(clientId)
-    
+
     if (apt.status === "completed" || apt.status === "confirmed") {
       client.total_visits++
     }
-    
+
     if ((apt.payment_status === "paid" || apt.status === "completed") && apt.service?.price) {
       client.total_spent += Number(apt.service.price)
     }
@@ -88,9 +106,24 @@ export default async function StaffClientes() {
     }
   })
 
-  const clients = Array.from(clientsMap.values()).sort(
-    (a, b) => new Date(b.last_visit).getTime() - new Date(a.last_visit).getTime(),
-  )
+  let clients = Array.from(clientsMap.values())
+
+  if (searchParams.search) {
+    const searchLower = searchParams.search.toLowerCase()
+    clients = clients.filter(
+      (c) =>
+        c.full_name.toLowerCase().includes(searchLower) ||
+        c.email.toLowerCase().includes(searchLower) ||
+        c.phone.includes(searchParams.search!),
+    )
+  }
+
+  if (searchParams.minVisits) {
+    const minVisits = Number.parseInt(searchParams.minVisits)
+    clients = clients.filter((c) => c.total_visits >= minVisits)
+  }
+
+  clients.sort((a, b) => new Date(b.last_visit).getTime() - new Date(a.last_visit).getTime())
 
   return (
     <div className="min-h-screen bg-background">
@@ -101,6 +134,72 @@ export default async function StaffClientes() {
           <h1 className="text-4xl font-bold text-foreground mb-2">Meus Clientes</h1>
           <p className="text-muted-foreground">Gerencie seu relacionamento com os clientes</p>
         </div>
+
+        <Card className="border-gold/20 mb-6">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Filter className="h-5 w-5" />
+              Filtros
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <form action="" method="get" className="space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="search">Buscar Cliente</Label>
+                  <Input
+                    type="text"
+                    id="search"
+                    name="search"
+                    placeholder="Nome, email ou telefone"
+                    defaultValue={searchParams.search || ""}
+                    className="border-gold/20"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="minVisits">Visitas Mínimas</Label>
+                  <Input
+                    type="number"
+                    id="minVisits"
+                    name="minVisits"
+                    placeholder="Ex: 5"
+                    defaultValue={searchParams.minVisits || ""}
+                    className="border-gold/20"
+                    min="0"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="dateFrom">Data Inicial</Label>
+                  <Input
+                    type="date"
+                    id="dateFrom"
+                    name="dateFrom"
+                    defaultValue={searchParams.dateFrom || ""}
+                    className="border-gold/20"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="dateTo">Data Final</Label>
+                  <Input
+                    type="date"
+                    id="dateTo"
+                    name="dateTo"
+                    defaultValue={searchParams.dateTo || ""}
+                    className="border-gold/20"
+                  />
+                </div>
+              </div>
+              <div className="flex gap-2">
+                <Button type="submit" className="bg-gold hover:bg-gold/90 text-black">
+                  Aplicar Filtros
+                </Button>
+                <Button type="button" variant="outline" asChild>
+                  <Link href="/staff/clientes">Limpar</Link>
+                </Button>
+              </div>
+            </form>
+          </CardContent>
+        </Card>
 
         <div className="grid gap-4">
           {clients && clients.length > 0 ? (
@@ -145,7 +244,7 @@ export default async function StaffClientes() {
             <Card className="border-gold/20">
               <CardContent className="p-12 text-center">
                 <Users className="h-12 w-12 text-gold mx-auto mb-4" />
-                <p className="text-muted-foreground">Nenhum cliente ainda</p>
+                <p className="text-muted-foreground">Nenhum cliente encontrado</p>
               </CardContent>
             </Card>
           )}
