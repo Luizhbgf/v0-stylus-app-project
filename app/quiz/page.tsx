@@ -5,12 +5,12 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import { Label } from "@/components/ui/label"
-import { ArrowLeft, ArrowRight, Sparkles } from 'lucide-react'
+import { ArrowLeft, ArrowRight, Sparkles, Clock, MessageCircle } from "lucide-react"
 import Link from "next/link"
 import Image from "next/image"
 import { ThemeToggle } from "@/components/theme-toggle"
 import { createClient } from "@/lib/supabase/client"
-import { useRouter } from 'next/navigation'
+import { useRouter } from "next/navigation"
 import { toast } from "sonner"
 
 export default function QuizPage() {
@@ -97,27 +97,16 @@ export default function QuizPage() {
         const bestMatch = staffScores[0]
 
         const [servicesData, coursesData, subscriptionsData] = await Promise.all([
-          supabase
-            .from("staff_services")
-            .select("*, services(*)")
-            .eq("staff_id", bestMatch.id),
-          supabase
-            .from("staff_courses")
-            .select("*, courses(*)")
-            .eq("staff_id", bestMatch.id)
-            .eq("progress", 100),
-          supabase
-            .from("subscription_plans")
-            .select("*")
-            .eq("staff_id", bestMatch.id)
-            .eq("is_active", true)
+          supabase.from("staff_services").select("*, services(*)").eq("staff_id", bestMatch.id),
+          supabase.from("staff_courses").select("*, courses(*)").eq("staff_id", bestMatch.id).eq("progress", 100),
+          supabase.from("subscription_plans").select("*").eq("staff_id", bestMatch.id).eq("is_active", true),
         ])
 
         setResult({
           ...bestMatch,
           services: servicesData.data || [],
           courses: coursesData.data || [],
-          subscriptions: subscriptionsData.data || []
+          subscriptions: subscriptionsData.data || [],
         })
       }
     } catch (error) {
@@ -137,6 +126,9 @@ export default function QuizPage() {
   }
 
   if (result) {
+    const whatsappMessage = encodeURIComponent("Oi, tudo bem? Vi seu perfil e gostaria de agendar um horário!")
+    const whatsappLink = `https://wa.me/55${result.phone?.replace(/\D/g, "")}?text=${whatsappMessage}`
+
     return (
       <div className="min-h-screen bg-background">
         <header className="border-b border-border bg-card/50 backdrop-blur-sm">
@@ -177,7 +169,7 @@ export default function QuizPage() {
               </CardHeader>
               <CardContent className="space-y-6">
                 {result.bio && <p className="text-muted-foreground">{result.bio}</p>}
-                
+
                 {result.specialties && result.specialties.length > 0 && (
                   <div>
                     <p className="text-sm font-semibold text-foreground mb-2">Especialidades:</p>
@@ -191,12 +183,42 @@ export default function QuizPage() {
                   </div>
                 )}
 
+                {result.working_hours && (
+                  <div>
+                    <p className="text-sm font-semibold text-foreground mb-2 flex items-center justify-center gap-2">
+                      <Clock className="h-4 w-4" />
+                      Horário de Trabalho:
+                    </p>
+                    <div className="space-y-1 text-sm">
+                      {Object.entries(result.working_hours).map(([day, hours]: [string, any]) => {
+                        const dayNames: Record<string, string> = {
+                          monday: "Segunda-feira",
+                          tuesday: "Terça-feira",
+                          wednesday: "Quarta-feira",
+                          thursday: "Quinta-feira",
+                          friday: "Sexta-feira",
+                          saturday: "Sábado",
+                          sunday: "Domingo",
+                        }
+                        return (
+                          <div key={day} className="flex justify-between items-center px-4">
+                            <span className="text-muted-foreground">{dayNames[day]}</span>
+                            <span className={hours.enabled ? "text-foreground" : "text-muted-foreground"}>
+                              {hours.enabled ? `${hours.start} - ${hours.end}` : "Fechado"}
+                            </span>
+                          </div>
+                        )
+                      })}
+                    </div>
+                  </div>
+                )}
+
                 {result.services && result.services.length > 0 && (
                   <div>
                     <p className="text-sm font-semibold text-foreground mb-2">Serviços Oferecidos:</p>
                     <div className="grid gap-2">
                       {result.services.map((item: any) => (
-                        <div key={item.id} className="p-3 border border-gold/20 rounded-lg">
+                        <div key={item.id} className="p-3 border border-gold/20 rounded-lg text-left">
                           <p className="font-medium">{item.services.name}</p>
                           <p className="text-sm text-muted-foreground">{item.services.description}</p>
                           <p className="text-sm text-gold mt-1">R$ {Number(item.services.price).toFixed(2)}</p>
@@ -211,7 +233,7 @@ export default function QuizPage() {
                     <p className="text-sm font-semibold text-foreground mb-2">Cursos Concluídos:</p>
                     <div className="grid gap-2">
                       {result.courses.map((item: any) => (
-                        <div key={item.id} className="p-3 border border-gold/20 rounded-lg">
+                        <div key={item.id} className="p-3 border border-gold/20 rounded-lg text-left">
                           <p className="font-medium">{item.courses.title}</p>
                           <p className="text-sm text-muted-foreground">{item.courses.description}</p>
                         </div>
@@ -225,7 +247,7 @@ export default function QuizPage() {
                     <p className="text-sm font-semibold text-foreground mb-2">Planos de Assinatura:</p>
                     <div className="grid gap-2">
                       {result.subscriptions.map((plan: any) => (
-                        <div key={plan.id} className="p-3 border border-gold/20 rounded-lg">
+                        <div key={plan.id} className="p-3 border border-gold/20 rounded-lg text-left">
                           <p className="font-medium">{plan.name}</p>
                           <p className="text-sm text-muted-foreground">{plan.description}</p>
                           <p className="text-sm text-gold mt-1">R$ {Number(plan.price).toFixed(2)}/mês</p>
@@ -234,13 +256,14 @@ export default function QuizPage() {
                     </div>
                   </div>
                 )}
-                
+
                 <div className="pt-4">
-                  <Link href={`/agendar?staff=${result.id}`}>
+                  <a href={whatsappLink} target="_blank" rel="noopener noreferrer">
                     <Button className="w-full bg-gold hover:bg-gold/90 text-black">
-                      Agendar com {result.full_name}
+                      <MessageCircle className="mr-2 h-4 w-4" />
+                      Conversar no WhatsApp
                     </Button>
-                  </Link>
+                  </a>
                 </div>
               </CardContent>
             </Card>

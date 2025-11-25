@@ -9,11 +9,20 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Navbar } from "@/components/navbar"
-import { useRouter } from 'next/navigation'
+import { useRouter } from "next/navigation"
 import { toast } from "sonner"
-import { ArrowLeft, Upload, Camera } from 'lucide-react'
+import { ArrowLeft, Upload, Camera, Clock } from "lucide-react"
 import Link from "next/link"
 import Image from "next/image"
+import { Checkbox } from "@/components/ui/checkbox"
+
+type WorkingHours = {
+  [key: string]: {
+    enabled: boolean
+    start: string
+    end: string
+  }
+}
 
 export default function EditarPerfilAdmin() {
   const [profile, setProfile] = useState<any>(null)
@@ -28,6 +37,15 @@ export default function EditarPerfilAdmin() {
   const [isUploadingPhoto, setIsUploadingPhoto] = useState(false)
   const router = useRouter()
   const supabase = createClient()
+  const [workingHours, setWorkingHours] = useState<WorkingHours>({
+    monday: { enabled: true, start: "09:00", end: "18:00" },
+    tuesday: { enabled: true, start: "09:00", end: "18:00" },
+    wednesday: { enabled: true, start: "09:00", end: "18:00" },
+    thursday: { enabled: true, start: "09:00", end: "18:00" },
+    friday: { enabled: true, start: "09:00", end: "18:00" },
+    saturday: { enabled: true, start: "09:00", end: "14:00" },
+    sunday: { enabled: false, start: "09:00", end: "18:00" },
+  })
 
   useEffect(() => {
     loadProfile()
@@ -48,6 +66,9 @@ export default function EditarPerfilAdmin() {
       setFullName(profileData.full_name || "")
       setPhone(profileData.phone || "")
       setPhotoUrl(profileData.avatar_url || "")
+      if (profileData.working_hours) {
+        setWorkingHours(profileData.working_hours)
+      }
     }
   }
 
@@ -149,6 +170,7 @@ export default function EditarPerfilAdmin() {
           full_name: fullName,
           phone,
           avatar_url: photoUrl,
+          working_hours: workingHours, // Salvando horários detalhados
         })
         .eq("id", user.id)
 
@@ -162,6 +184,16 @@ export default function EditarPerfilAdmin() {
     } finally {
       setIsLoading(false)
     }
+  }
+
+  const dayNames: Record<string, string> = {
+    monday: "Segunda-feira",
+    tuesday: "Terça-feira",
+    wednesday: "Quarta-feira",
+    thursday: "Quinta-feira",
+    friday: "Sexta-feira",
+    saturday: "Sábado",
+    sunday: "Domingo",
   }
 
   if (!profile) return null
@@ -326,6 +358,64 @@ export default function EditarPerfilAdmin() {
                     </Button>
                   </div>
                 )}
+              </div>
+
+              <div className="space-y-4">
+                <Label className="flex items-center gap-2">
+                  <Clock className="h-4 w-4" />
+                  Horários de Trabalho
+                </Label>
+                <div className="space-y-3 p-4 border border-gold/20 rounded-lg">
+                  {Object.entries(workingHours).map(([day, hours]) => (
+                    <div key={day} className="flex items-center gap-4">
+                      <div className="flex items-center gap-2 min-w-[140px]">
+                        <Checkbox
+                          id={`day-${day}`}
+                          checked={hours.enabled}
+                          onCheckedChange={(checked) => {
+                            setWorkingHours({
+                              ...workingHours,
+                              [day]: { ...hours, enabled: !!checked },
+                            })
+                          }}
+                        />
+                        <Label htmlFor={`day-${day}`} className="cursor-pointer text-sm">
+                          {dayNames[day]}
+                        </Label>
+                      </div>
+                      {hours.enabled ? (
+                        <div className="flex items-center gap-2 flex-1">
+                          <Input
+                            type="time"
+                            value={hours.start}
+                            onChange={(e) => {
+                              setWorkingHours({
+                                ...workingHours,
+                                [day]: { ...hours, start: e.target.value },
+                              })
+                            }}
+                            className="border-gold/20"
+                          />
+                          <span className="text-muted-foreground">até</span>
+                          <Input
+                            type="time"
+                            value={hours.end}
+                            onChange={(e) => {
+                              setWorkingHours({
+                                ...workingHours,
+                                [day]: { ...hours, end: e.target.value },
+                              })
+                            }}
+                            className="border-gold/20"
+                          />
+                        </div>
+                      ) : (
+                        <span className="text-sm text-muted-foreground">Fechado</span>
+                      )}
+                    </div>
+                  ))}
+                </div>
+                <p className="text-xs text-muted-foreground">Defina seus horários de disponibilidade no sistema</p>
               </div>
 
               <div className="flex gap-4">
