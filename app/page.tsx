@@ -1,14 +1,35 @@
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
-import { Calendar, Sparkles, Star, ArrowRight, Shield, Award, Scissors, Heart } from 'lucide-react'
+import { Calendar, Sparkles, Star, ArrowRight, Shield, Award } from "lucide-react"
 import Image from "next/image"
 import Link from "next/link"
 import { Navbar } from "@/components/navbar"
 import { createClient } from "@/lib/supabase/server"
 import { PREDEFINED_SERVICES } from "@/lib/constants/services"
 
+const defaultTestimonials = [
+  {
+    name: "Maria Silva",
+    service: "Corte e Escova",
+    text: "Atendimento impecável! Saí do salão me sentindo renovada.",
+  },
+  {
+    name: "Ana Costa",
+    service: "Manicure",
+    text: "Melhor salão da região! Sempre consigo horário e o resultado é sempre perfeito.",
+  },
+  {
+    name: "Juliana Santos",
+    service: "Design de Sobrancelhas",
+    text: "Profissionais excelentes! O design de sobrancelhas ficou perfeito.",
+  },
+]
+
 export default async function HomePage() {
   const supabase = await createClient()
+
+  const { data: homepageSettings } = await supabase.from("homepage_settings").select("*").single()
+
   const {
     data: { user },
   } = await supabase.auth.getUser()
@@ -18,6 +39,43 @@ export default async function HomePage() {
     const { data } = await supabase.from("profiles").select("*").eq("id", user.id).single()
     profile = data
   }
+
+  let featuredServices = []
+  let featuredCourses = []
+  let featuredPlans = []
+
+  if (homepageSettings?.show_services && homepageSettings?.featured_services?.length) {
+    const { data } = await supabase.from("services").select("*").in("id", homepageSettings.featured_services)
+    featuredServices = data || []
+  }
+
+  if (homepageSettings?.show_courses && homepageSettings?.featured_courses?.length) {
+    const { data } = await supabase.from("courses").select("*").in("id", homepageSettings.featured_courses)
+    featuredCourses = data || []
+  }
+
+  if (homepageSettings?.show_plans && homepageSettings?.featured_plans?.length) {
+    const { data } = await supabase.from("subscription_plans").select("*").in("id", homepageSettings.featured_plans)
+    featuredPlans = data || []
+  }
+
+  const settings = homepageSettings || {
+    hero_title: "Sua Beleza, Nossa Paixão",
+    hero_subtitle: "Agende seus serviços de estética e beleza de forma rápida e prática",
+    cta_title: "Pronta Para Se Sentir Incrível?",
+    cta_subtitle: "Entre em contato com nossos profissionais",
+    business_name: "Styllus Estética e Beleza",
+    business_phone: "(11) 9999-9999",
+    business_email: "contato@styllus.com.br",
+    business_hours: "Seg - Sex: 9h às 19h, Sáb: 9h às 17h",
+    show_testimonials: true,
+    show_services: true,
+    show_courses: false,
+    show_plans: false,
+    featured_testimonials: [],
+  }
+
+  const testimonials = settings.featured_testimonials?.length ? settings.featured_testimonials : defaultTestimonials
 
   return (
     <div className="min-h-screen bg-background">
@@ -41,14 +99,11 @@ export default async function HomePage() {
             </div>
 
             <h1 className="font-serif text-4xl sm:text-5xl md:text-7xl lg:text-8xl font-bold text-foreground mb-4 md:mb-6 text-balance leading-[1.1] tracking-tight px-4">
-              Sua Beleza,
-              <br />
-              <span className="text-primary">Nossa Paixão</span>
+              {settings.hero_title}
             </h1>
 
             <p className="text-base md:text-xl lg:text-2xl text-muted-foreground mb-8 md:mb-12 text-pretty leading-relaxed max-w-2xl mx-auto px-4">
-              Agende seus serviços de estética e beleza de forma rápida e prática. Profissionais qualificados prontos
-              para realçar sua beleza natural.
+              {settings.hero_subtitle}
             </p>
 
             <div className="flex flex-col sm:flex-row items-center justify-center gap-3 md:gap-4 px-4">
@@ -115,80 +170,99 @@ export default async function HomePage() {
       </section>
 
       {/* Services Section */}
-      <section id="servicos" className="py-24 bg-muted/30">
-        <div className="container mx-auto px-4">
-          <div className="text-center mb-20">
-            <div className="inline-block px-4 py-2 rounded-full bg-primary/10 text-primary text-sm font-semibold mb-4">
-              NOSSOS SERVIÇOS
+      {settings.show_services && (
+        <section id="servicos" className="py-24 bg-muted/30">
+          <div className="container mx-auto px-4">
+            <div className="text-center mb-20">
+              <div className="inline-block px-4 py-2 rounded-full bg-primary/10 text-primary text-sm font-semibold mb-4">
+                NOSSOS SERVIÇOS
+              </div>
+              <h2 className="font-serif text-5xl md:text-6xl font-bold text-foreground mb-6">Serviços Disponíveis</h2>
+              <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
+                Oferecemos uma ampla gama de serviços de estética e beleza para você
+              </p>
             </div>
-            <h2 className="font-serif text-5xl md:text-6xl font-bold text-foreground mb-6">Serviços Disponíveis</h2>
-            <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
-              Oferecemos uma ampla gama de serviços de estética e beleza para você
-            </p>
-          </div>
 
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 max-w-7xl mx-auto">
-            {PREDEFINED_SERVICES.map((service, index) => (
-              <Card
-                key={index}
-                className="overflow-hidden border-primary/10 hover:shadow-xl hover:shadow-primary/5 transition-all duration-300 group bg-card"
-              >
-                <div className="p-6 text-center">
-                  <div className="inline-flex items-center justify-center w-12 h-12 rounded-full bg-primary/10 text-primary mb-3 group-hover:scale-110 transition-transform">
-                    <Sparkles className="h-6 w-6" />
-                  </div>
-                  <h3 className="text-base font-semibold text-foreground">{service}</h3>
-                </div>
-              </Card>
-            ))}
-          </div>
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 max-w-7xl mx-auto">
+              {featuredServices.length > 0
+                ? featuredServices.map((service) => (
+                    <Card
+                      key={service.id}
+                      className="overflow-hidden border-primary/10 hover:shadow-xl hover:shadow-primary/5 transition-all duration-300 group bg-card"
+                    >
+                      <div className="p-6 text-center">
+                        <div className="inline-flex items-center justify-center w-12 h-12 rounded-full bg-primary/10 text-primary mb-3 group-hover:scale-110 transition-transform">
+                          <Sparkles className="h-6 w-6" />
+                        </div>
+                        <h3 className="text-base font-semibold text-foreground">{service.name}</h3>
+                        <p className="text-sm text-muted-foreground mt-1">R$ {service.price}</p>
+                      </div>
+                    </Card>
+                  ))
+                : PREDEFINED_SERVICES.map((service, index) => (
+                    <Card
+                      key={index}
+                      className="overflow-hidden border-primary/10 hover:shadow-xl hover:shadow-primary/5 transition-all duration-300 group bg-card"
+                    >
+                      <div className="p-6 text-center">
+                        <div className="inline-flex items-center justify-center w-12 h-12 rounded-full bg-primary/10 text-primary mb-3 group-hover:scale-110 transition-transform">
+                          <Sparkles className="h-6 w-6" />
+                        </div>
+                        <h3 className="text-base font-semibold text-foreground">{service}</h3>
+                      </div>
+                    </Card>
+                  ))}
+            </div>
 
-          <div className="text-center mt-12">
-            <Link href="/quiz">
-              <Button size="lg" className="bg-primary hover:bg-primary/90 text-black font-semibold">
-                Encontrar Profissional
-                <ArrowRight className="ml-2 h-5 w-5" />
-              </Button>
-            </Link>
+            <div className="text-center mt-12">
+              <Link href="/quiz">
+                <Button size="lg" className="bg-primary hover:bg-primary/90 text-black font-semibold">
+                  Encontrar Profissional
+                  <ArrowRight className="ml-2 h-5 w-5" />
+                </Button>
+              </Link>
+            </div>
           </div>
-        </div>
-      </section>
+        </section>
+      )}
 
       {/* Testimonials Section */}
-      <section className="py-24">
-        <div className="container mx-auto px-4">
-          <div className="text-center mb-20">
-            <div className="inline-block px-4 py-2 rounded-full bg-primary/10 text-primary text-sm font-semibold mb-4">
-              DEPOIMENTOS
+      {settings.show_testimonials && (
+        <section className="py-24">
+          <div className="container mx-auto px-4">
+            <div className="text-center mb-20">
+              <div className="inline-block px-4 py-2 rounded-full bg-primary/10 text-primary text-sm font-semibold mb-4">
+                DEPOIMENTOS
+              </div>
+              <h2 className="font-serif text-5xl md:text-6xl font-bold text-foreground mb-6">
+                O Que Dizem Nossos Clientes
+              </h2>
             </div>
-            <h2 className="font-serif text-5xl md:text-6xl font-bold text-foreground mb-6">
-              O Que Dizem Nossos Clientes
-            </h2>
-          </div>
 
-          <div className="grid md:grid-cols-3 gap-8 max-w-7xl mx-auto">
-            {testimonials.map((testimonial, index) => (
-              <Card key={index} className="p-8 border-primary/10 bg-card hover:shadow-xl transition-all">
-                <div className="flex gap-1 mb-6">
-                  {[...Array(5)].map((_, i) => (
-                    <Star key={i} className="h-5 w-5 fill-primary text-primary" />
-                  ))}
-                </div>
-                <p className="text-muted-foreground mb-8 leading-relaxed text-lg italic">"{testimonial.text}"</p>
-                <div className="flex items-center gap-4">
-                  <div className="w-14 h-14 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold text-xl">
-                    {testimonial.name.charAt(0)}
+            <div className="grid md:grid-cols-3 gap-8 max-w-7xl mx-auto">
+              {testimonials.map((testimonial: any, index: number) => (
+                <Card key={index} className="p-8 border-primary/10 bg-card hover:shadow-xl transition-all">
+                  <div className="flex gap-1 mb-6">
+                    {[...Array(5)].map((_, i) => (
+                      <Star key={i} className="h-5 w-5 fill-primary text-primary" />
+                    ))}
                   </div>
-                  <div>
-                    <p className="font-bold text-foreground text-lg">{testimonial.name}</p>
-                    <p className="text-sm text-muted-foreground">{testimonial.service}</p>
+                  <p className="text-muted-foreground mb-8 leading-relaxed text-lg italic">"{testimonial.text}"</p>
+                  <div className="flex items-center gap-4">
+                    <div className="w-14 h-14 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold text-xl">
+                      {testimonial.name.charAt(0)}
+                    </div>
+                    <div>
+                      <p className="font-bold text-foreground text-lg">{testimonial.name}</p>
+                      <p className="text-sm text-muted-foreground">{testimonial.service}</p>
+                    </div>
                   </div>
-                </div>
-              </Card>
-            ))}
+                </Card>
+              ))}
+            </div>
           </div>
-        </div>
-      </section>
+        </section>
+      )}
 
       {/* CTA Section */}
       <section className="py-32 relative overflow-hidden">
@@ -204,11 +278,9 @@ export default async function HomePage() {
         <div className="container mx-auto px-4 relative z-10">
           <div className="max-w-4xl mx-auto text-center">
             <h2 className="font-serif text-5xl md:text-7xl font-bold text-foreground mb-8 text-balance">
-              Pronta Para Se Sentir <span className="text-primary">Incrível?</span>
+              {settings.cta_title}
             </h2>
-            <p className="text-xl md:text-2xl text-muted-foreground mb-12 max-w-2xl mx-auto">
-              Entre em contato com nossos profissionais e descubra o melhor da estética e beleza
-            </p>
+            <p className="text-xl md:text-2xl text-muted-foreground mb-12 max-w-2xl mx-auto">{settings.cta_subtitle}</p>
             <Link href="/quiz">
               <Button
                 size="lg"
@@ -228,9 +300,7 @@ export default async function HomePage() {
           <div className="grid md:grid-cols-4 gap-12 mb-12">
             <div>
               <Image src="/logo.png" alt="Styllus Logo" width={150} height={50} className="h-12 w-auto mb-6" />
-              <p className="text-muted-foreground leading-relaxed">
-                Sua beleza, nossa paixão. Cuidando de você com excelência e dedicação.
-              </p>
+              <p className="text-muted-foreground leading-relaxed">{settings.business_name}</p>
             </div>
             <div>
               <h4 className="font-bold mb-6 text-foreground text-lg">Serviços</h4>
@@ -285,37 +355,17 @@ export default async function HomePage() {
             <div>
               <h4 className="font-bold mb-6 text-foreground text-lg">Contato</h4>
               <ul className="space-y-3 text-muted-foreground">
-                <li>contato@styllus.com.br</li>
-                <li>(11) 9999-9999</li>
-                <li>Seg - Sex: 9h às 19h</li>
-                <li>Sáb: 9h às 17h</li>
+                <li>{settings.business_email}</li>
+                <li>{settings.business_phone}</li>
+                <li>{settings.business_hours}</li>
               </ul>
             </div>
           </div>
           <div className="border-t border-primary/10 pt-8 text-center text-muted-foreground">
-            <p>&copy; 2025 Styllus Estética e Beleza. Todos os direitos reservados.</p>
+            <p>&copy; 2025 {settings.business_name}. Todos os direitos reservados.</p>
           </div>
         </div>
       </footer>
     </div>
   )
 }
-
-// Kept testimonials
-const testimonials = [
-  {
-    name: "Maria Silva",
-    service: "Corte e Escova",
-    text: "Atendimento impecável! Saí do salão me sentindo renovada. A equipe é super atenciosa e profissional.",
-  },
-  {
-    name: "Ana Costa",
-    service: "Manicure",
-    text: "Melhor salão da região! Sempre consigo horário e o resultado é sempre perfeito. Super recomendo!",
-  },
-  {
-    name: "Juliana Santos",
-    service: "Design de Sobrancelhas",
-    text: "Profissionais excelentes! O design de sobrancelhas ficou perfeito. Voltarei com certeza!",
-  },
-]
