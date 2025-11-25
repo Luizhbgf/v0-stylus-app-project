@@ -1,48 +1,84 @@
-import { redirect } from 'next/navigation'
-import { createClient } from "@/lib/supabase/server"
+"use client"
+
+import { useState, useEffect } from "react"
+import { createClient } from "@/lib/supabase/client"
 import { Navbar } from "@/components/navbar"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { DollarSign, TrendingUp, Calendar } from 'lucide-react'
+import { DollarSign, TrendingUp, Calendar, Filter } from "lucide-react"
+import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
+import { useRouter } from "next/navigation"
 
-export const revalidate = 0
+export default function StaffFinanceiro() {
+  const [profile, setProfile] = useState<any>(null)
+  const [appointments, setAppointments] = useState<any[]>([])
+  const [payments, setPayments] = useState<any[]>([])
+  const [startDate, setStartDate] = useState("")
+  const [endDate, setEndDate] = useState("")
+  const router = useRouter()
+  const supabase = createClient()
 
-export default async function StaffFinanceiro() {
-  const supabase = await createClient()
+  useEffect(() => {
+    loadData()
+  }, [])
 
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
-  if (!user) redirect("/auth/login")
+  const loadData = async () => {
+    const {
+      data: { user },
+    } = await supabase.auth.getUser()
+    if (!user) {
+      router.push("/auth/login")
+      return
+    }
 
-  const { data: profile } = await supabase.from("profiles").select("*").eq("id", user.id).single()
-  if (!profile || profile.user_level < 20) redirect("/cliente")
+    const { data: profileData } = await supabase.from("profiles").select("*").eq("id", user.id).single()
+    if (!profileData || profileData.user_level < 20) {
+      router.push("/cliente")
+      return
+    }
+    setProfile(profileData)
 
-  const { data: appointments } = await supabase
-    .from("appointments")
-    .select(
-      `
-      id,
-      appointment_date,
-      status,
-      payment_status,
-      staff_id,
-      service:services(name, price),
-      client:profiles!client_id(full_name),
-      sporadic_client_name,
-      client_type
-    `,
-    )
-    .eq("staff_id", user.id)
-    .order("appointment_date", { ascending: false })
+    const { data: appointmentsData } = await supabase
+      .from("appointments")
+      .select(
+        `
+        id,
+        appointment_date,
+        status,
+        payment_status,
+        staff_id,
+        custom_price,
+        service:services(name, price),
+        client:profiles!client_id(full_name),
+        sporadic_client_name,
+        client_type
+      `,
+      )
+      .eq("staff_id", user.id)
+      .order("appointment_date", { ascending: false })
 
-  const appointmentIds = appointments?.map(apt => apt.id) || []
-  const { data: payments } = await supabase
-    .from("payments")
-    .select("appointment_id, payment_method, status")
-    .in("appointment_id", appointmentIds)
+    setAppointments(appointmentsData || [])
 
-  const paymentMap = new Map(payments?.map(p => [p.appointment_id, p.payment_method]) || [])
+    const appointmentIds = appointmentsData?.map((apt) => apt.id) || []
+    const { data: paymentsData } = await supabase
+      .from("payments")
+      .select("appointment_id, payment_method, status")
+      .in("appointment_id", appointmentIds)
 
+    setPayments(paymentsData || [])
+  }
+
+  const handleFilter = () => {
+    // A filtragem acontece automaticamente quando startDate ou endDate mudam
+  }
+
+  const handleClearFilter = () => {
+    setStartDate("")
+    setEndDate("")
+  }
+
+  const paymentMap = new Map(payments?.map((p) => [p.appointment_id, p.payment_method]) || [])
 
   const earnings: any[] = []
 
@@ -54,10 +90,12 @@ export default async function StaffFinanceiro() {
     const clientName =
       apt.client_type === "sporadic" ? apt.sporadic_client_name : apt.client?.full_name || "Cliente não identificado"
 
+    const amount = apt.custom_price || apt.service?.price || 0
+
     earnings.push({
       id: apt.id,
       type: "appointment",
-      amount: apt.service?.price || 0,
+      amount: amount,
       payment_date: apt.appointment_date,
       payment_method: paymentMap.get(apt.id) || "Não informado",
       status: isPaid ? "paid" : "pending",
@@ -67,16 +105,31 @@ export default async function StaffFinanceiro() {
     })
   })
 
-  earnings.sort((a, b) => new Date(b.payment_date).getTime() - new Date(a.payment_date).getTime())
+  const filteredEarnings = earnings.filter((e) => {
+    const earningDate = new Date(e.payment_date)
+    if (startDate && earningDate < new Date(startDate)) return false
+    if (endDate) {
+      const endDateTime = new Date(endDate)
+      endDateTime.setHours(23, 59, 59, 999)
+      if (earningDate > endDateTime) return false
+    }
+    return true
+  })
 
-  const totalPaid = earnings.filter((e) => e.status === "paid").reduce((sum, e) => sum + Number(e.amount), 0)
-  const totalPending = earnings.filter((e) => e.status === "pending").reduce((sum, e) => sum + Number(e.amount), 0)
+  filteredEarnings.sort((a, b) => new Date(b.payment_date).getTime() - new Date(a.payment_date).getTime())
+
+  const totalPaid = filteredEarnings.filter((e) => e.status === "paid").reduce((sum, e) => sum + Number(e.amount), 0)
+  const totalPending = filteredEarnings
+    .filter((e) => e.status === "pending")
+    .reduce((sum, e) => sum + Number(e.amount), 0)
 
   const today = new Date()
   const firstDayOfMonth = new Date(today.getFullYear(), today.getMonth(), 1)
-  const monthlyEarnings = earnings
+  const monthlyEarnings = filteredEarnings
     .filter((e) => new Date(e.payment_date) >= firstDayOfMonth && e.status === "paid")
     .reduce((sum, e) => sum + Number(e.amount), 0)
+
+  if (!profile) return null
 
   return (
     <div className="min-h-screen bg-background">
@@ -88,6 +141,38 @@ export default async function StaffFinanceiro() {
           <p className="text-muted-foreground">Acompanhe seus ganhos e pagamentos</p>
         </div>
 
+        <Card className="border-gold/20 mb-6">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Filter className="h-5 w-5" />
+              Filtrar por Período
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="flex flex-col sm:flex-row gap-4">
+              <div className="flex-1 space-y-2">
+                <Label htmlFor="start-date">Data Início</Label>
+                <Input id="start-date" type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} />
+              </div>
+              <div className="flex-1 space-y-2">
+                <Label htmlFor="end-date">Data Fim</Label>
+                <Input id="end-date" type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} />
+              </div>
+              <div className="flex items-end gap-2">
+                <Button onClick={handleFilter} className="bg-gold hover:bg-gold/90">
+                  <Filter className="h-4 w-4 mr-2" />
+                  Filtrar
+                </Button>
+                {(startDate || endDate) && (
+                  <Button variant="outline" onClick={handleClearFilter}>
+                    Limpar
+                  </Button>
+                )}
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
         <div className="grid md:grid-cols-3 gap-6 mb-8">
           <Card className="border-gold/20">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -96,6 +181,7 @@ export default async function StaffFinanceiro() {
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold text-foreground">R$ {totalPaid.toFixed(2)}</div>
+              {(startDate || endDate) && <p className="text-xs text-muted-foreground mt-1">No período selecionado</p>}
             </CardContent>
           </Card>
 
@@ -106,6 +192,7 @@ export default async function StaffFinanceiro() {
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold text-foreground">R$ {totalPending.toFixed(2)}</div>
+              {(startDate || endDate) && <p className="text-xs text-muted-foreground mt-1">No período selecionado</p>}
             </CardContent>
           </Card>
 
@@ -123,8 +210,8 @@ export default async function StaffFinanceiro() {
         <div>
           <h2 className="text-2xl font-bold text-foreground mb-4">Histórico de Pagamentos</h2>
           <div className="grid gap-4">
-            {earnings && earnings.length > 0 ? (
-              earnings.map((earning) => (
+            {filteredEarnings && filteredEarnings.length > 0 ? (
+              filteredEarnings.map((earning) => (
                 <Card key={`${earning.type}-${earning.id}`} className="border-gold/20">
                   <CardContent className="p-6">
                     <div className="flex justify-between items-start">
@@ -160,7 +247,11 @@ export default async function StaffFinanceiro() {
               <Card className="border-gold/20">
                 <CardContent className="p-12 text-center">
                   <DollarSign className="h-12 w-12 text-gold mx-auto mb-4" />
-                  <p className="text-muted-foreground">Nenhum pagamento registrado</p>
+                  <p className="text-muted-foreground">
+                    {startDate || endDate
+                      ? "Nenhum pagamento encontrado no período selecionado"
+                      : "Nenhum pagamento registrado"}
+                  </p>
                 </CardContent>
               </Card>
             )}

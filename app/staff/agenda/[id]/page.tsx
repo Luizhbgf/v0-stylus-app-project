@@ -7,9 +7,9 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Navbar } from "@/components/navbar"
-import { useRouter, useParams } from 'next/navigation'
+import { useRouter, useParams } from "next/navigation"
 import { toast } from "sonner"
-import { ArrowLeft, Calendar, Clock, User, DollarSign, X, UserX, CheckCircle, Edit2 } from 'lucide-react'
+import { ArrowLeft, Calendar, Clock, User, DollarSign, X, UserX, CheckCircle, Edit2 } from "lucide-react"
 import Link from "next/link"
 import { Badge } from "@/components/ui/badge"
 import {
@@ -75,7 +75,8 @@ export default function GerenciarAgendamento() {
 
     if (appointmentData) {
       setAppointment(appointmentData)
-      setNewPrice(appointmentData.service?.price?.toString() || "")
+      const currentPrice = appointmentData.custom_price || appointmentData.service?.price || 0
+      setNewPrice(currentPrice.toString())
     }
   }
 
@@ -149,16 +150,16 @@ export default function GerenciarAgendamento() {
   const handleUpdatePrice = async () => {
     setIsLoading(true)
     try {
-      const priceValue = parseFloat(newPrice)
+      const priceValue = Number.parseFloat(newPrice)
       if (isNaN(priceValue) || priceValue < 0) {
         toast.error("Preço inválido")
         return
       }
 
       const { error } = await supabase
-        .from("services")
-        .update({ price: priceValue })
-        .eq("id", appointment.service.id)
+        .from("appointments")
+        .update({ custom_price: priceValue })
+        .eq("id", appointment.id)
 
       if (error) throw error
 
@@ -176,6 +177,7 @@ export default function GerenciarAgendamento() {
   if (!profile || !appointment) return null
 
   const appointmentDate = new Date(appointment.appointment_date)
+  const displayPrice = appointment.custom_price || appointment.service?.price || 0
 
   return (
     <div className="min-h-screen bg-background">
@@ -291,7 +293,12 @@ export default function GerenciarAgendamento() {
                     <p className="text-sm text-muted-foreground">Valor</p>
                     <div className="flex items-center justify-between">
                       <div>
-                        <p className="text-foreground font-medium text-lg">R$ {appointment.service.price}</p>
+                        <p className="text-foreground font-medium text-lg">R$ {displayPrice.toFixed(2)}</p>
+                        {appointment.custom_price && (
+                          <p className="text-xs text-muted-foreground">
+                            (Preço original: R$ {appointment.service.price.toFixed(2)})
+                          </p>
+                        )}
                         <Badge
                           variant="outline"
                           className={
@@ -318,9 +325,10 @@ export default function GerenciarAgendamento() {
                         </DialogTrigger>
                         <DialogContent>
                           <DialogHeader>
-                            <DialogTitle>Editar Valor do Serviço</DialogTitle>
+                            <DialogTitle>Editar Valor do Agendamento</DialogTitle>
                             <DialogDescription>
-                              Altere o valor do serviço para este agendamento
+                              Altere o valor apenas para este agendamento específico. O preço do serviço permanece
+                              inalterado.
                             </DialogDescription>
                           </DialogHeader>
                           <div className="space-y-4 py-4">
@@ -335,6 +343,9 @@ export default function GerenciarAgendamento() {
                                 onChange={(e) => setNewPrice(e.target.value)}
                                 placeholder="0.00"
                               />
+                              <p className="text-xs text-muted-foreground">
+                                Preço padrão do serviço: R$ {appointment.service.price.toFixed(2)}
+                              </p>
                             </div>
                           </div>
                           <DialogFooter>
