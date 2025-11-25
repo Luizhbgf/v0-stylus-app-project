@@ -10,6 +10,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { BarChart3, Users, DollarSign, Calendar, Award, TrendingUp, Star, Target, Download } from "lucide-react"
 import { format, startOfMonth, endOfMonth, subMonths, subWeeks } from "date-fns"
+import { toast } from "sonner"
 
 type Profile = {
   id: string
@@ -28,6 +29,7 @@ export default function AdminRelatoriosPage() {
   const [selectedStaff, setSelectedStaff] = useState<string>("all")
   const [staff, setStaff] = useState<Profile[]>([])
   const [reportData, setReportData] = useState<any>(null)
+  const [exporting, setExporting] = useState(false)
 
   useEffect(() => {
     async function loadData() {
@@ -48,7 +50,6 @@ export default function AdminRelatoriosPage() {
 
       setProfile(profileData)
 
-      // Load staff
       const { data: staffData } = await supabase.from("profiles").select("*").gte("user_level", 20).order("full_name")
 
       setStaff(staffData || [])
@@ -153,7 +154,6 @@ export default function AdminRelatoriosPage() {
       }
     })
 
-    // Calculate average ratings
     Object.keys(serviceStats).forEach((key) => {
       if (serviceStats[key].feedbackCount > 0) {
         serviceStats[key].avgRating = serviceStats[key].avgRating / serviceStats[key].feedbackCount
@@ -207,7 +207,52 @@ export default function AdminRelatoriosPage() {
       retentionRate,
       totalClients: Object.keys(clientStats).length,
       returningClients,
+      period,
+      periodLabel: period === "quinzenal" ? "Últimas 2 Semanas" : period === "mensal" ? "Mês Atual" : "Últimos 6 Meses",
+      startDate,
+      endDate,
     })
+  }
+
+  async function exportToPDF() {
+    if (!reportData) return
+
+    setExporting(true)
+    toast.info("Gerando PDF...")
+
+    try {
+      const response = await fetch("/api/export-pdf", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          reportData,
+          staffName: selectedStaff === "all" ? "Todos" : staff.find((s) => s.id === selectedStaff)?.full_name,
+        }),
+      })
+
+      if (!response.ok) {
+        throw new Error("Erro ao gerar PDF")
+      }
+
+      const blob = await response.blob()
+      const url = window.URL.createObjectURL(blob)
+      const link = document.createElement("a")
+      link.href = url
+      link.download = `relatorio-${format(new Date(), "yyyy-MM-dd-HHmmss")}.pdf`
+      document.body.appendChild(link)
+      link.click()
+      document.body.removeChild(link)
+      window.URL.revokeObjectURL(url)
+
+      toast.success("PDF gerado com sucesso!")
+    } catch (error) {
+      console.error("[v0] Error exporting PDF:", error)
+      toast.error("Erro ao gerar PDF")
+    } finally {
+      setExporting(false)
+    }
   }
 
   if (loading || !profile || !reportData) {
@@ -225,7 +270,6 @@ export default function AdminRelatoriosPage() {
     .sort((a, b) => b[1].revenue - a[1].revenue)
     .slice(0, 5)
 
-  const mostProfitableService = topServices[0]
   const bestRatedService = Object.entries(reportData.serviceStats)
     .filter(([_, stats]) => stats.feedbackCount > 0)
     .sort((a, b) => b[1].avgRating - a[1].avgRating)[0]
@@ -238,7 +282,7 @@ export default function AdminRelatoriosPage() {
         <div className="mb-8 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
           <div>
             <h1 className="text-4xl font-bold text-foreground mb-2">Relatórios e Análises</h1>
-            <p className="text-muted-foreground">Visão analítica e insights de mentoria</p>
+            <p className="text-muted-foreground">Visão analítica e insights de desempenho</p>
           </div>
 
           <div className="flex flex-col sm:flex-row gap-3">
@@ -267,9 +311,18 @@ export default function AdminRelatoriosPage() {
               </SelectContent>
             </Select>
 
-            <Button variant="outline" className="border-gold/20 text-gold hover:bg-gold/10 bg-transparent">
-              <Download className="h-4 w-4 mr-2" />
-              Exportar PDF
+            <Button onClick={exportToPDF} disabled={exporting} className="bg-gold hover:bg-gold/90 text-black">
+              {exporting ? (
+                <>
+                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-black mr-2"></div>
+                  Gerando...
+                </>
+              ) : (
+                <>
+                  <Download className="h-4 w-4 mr-2" />
+                  Exportar PDF
+                </>
+              )}
             </Button>
           </div>
         </div>
@@ -576,15 +629,39 @@ export default function AdminRelatoriosPage() {
               </CardHeader>
               <CardContent className="space-y-6">
                 {/* Most profitable service insight */}
-                {mostProfitableService && (
+                {reportData.staffPerformance.length > 0 && reportData.staffPerformance[0].revenue > 0 && (
                   <div className="p-4 bg-card rounded-lg border border-gold/20">
                     <h3 className="font-semibold text-foreground mb-2 flex items-center gap-2">
                       <DollarSign className="h-4 w-4 text-gold" />
                       Serviço Mais Lucrativo
                     </h3>
                     <p className="text-muted-foreground mb-2">
-                      <span className="font-semibold text-gold">{mostProfitableService[0]}</span> gerou R${" "}
-                      {mostProfitableService[1].revenue.toFixed(2)} em {mostProfitableService[1].count} vendas.
+                      <span className="font-semibold text-gold">
+                        {Object.entries(reportData.serviceStats).find(
+                          ([name, stats]) =>
+                            name ===
+                            reportData.staffPerformance.find(
+                              (s) =>
+                                s.revenue ===
+                                reportData.staffPerformance.reduce((max, s) => Math.max(max, s.revenue), 0),
+                            )?.services?.name,
+                        )}
+                      </span>
+                      gerou R${" "}
+                      {reportData.staffPerformance
+                        .find(
+                          (s) =>
+                            s.revenue === reportData.staffPerformance.reduce((max, s) => Math.max(max, s.revenue), 0),
+                        )
+                        ?.revenue.toFixed(2)}{" "}
+                      em{" "}
+                      {
+                        reportData.staffPerformance.find(
+                          (s) =>
+                            s.revenue === reportData.staffPerformance.reduce((max, s) => Math.max(max, s.revenue), 0),
+                        )?.appointments
+                      }{" "}
+                      vendas.
                     </p>
                     <p className="text-sm text-muted-foreground">
                       💡 <strong>Recomendação:</strong> Considere criar promoções ou pacotes incluindo este serviço para

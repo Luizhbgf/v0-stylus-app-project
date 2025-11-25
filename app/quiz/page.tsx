@@ -1,17 +1,20 @@
 "use client"
 
+import { Calendar } from "@/components/ui/calendar"
+
 import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import { Label } from "@/components/ui/label"
-import { ArrowLeft, ArrowRight, Sparkles, Clock, MessageCircle } from "lucide-react"
+import { ArrowLeft, ArrowRight, Sparkles, Clock, MessageCircle, Star, Award, CheckCircle } from "lucide-react"
 import Link from "next/link"
 import Image from "next/image"
 import { ThemeToggle } from "@/components/theme-toggle"
 import { createClient } from "@/lib/supabase/client"
 import { useRouter } from "next/navigation"
 import { toast } from "sonner"
+import { motion, AnimatePresence } from "framer-motion"
 
 export default function QuizPage() {
   const [currentQuestion, setCurrentQuestion] = useState(0)
@@ -20,6 +23,7 @@ export default function QuizPage() {
   const [loading, setLoading] = useState(true)
   const [result, setResult] = useState<any>(null)
   const [user, setUser] = useState<any>(null)
+  const [direction, setDirection] = useState(0)
 
   const router = useRouter()
   const supabase = createClient()
@@ -50,12 +54,14 @@ export default function QuizPage() {
 
   const handleNext = () => {
     if (currentQuestion < questions.length - 1) {
+      setDirection(1)
       setCurrentQuestion(currentQuestion + 1)
     }
   }
 
   const handleBack = () => {
     if (currentQuestion > 0) {
+      setDirection(-1)
       setCurrentQuestion(currentQuestion - 1)
     }
   }
@@ -96,17 +102,30 @@ export default function QuizPage() {
         staffScores.sort((a, b) => b.score - a.score)
         const bestMatch = staffScores[0]
 
-        const [servicesData, coursesData, subscriptionsData] = await Promise.all([
+        const [servicesData, coursesData, subscriptionsData, feedbackData] = await Promise.all([
           supabase.from("staff_services").select("*, services(*)").eq("staff_id", bestMatch.id),
           supabase.from("staff_courses").select("*, courses(*)").eq("staff_id", bestMatch.id).eq("progress", 100),
           supabase.from("subscription_plans").select("*").eq("staff_id", bestMatch.id).eq("is_active", true),
+          supabase
+            .from("feedback")
+            .select("*")
+            .eq("staff_id", bestMatch.id)
+            .order("created_at", { ascending: false })
+            .limit(5),
         ])
+
+        const avgRating =
+          feedbackData.data && feedbackData.data.length > 0
+            ? feedbackData.data.reduce((sum, f) => sum + f.rating, 0) / feedbackData.data.length
+            : 0
 
         setResult({
           ...bestMatch,
           services: servicesData.data || [],
           courses: coursesData.data || [],
           subscriptions: subscriptionsData.data || [],
+          feedback: feedbackData.data || [],
+          avgRating,
         })
       }
     } catch (error) {
@@ -120,13 +139,18 @@ export default function QuizPage() {
   if (loading) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
-        <p className="text-muted-foreground">Carregando...</p>
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-gold mx-auto mb-4"></div>
+          <p className="text-muted-foreground">Carregando...</p>
+        </div>
       </div>
     )
   }
 
   if (result) {
-    const whatsappMessage = encodeURIComponent("Oi, tudo bem? Vi seu perfil e gostaria de agendar um horário!")
+    const whatsappMessage = encodeURIComponent(
+      `Oi ${result.full_name}, vi seu perfil através do quiz do Styllus e gostaria de agendar um horário!`,
+    )
     const whatsappLink = `https://wa.me/55${result.phone?.replace(/\D/g, "")}?text=${whatsappMessage}`
 
     return (
@@ -143,140 +167,248 @@ export default function QuizPage() {
         </header>
 
         <div className="container mx-auto px-4 py-12">
-          <div className="max-w-2xl mx-auto text-center">
-            <div className="mb-8">
-              <Sparkles className="h-16 w-16 text-gold mx-auto mb-4" />
-              <h1 className="text-4xl font-bold text-foreground mb-4">Encontramos seu profissional ideal!</h1>
-              <p className="text-muted-foreground">Baseado nas suas preferências, recomendamos:</p>
+          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="max-w-3xl mx-auto">
+            <div className="text-center mb-8">
+              <motion.div
+                initial={{ scale: 0 }}
+                animate={{ scale: 1 }}
+                transition={{ type: "spring", stiffness: 200, damping: 10 }}
+                className="inline-flex items-center justify-center w-20 h-20 bg-gold/20 rounded-full mb-4"
+              >
+                <Sparkles className="h-10 w-10 text-gold" />
+              </motion.div>
+              <h1 className="text-4xl font-bold text-foreground mb-4">Encontramos seu match perfeito!</h1>
+              <p className="text-muted-foreground text-lg">Baseado nas suas preferências, recomendamos:</p>
             </div>
 
-            <Card className="border-gold/20">
-              <CardHeader>
-                <div className="flex items-center justify-center mb-4">
-                  {result.avatar_url ? (
-                    <img
-                      src={result.avatar_url || "/placeholder.svg"}
-                      alt={result.full_name}
-                      className="h-24 w-24 rounded-full object-cover"
-                    />
-                  ) : (
-                    <div className="h-24 w-24 rounded-full bg-gold/10 flex items-center justify-center">
-                      <span className="text-3xl font-bold text-gold">{result.full_name?.[0] || "?"}</span>
-                    </div>
-                  )}
-                </div>
-                <CardTitle className="text-2xl">{result.full_name}</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-6">
-                {result.bio && <p className="text-muted-foreground">{result.bio}</p>}
-
-                {result.specialties && result.specialties.length > 0 && (
-                  <div>
-                    <p className="text-sm font-semibold text-foreground mb-2">Especialidades:</p>
-                    <div className="flex flex-wrap gap-2 justify-center">
-                      {result.specialties.map((specialty: string) => (
-                        <span key={specialty} className="px-3 py-1 bg-gold/10 text-gold rounded-full text-sm">
-                          {specialty}
+            <Card className="border-gold/20 overflow-hidden">
+              <div className="bg-gradient-to-br from-gold/10 via-transparent to-transparent p-8">
+                <div className="flex flex-col md:flex-row items-center gap-6">
+                  <motion.div
+                    initial={{ scale: 0.8, opacity: 0 }}
+                    animate={{ scale: 1, opacity: 1 }}
+                    transition={{ delay: 0.2 }}
+                  >
+                    {result.avatar_url ? (
+                      <img
+                        src={result.avatar_url || "/placeholder.svg"}
+                        alt={result.full_name}
+                        className="h-32 w-32 rounded-full object-cover ring-4 ring-gold/20"
+                      />
+                    ) : (
+                      <div className="h-32 w-32 rounded-full bg-gold/10 flex items-center justify-center ring-4 ring-gold/20">
+                        <span className="text-4xl font-bold text-gold">{result.full_name?.[0] || "?"}</span>
+                      </div>
+                    )}
+                  </motion.div>
+                  <div className="flex-1 text-center md:text-left">
+                    <h2 className="text-3xl font-bold text-foreground mb-2">{result.full_name}</h2>
+                    {result.avgRating > 0 && (
+                      <div className="flex items-center gap-2 justify-center md:justify-start mb-3">
+                        <div className="flex">
+                          {[1, 2, 3, 4, 5].map((star) => (
+                            <Star
+                              key={star}
+                              className={`h-5 w-5 ${
+                                star <= Math.round(result.avgRating) ? "fill-gold text-gold" : "text-muted-foreground"
+                              }`}
+                            />
+                          ))}
+                        </div>
+                        <span className="text-sm text-muted-foreground">
+                          {result.avgRating.toFixed(1)} ({result.feedback.length} avaliações)
                         </span>
+                      </div>
+                    )}
+                    {result.bio && <p className="text-muted-foreground">{result.bio}</p>}
+                  </div>
+                </div>
+              </div>
+
+              <CardContent className="space-y-6 p-8">
+                {result.specialties && result.specialties.length > 0 && (
+                  <motion.div
+                    initial={{ opacity: 0, x: -20 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ delay: 0.3 }}
+                  >
+                    <div className="flex items-center gap-2 mb-3">
+                      <Award className="h-5 w-5 text-gold" />
+                      <p className="font-semibold text-foreground">Especialidades</p>
+                    </div>
+                    <div className="flex flex-wrap gap-2">
+                      {result.specialties.map((specialty: string, index: number) => (
+                        <motion.span
+                          key={specialty}
+                          initial={{ opacity: 0, scale: 0.8 }}
+                          animate={{ opacity: 1, scale: 1 }}
+                          transition={{ delay: 0.4 + index * 0.1 }}
+                          className="px-4 py-2 bg-gold/10 text-gold rounded-full text-sm font-medium border border-gold/20"
+                        >
+                          {specialty}
+                        </motion.span>
                       ))}
                     </div>
-                  </div>
+                  </motion.div>
                 )}
 
                 {result.working_hours && (
-                  <div>
-                    <p className="text-sm font-semibold text-foreground mb-2 flex items-center justify-center gap-2">
-                      <Clock className="h-4 w-4" />
-                      Horário de Trabalho:
-                    </p>
-                    <div className="space-y-1 text-sm">
+                  <motion.div
+                    initial={{ opacity: 0, x: -20 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ delay: 0.5 }}
+                    className="bg-card/50 p-4 rounded-lg border border-gold/10"
+                  >
+                    <div className="flex items-center gap-2 mb-3">
+                      <Clock className="h-5 w-5 text-gold" />
+                      <p className="font-semibold text-foreground">Horário de Atendimento</p>
+                    </div>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-sm">
                       {Object.entries(result.working_hours).map(([day, hours]: [string, any]) => {
                         const dayNames: Record<string, string> = {
-                          monday: "Segunda-feira",
-                          tuesday: "Terça-feira",
-                          wednesday: "Quarta-feira",
-                          thursday: "Quinta-feira",
-                          friday: "Sexta-feira",
+                          monday: "Segunda",
+                          tuesday: "Terça",
+                          wednesday: "Quarta",
+                          thursday: "Quinta",
+                          friday: "Sexta",
                           saturday: "Sábado",
                           sunday: "Domingo",
                         }
                         return (
-                          <div key={day} className="flex justify-between items-center px-4">
-                            <span className="text-muted-foreground">{dayNames[day]}</span>
-                            <span className={hours.enabled ? "text-foreground" : "text-muted-foreground"}>
+                          <div
+                            key={day}
+                            className="flex justify-between items-center px-3 py-2 bg-background/50 rounded"
+                          >
+                            <span className="text-muted-foreground font-medium">{dayNames[day]}</span>
+                            <span className={hours.enabled ? "text-foreground font-medium" : "text-muted-foreground"}>
                               {hours.enabled ? `${hours.start} - ${hours.end}` : "Fechado"}
                             </span>
                           </div>
                         )
                       })}
                     </div>
-                  </div>
+                  </motion.div>
                 )}
 
                 {result.services && result.services.length > 0 && (
-                  <div>
-                    <p className="text-sm font-semibold text-foreground mb-2">Serviços Oferecidos:</p>
-                    <div className="grid gap-2">
-                      {result.services.map((item: any) => (
-                        <div key={item.id} className="p-3 border border-gold/20 rounded-lg text-left">
-                          <p className="font-medium">{item.services.name}</p>
-                          <p className="text-sm text-muted-foreground">{item.services.description}</p>
-                          <p className="text-sm text-gold mt-1">R$ {Number(item.services.price).toFixed(2)}</p>
-                        </div>
+                  <motion.div
+                    initial={{ opacity: 0, x: -20 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ delay: 0.6 }}
+                  >
+                    <div className="flex items-center gap-2 mb-3">
+                      <CheckCircle className="h-5 w-5 text-gold" />
+                      <p className="font-semibold text-foreground">Serviços Oferecidos</p>
+                    </div>
+                    <div className="grid gap-3">
+                      {result.services.map((item: any, index: number) => (
+                        <motion.div
+                          key={item.id}
+                          initial={{ opacity: 0, y: 20 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          transition={{ delay: 0.7 + index * 0.1 }}
+                          className="p-4 border border-gold/20 rounded-lg hover:border-gold/40 transition-colors bg-card/50"
+                        >
+                          <div className="flex justify-between items-start">
+                            <div className="flex-1">
+                              <p className="font-semibold text-foreground">{item.services.name}</p>
+                              <p className="text-sm text-muted-foreground mt-1">{item.services.description}</p>
+                            </div>
+                            <p className="text-lg font-bold text-gold ml-4">
+                              R$ {Number(item.services.price).toFixed(2)}
+                            </p>
+                          </div>
+                        </motion.div>
                       ))}
                     </div>
-                  </div>
+                  </motion.div>
                 )}
 
-                {result.courses && result.courses.length > 0 && (
-                  <div>
-                    <p className="text-sm font-semibold text-foreground mb-2">Cursos Concluídos:</p>
-                    <div className="grid gap-2">
-                      {result.courses.map((item: any) => (
-                        <div key={item.id} className="p-3 border border-gold/20 rounded-lg text-left">
-                          <p className="font-medium">{item.courses.title}</p>
-                          <p className="text-sm text-muted-foreground">{item.courses.description}</p>
-                        </div>
+                {result.feedback && result.feedback.length > 0 && (
+                  <motion.div
+                    initial={{ opacity: 0, x: -20 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ delay: 0.8 }}
+                  >
+                    <div className="flex items-center gap-2 mb-3">
+                      <Star className="h-5 w-5 text-gold fill-gold" />
+                      <p className="font-semibold text-foreground">Avaliações Recentes</p>
+                    </div>
+                    <div className="space-y-3">
+                      {result.feedback.slice(0, 3).map((review: any, index: number) => (
+                        <motion.div
+                          key={review.id}
+                          initial={{ opacity: 0, y: 10 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          transition={{ delay: 0.9 + index * 0.1 }}
+                          className="p-3 bg-card/50 rounded-lg border border-gold/10"
+                        >
+                          <div className="flex items-center gap-2 mb-2">
+                            <div className="flex">
+                              {[1, 2, 3, 4, 5].map((star) => (
+                                <Star
+                                  key={star}
+                                  className={`h-4 w-4 ${
+                                    star <= review.rating ? "fill-gold text-gold" : "text-muted-foreground"
+                                  }`}
+                                />
+                              ))}
+                            </div>
+                          </div>
+                          {review.comment && <p className="text-sm text-muted-foreground">{review.comment}</p>}
+                        </motion.div>
                       ))}
                     </div>
-                  </div>
+                  </motion.div>
                 )}
 
-                {result.subscriptions && result.subscriptions.length > 0 && (
-                  <div>
-                    <p className="text-sm font-semibold text-foreground mb-2">Planos de Assinatura:</p>
-                    <div className="grid gap-2">
-                      {result.subscriptions.map((plan: any) => (
-                        <div key={plan.id} className="p-3 border border-gold/20 rounded-lg text-left">
-                          <p className="font-medium">{plan.name}</p>
-                          <p className="text-sm text-muted-foreground">{plan.description}</p>
-                          <p className="text-sm text-gold mt-1">R$ {Number(plan.price).toFixed(2)}/mês</p>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-
-                <div className="pt-4">
+                <motion.div
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 1 }}
+                  className="pt-6 space-y-3"
+                >
                   <a href={whatsappLink} target="_blank" rel="noopener noreferrer">
-                    <Button className="w-full bg-gold hover:bg-gold/90 text-black">
-                      <MessageCircle className="mr-2 h-4 w-4" />
+                    <Button className="w-full bg-gold hover:bg-gold/90 text-black text-lg py-6">
+                      <MessageCircle className="mr-2 h-5 w-5" />
                       Conversar no WhatsApp
                     </Button>
                   </a>
-                </div>
+                  {user && (
+                    <Link href="/cliente/agendar">
+                      <Button variant="outline" className="w-full border-gold/20 hover:bg-gold/5 py-6 bg-transparent">
+                        <Calendar className="mr-2 h-5 w-5" />
+                        Agendar Horário Online
+                      </Button>
+                    </Link>
+                  )}
+                </motion.div>
               </CardContent>
             </Card>
 
-            <div className="mt-8">
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ delay: 1.2 }}
+              className="mt-8 text-center"
+            >
+              <Button
+                onClick={() => {
+                  setResult(null)
+                  setCurrentQuestion(0)
+                  setAnswers({})
+                }}
+                variant="outline"
+                className="mr-4"
+              >
+                <ArrowLeft className="mr-2 h-4 w-4" />
+                Refazer Quiz
+              </Button>
               <Link href="/">
-                <Button variant="outline">
-                  <ArrowLeft className="mr-2 h-4 w-4" />
-                  Voltar ao início
-                </Button>
+                <Button variant="outline">Voltar ao início</Button>
               </Link>
-            </div>
-          </div>
+            </motion.div>
+          </motion.div>
         </div>
       </div>
     )
@@ -284,6 +416,21 @@ export default function QuizPage() {
 
   const currentQ = questions[currentQuestion]
   const progress = ((currentQuestion + 1) / questions.length) * 100
+
+  const slideVariants = {
+    enter: (direction: number) => ({
+      x: direction > 0 ? 300 : -300,
+      opacity: 0,
+    }),
+    center: {
+      x: 0,
+      opacity: 1,
+    },
+    exit: (direction: number) => ({
+      x: direction < 0 ? 300 : -300,
+      opacity: 0,
+    }),
+  }
 
   return (
     <div className="min-h-screen bg-background">
@@ -300,75 +447,119 @@ export default function QuizPage() {
 
       <div className="container mx-auto px-4 py-12">
         <div className="max-w-2xl mx-auto">
-          <div className="mb-8">
+          <motion.div initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }} className="mb-8 text-center">
+            <div className="inline-flex items-center justify-center w-16 h-16 bg-gold/10 rounded-full mb-4">
+              <Sparkles className="h-8 w-8 text-gold" />
+            </div>
             <h1 className="text-4xl font-bold text-foreground mb-4">Encontre seu profissional ideal</h1>
-            <p className="text-muted-foreground">
+            <p className="text-muted-foreground text-lg">
               Responda algumas perguntas e vamos recomendar o melhor profissional para você
             </p>
-          </div>
+          </motion.div>
 
-          <div className="mb-8">
-            <div className="flex items-center justify-between mb-2">
-              <span className="text-sm text-muted-foreground">
+          <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="mb-8">
+            <div className="flex items-center justify-between mb-3">
+              <span className="text-sm font-medium text-foreground">
                 Pergunta {currentQuestion + 1} de {questions.length}
               </span>
-              <span className="text-sm text-muted-foreground">{Math.round(progress)}%</span>
+              <span className="text-sm font-medium text-gold">{Math.round(progress)}% completo</span>
             </div>
-            <div className="h-2 bg-muted rounded-full overflow-hidden">
-              <div className="h-full bg-gold transition-all duration-300" style={{ width: `${progress}%` }} />
+            <div className="h-3 bg-muted rounded-full overflow-hidden relative">
+              <motion.div
+                className="h-full bg-gradient-to-r from-gold to-gold/70 rounded-full"
+                initial={{ width: 0 }}
+                animate={{ width: `${progress}%` }}
+                transition={{ duration: 0.5, ease: "easeOut" }}
+              />
             </div>
-          </div>
+          </motion.div>
 
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-2xl">{currentQ?.question}</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <RadioGroup
-                value={answers[currentQ?.id] || ""}
-                onValueChange={(value) => handleAnswer(currentQ.id, value)}
-              >
-                <div className="space-y-3">
-                  {currentQ?.options.map((option: any, index: number) => (
-                    <Label
-                      key={index}
-                      htmlFor={`option-${index}`}
-                      className="flex items-center p-4 border border-border rounded-lg cursor-pointer hover:bg-muted/50 transition-colors"
+          <AnimatePresence mode="wait" custom={direction}>
+            <motion.div
+              key={currentQuestion}
+              custom={direction}
+              variants={slideVariants}
+              initial="enter"
+              animate="center"
+              exit="exit"
+              transition={{ type: "spring", stiffness: 300, damping: 30 }}
+            >
+              <Card className="border-gold/20">
+                <CardHeader>
+                  <CardTitle className="text-2xl text-foreground">{currentQ?.question}</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <RadioGroup
+                    value={answers[currentQ?.id] || ""}
+                    onValueChange={(value) => handleAnswer(currentQ.id, value)}
+                  >
+                    <div className="space-y-3">
+                      {currentQ?.options.map((option: any, index: number) => (
+                        <motion.div
+                          key={index}
+                          initial={{ opacity: 0, x: -20 }}
+                          animate={{ opacity: 1, x: 0 }}
+                          transition={{ delay: index * 0.1 }}
+                        >
+                          <Label
+                            htmlFor={`option-${index}`}
+                            className={`flex items-center p-4 border-2 rounded-lg cursor-pointer transition-all duration-200 ${
+                              answers[currentQ?.id] === option.text
+                                ? "border-gold bg-gold/5"
+                                : "border-border hover:border-gold/50 hover:bg-muted/50"
+                            }`}
+                          >
+                            <RadioGroupItem value={option.text} id={`option-${index}`} className="mr-3" />
+                            <span className="text-foreground font-medium">{option.text}</span>
+                          </Label>
+                        </motion.div>
+                      ))}
+                    </div>
+                  </RadioGroup>
+
+                  <div className="flex items-center justify-between mt-8 pt-6 border-t border-border">
+                    <Button
+                      variant="outline"
+                      onClick={handleBack}
+                      disabled={currentQuestion === 0}
+                      className="border-gold/20 bg-transparent"
                     >
-                      <RadioGroupItem value={option.text} id={`option-${index}`} className="mr-3" />
-                      <span className="text-foreground">{option.text}</span>
-                    </Label>
-                  ))}
-                </div>
-              </RadioGroup>
-
-              <div className="flex items-center justify-between mt-8 pt-6 border-t border-border">
-                <Button variant="outline" onClick={handleBack} disabled={currentQuestion === 0}>
-                  <ArrowLeft className="mr-2 h-4 w-4" />
-                  Voltar
-                </Button>
-                {currentQuestion < questions.length - 1 ? (
-                  <Button
-                    onClick={handleNext}
-                    disabled={!answers[currentQ?.id]}
-                    className="bg-gold hover:bg-gold/90 text-black"
-                  >
-                    Próxima
-                    <ArrowRight className="ml-2 h-4 w-4" />
-                  </Button>
-                ) : (
-                  <Button
-                    onClick={calculateResult}
-                    disabled={!answers[currentQ?.id] || loading}
-                    className="bg-gold hover:bg-gold/90 text-black"
-                  >
-                    {loading ? "Calculando..." : "Ver Resultado"}
-                    <Sparkles className="ml-2 h-4 w-4" />
-                  </Button>
-                )}
-              </div>
-            </CardContent>
-          </Card>
+                      <ArrowLeft className="mr-2 h-4 w-4" />
+                      Voltar
+                    </Button>
+                    {currentQuestion < questions.length - 1 ? (
+                      <Button
+                        onClick={handleNext}
+                        disabled={!answers[currentQ?.id]}
+                        className="bg-gold hover:bg-gold/90 text-black"
+                      >
+                        Próxima
+                        <ArrowRight className="ml-2 h-4 w-4" />
+                      </Button>
+                    ) : (
+                      <Button
+                        onClick={calculateResult}
+                        disabled={!answers[currentQ?.id] || loading}
+                        className="bg-gold hover:bg-gold/90 text-black"
+                      >
+                        {loading ? (
+                          <>
+                            <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-black mr-2"></div>
+                            Calculando...
+                          </>
+                        ) : (
+                          <>
+                            Ver Resultado
+                            <Sparkles className="ml-2 h-4 w-4" />
+                          </>
+                        )}
+                      </Button>
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+            </motion.div>
+          </AnimatePresence>
         </div>
       </div>
     </div>

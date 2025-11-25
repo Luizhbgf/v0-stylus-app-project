@@ -1,43 +1,107 @@
-import { redirect } from "next/navigation"
-import { createClient } from "@/lib/supabase/server"
+"use client"
+
+import { useEffect, useState } from "react"
+import { useRouter } from "next/navigation"
+import { createClient } from "@/lib/supabase/client"
 import { Navbar } from "@/components/navbar"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { DollarSign, TrendingUp, TrendingDown, Calendar } from "lucide-react"
+import { Input } from "@/components/ui/input"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { DollarSign, TrendingUp, TrendingDown, Calendar, Filter, Award } from "lucide-react"
 import { format, startOfMonth, endOfMonth, subMonths } from "date-fns"
 import { ptBR } from "date-fns/locale"
 
-export default async function AdminFinanceiroPage() {
-  const supabase = await createClient()
+type Profile = {
+  id: string
+  full_name: string
+  user_level: number
+}
 
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
-  if (!user) {
-    redirect("/auth/login")
+export default function AdminFinanceiroPage() {
+  const router = useRouter()
+  const supabase = createClient()
+  const [profile, setProfile] = useState<Profile | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [payments, setPayments] = useState<any[]>([])
+  const [staff, setStaff] = useState<Profile[]>([])
+  const [selectedStaff, setSelectedStaff] = useState<string>("all")
+  const [startDate, setStartDate] = useState(format(startOfMonth(new Date()), "yyyy-MM-dd"))
+  const [endDate, setEndDate] = useState(format(endOfMonth(new Date()), "yyyy-MM-dd"))
+
+  useEffect(() => {
+    async function loadData() {
+      const {
+        data: { user },
+      } = await supabase.auth.getUser()
+      if (!user) {
+        router.push("/auth/login")
+        return
+      }
+
+      const { data: profileData } = await supabase.from("profiles").select("*").eq("id", user.id).single()
+
+      if (!profileData || profileData.user_level < 30) {
+        router.push("/cliente")
+        return
+      }
+
+      setProfile(profileData)
+
+      const { data: staffData } = await supabase.from("profiles").select("*").gte("user_level", 20).order("full_name")
+
+      setStaff(staffData || [])
+      setLoading(false)
+    }
+
+    loadData()
+  }, [router, supabase])
+
+  useEffect(() => {
+    if (profile) {
+      loadPayments()
+    }
+  }, [profile, selectedStaff, startDate, endDate])
+
+  async function loadPayments() {
+    const query = supabase
+      .from("payments")
+      .select(
+        `
+        *,
+        client:client_id(full_name),
+        appointment:appointment_id(
+          service:services(name),
+          staff:staff_id(id, full_name)
+        )
+      `,
+      )
+      .gte("payment_date", new Date(startDate).toISOString())
+      .lte("payment_date", new Date(endDate + "T23:59:59").toISOString())
+      .order("payment_date", { ascending: false })
+
+    const { data } = await query
+
+    let filteredData = data || []
+    if (selectedStaff !== "all") {
+      filteredData = filteredData.filter((p) => p.appointment?.staff?.id === selectedStaff)
+    }
+
+    setPayments(filteredData)
   }
 
-  const { data: profile } = await supabase.from("profiles").select("*").eq("id", user.id).single()
-
-  if (!profile || profile.user_level < 30) {
-    redirect("/cliente")
-  }
-
-  // Get all payments
-  const { data: payments } = await supabase
-    .from("payments")
-    .select(
-      `
-      *,
-      client:client_id(full_name),
-      staff:staff_id(full_name)
-    `,
+  if (loading || !profile) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-gold mx-auto mb-4"></div>
+          <p className="text-muted-foreground">Carregando...</p>
+        </div>
+      </div>
     )
-    .order("payment_date", { ascending: false })
+  }
 
-  // Calculate monthly revenue
   const currentMonth = new Date()
   const lastMonth = subMonths(currentMonth, 1)
-
   const currentMonthStart = startOfMonth(currentMonth)
   const currentMonthEnd = endOfMonth(currentMonth)
   const lastMonthStart = startOfMonth(lastMonth)
@@ -61,13 +125,46 @@ export default async function AdminFinanceiroPage() {
 
   const revenueChange = lastMonthRevenue > 0 ? ((currentMonthRevenue - lastMonthRevenue) / lastMonthRevenue) * 100 : 0
 
-  // Calculate total revenue
   const totalRevenue =
     payments?.filter((p) => p.status === "completed").reduce((sum, p) => sum + Number(p.amount), 0) || 0
 
-  // Calculate pending payments
   const pendingRevenue =
     payments?.filter((p) => p.status === "pending").reduce((sum, p) => sum + Number(p.amount), 0) || 0
+
+  const serviceStats: Record<string, { count: number; revenue: number }> = {}
+  payments
+    .filter((p) => p.status === "completed")
+    .forEach((p) => {
+      const serviceName = p.appointment?.service?.name || "Desconhecido"
+      if (!serviceStats[serviceName]) {
+        serviceStats[serviceName] = { count: 0, revenue: 0 }
+      }
+      serviceStats[serviceName].count++
+      serviceStats[serviceName].revenue += Number(p.amount)
+    })
+
+  const topServices = Object.entries(serviceStats)
+    .sort((a, b) => b[1].revenue - a[1].revenue)
+    .slice(0, 5)
+
+  const staffRevenue: Record<string, { name: string; revenue: number; count: number }> = {}
+  payments
+    .filter((p) => p.status === "completed")
+    .forEach((p) => {
+      const staffId = p.appointment?.staff?.id
+      const staffName = p.appointment?.staff?.full_name || "Desconhecido"
+      if (staffId && !staffRevenue[staffId]) {
+        staffRevenue[staffId] = { name: staffName, revenue: 0, count: 0 }
+      }
+      if (staffId) {
+        staffRevenue[staffId].revenue += Number(p.amount)
+        staffRevenue[staffId].count++
+      }
+    })
+
+  const topStaff = Object.values(staffRevenue)
+    .sort((a, b) => b.revenue - a.revenue)
+    .slice(0, 5)
 
   return (
     <div className="min-h-screen bg-background">
@@ -79,6 +176,55 @@ export default async function AdminFinanceiroPage() {
           <p className="text-muted-foreground">Visão geral financeira do negócio</p>
         </div>
 
+        <Card className="border-gold/20 mb-6">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-foreground">
+              <Filter className="h-5 w-5 text-gold" />
+              Filtros
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="grid md:grid-cols-3 gap-4">
+              <div>
+                <label className="text-sm font-medium text-foreground mb-2 block">Profissional</label>
+                <Select value={selectedStaff} onValueChange={setSelectedStaff}>
+                  <SelectTrigger className="border-gold/20">
+                    <SelectValue placeholder="Selecione" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Todos</SelectItem>
+                    {staff.map((s) => (
+                      <SelectItem key={s.id} value={s.id}>
+                        {s.full_name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div>
+                <label className="text-sm font-medium text-foreground mb-2 block">Data Início</label>
+                <Input
+                  type="date"
+                  value={startDate}
+                  onChange={(e) => setStartDate(e.target.value)}
+                  className="border-gold/20"
+                />
+              </div>
+
+              <div>
+                <label className="text-sm font-medium text-foreground mb-2 block">Data Fim</label>
+                <Input
+                  type="date"
+                  value={endDate}
+                  onChange={(e) => setEndDate(e.target.value)}
+                  className="border-gold/20"
+                />
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
         <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
           <Card className="border-gold/20">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -87,6 +233,7 @@ export default async function AdminFinanceiroPage() {
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold text-foreground">R$ {totalRevenue.toFixed(2)}</div>
+              <p className="text-xs text-muted-foreground mt-1">Período selecionado</p>
             </CardContent>
           </Card>
 
@@ -132,6 +279,68 @@ export default async function AdminFinanceiroPage() {
           </Card>
         </div>
 
+        <div className="grid md:grid-cols-2 gap-6 mb-8">
+          <Card className="border-gold/20">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 text-foreground">
+                <Award className="h-5 w-5 text-gold" />
+                Top 5 Serviços Mais Vendidos
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-3">
+                {topServices.map(([name, stats], index) => (
+                  <div key={index} className="flex items-center justify-between p-3 bg-card/50 rounded-lg">
+                    <div className="flex-1">
+                      <div className="flex items-center gap-2">
+                        <span className="flex items-center justify-center w-6 h-6 rounded-full bg-gold/20 text-gold text-xs font-bold">
+                          {index + 1}
+                        </span>
+                        <p className="font-semibold text-foreground">{name}</p>
+                      </div>
+                      <p className="text-sm text-muted-foreground mt-1">{stats.count} vendas</p>
+                    </div>
+                    <p className="text-lg font-bold text-gold">R$ {stats.revenue.toFixed(2)}</p>
+                  </div>
+                ))}
+                {topServices.length === 0 && (
+                  <p className="text-center text-muted-foreground py-4">Nenhum dado disponível</p>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="border-gold/20">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 text-foreground">
+                <Award className="h-5 w-5 text-gold" />
+                Top 5 Profissionais
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-3">
+                {topStaff.map((staff, index) => (
+                  <div key={index} className="flex items-center justify-between p-3 bg-card/50 rounded-lg">
+                    <div className="flex-1">
+                      <div className="flex items-center gap-2">
+                        <span className="flex items-center justify-center w-6 h-6 rounded-full bg-gold/20 text-gold text-xs font-bold">
+                          {index + 1}
+                        </span>
+                        <p className="font-semibold text-foreground">{staff.name}</p>
+                      </div>
+                      <p className="text-sm text-muted-foreground mt-1">{staff.count} vendas</p>
+                    </div>
+                    <p className="text-lg font-bold text-gold">R$ {staff.revenue.toFixed(2)}</p>
+                  </div>
+                ))}
+                {topStaff.length === 0 && (
+                  <p className="text-center text-muted-foreground py-4">Nenhum dado disponível</p>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+
         <Card className="border-gold/20">
           <CardHeader>
             <CardTitle className="text-foreground">Histórico de Pagamentos</CardTitle>
@@ -148,7 +357,12 @@ export default async function AdminFinanceiroPage() {
                       <h3 className="font-semibold text-foreground">
                         {payment.client?.full_name || "Cliente não identificado"}
                       </h3>
-                      <p className="text-sm text-muted-foreground">Profissional: {payment.staff?.full_name || "N/A"}</p>
+                      <p className="text-sm text-muted-foreground">
+                        Profissional: {payment.appointment?.staff?.full_name || "N/A"}
+                      </p>
+                      <p className="text-sm text-muted-foreground">
+                        Serviço: {payment.appointment?.service?.name || "N/A"}
+                      </p>
                       <p className="text-xs text-muted-foreground mt-1">
                         {format(new Date(payment.payment_date), "dd/MM/yyyy HH:mm")}
                       </p>
@@ -176,7 +390,9 @@ export default async function AdminFinanceiroPage() {
                 ))}
               </div>
             ) : (
-              <p className="text-center text-muted-foreground py-4">Nenhum pagamento registrado</p>
+              <p className="text-center text-muted-foreground py-4">
+                Nenhum pagamento registrado no período selecionado
+              </p>
             )}
           </CardContent>
         </Card>
