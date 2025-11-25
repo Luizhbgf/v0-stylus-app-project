@@ -4,11 +4,12 @@ import { useState, useEffect } from "react"
 import { createClient } from "@/lib/supabase/client"
 import { Navbar } from "@/components/navbar"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { DollarSign, TrendingUp, Calendar, Filter } from "lucide-react"
+import { DollarSign, TrendingUp, Calendar, Filter, Trash2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { useRouter } from "next/navigation"
+import { toast } from "sonner"
 
 export default function StaffFinanceiro() {
   const [profile, setProfile] = useState<any>(null)
@@ -76,6 +77,29 @@ export default function StaffFinanceiro() {
   const handleClearFilter = () => {
     setStartDate("")
     setEndDate("")
+  }
+
+  const handleDeleteCompleted = async (appointmentId: string) => {
+    if (profile.user_level < 30) {
+      toast.error("Apenas administradores podem excluir registros concluídos")
+      return
+    }
+
+    if (!confirm("Tem certeza que deseja excluir este registro? Esta ação não pode ser desfeita.")) {
+      return
+    }
+
+    try {
+      const { error } = await supabase.from("appointments").delete().eq("id", appointmentId)
+
+      if (error) throw error
+
+      toast.success("Registro excluído com sucesso")
+      loadData()
+    } catch (error) {
+      console.error("Erro ao excluir registro:", error)
+      toast.error("Erro ao excluir registro")
+    }
   }
 
   const paymentMap = new Map(payments?.map((p) => [p.appointment_id, p.payment_method]) || [])
@@ -238,6 +262,16 @@ export default function StaffFinanceiro() {
                         >
                           {earning.status === "paid" ? "Pago" : "Pendente"}
                         </span>
+                        {profile.user_level >= 30 && earning.status === "paid" && (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleDeleteCompleted(earning.id)}
+                            className="text-red-500 hover:text-red-700 hover:bg-red-500/10"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        )}
                       </div>
                     </div>
                   </CardContent>

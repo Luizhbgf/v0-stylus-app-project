@@ -3,7 +3,7 @@ import { createClient } from "@/lib/supabase/server"
 import { Navbar } from "@/components/navbar"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import { Users, Calendar, DollarSign, Mail, Phone, Filter } from "lucide-react"
+import { Users, Calendar, DollarSign, Mail, Phone, Filter, UserPlus } from "lucide-react"
 import Link from "next/link"
 import { Label } from "@/components/ui/label"
 import { Input } from "@/components/ui/input"
@@ -144,9 +144,17 @@ export default async function AdminClientesPage({
       <Navbar user={profile} />
 
       <div className="container mx-auto px-4 py-8">
-        <div className="mb-8">
-          <h1 className="text-4xl font-bold text-foreground mb-2">Todos os Clientes</h1>
-          <p className="text-muted-foreground">Gerenciar e visualizar todos os clientes do sistema</p>
+        <div className="mb-8 flex items-center justify-between">
+          <div>
+            <h1 className="text-4xl font-bold text-foreground mb-2">Todos os Clientes</h1>
+            <p className="text-muted-foreground">Gerenciar e visualizar todos os clientes do sistema</p>
+          </div>
+          <Button asChild className="bg-gold hover:bg-gold/90 text-black">
+            <Link href="/admin/clientes/criar">
+              <UserPlus className="h-4 w-4 mr-2" />
+              Criar Conta de Cliente
+            </Link>
+          </Button>
         </div>
 
         <Card className="border-gold/20 mb-6">

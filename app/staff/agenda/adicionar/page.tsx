@@ -9,9 +9,9 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Navbar } from "@/components/navbar"
-import { useRouter } from 'next/navigation'
+import { useRouter } from "next/navigation"
 import { toast } from "sonner"
-import { ArrowLeft } from 'lucide-react'
+import { ArrowLeft } from "lucide-react"
 import Link from "next/link"
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import { Textarea } from "@/components/ui/textarea"
@@ -20,6 +20,7 @@ import { Checkbox } from "@/components/ui/checkbox"
 export default function AdicionarAgendamentoStaff() {
   const [profile, setProfile] = useState<any>(null)
   const [clients, setClients] = useState<any[]>([])
+  const [subscribers, setSubscribers] = useState<any[]>([])
   const [services, setServices] = useState<any[]>([])
   const [clientName, setClientName] = useState("")
   const [selectedService, setSelectedService] = useState("")
@@ -27,10 +28,11 @@ export default function AdicionarAgendamentoStaff() {
   const [appointmentTime, setAppointmentTime] = useState("")
   const [notes, setNotes] = useState("")
 
-  const [clientType, setClientType] = useState<"registered" | "sporadic" | "none">("registered")
+  const [clientType, setClientType] = useState<"registered" | "sporadic" | "none" | "subscriber">("registered")
   const [sporadicName, setSporadicName] = useState("")
   const [sporadicPhone, setSporadicPhone] = useState("")
   const [eventTitle, setEventTitle] = useState("")
+  const [selectedSubscriber, setSelectedSubscriber] = useState("")
 
   const [isLoading, setIsLoading] = useState(false)
   const router = useRouter()
@@ -55,23 +57,38 @@ export default function AdicionarAgendamentoStaff() {
     }
 
     const { data: profileData } = await supabase.from("profiles").select("*").eq("id", user.id).single()
-    
+
     if (profileData && !profileData.is_active) {
       toast.error("Sua conta está inativa. Entre em contato com o administrador.")
       router.push("/cliente")
       return
     }
-    
-    if (profileData && profileData.staff_status === 'inactive') {
+
+    if (profileData && profileData.staff_status === "inactive") {
       toast.error("Seu status está como inativo. Entre em contato com o administrador.")
       router.push("/cliente")
       return
     }
-    
+
     setProfile(profileData)
 
     const { data: clientsData } = await supabase.from("profiles").select("*").eq("user_level", 10).order("full_name")
     setClients(clientsData || [])
+
+    const { data: subscribersData } = await supabase
+      .from("subscriptions")
+      .select(`
+        id,
+        client_id,
+        plan_id,
+        status,
+        subscription_plans(name),
+        profiles:client_id(id, full_name, email, phone)
+      `)
+      .eq("staff_id", user.id)
+      .eq("status", "active")
+
+    setSubscribers(subscribersData || [])
 
     const { data: staffServicesData } = await supabase
       .from("staff_services")
@@ -93,22 +110,29 @@ export default function AdicionarAgendamentoStaff() {
       if (!user) throw new Error("Usuário não autenticado")
 
       let selectedClientId = null
-      if (clientType === "registered") {
+
+      if (clientType === "subscriber") {
+        if (!selectedSubscriber) {
+          toast.error("Selecione um assinante")
+          setIsLoading(false)
+          return
+        }
+        const subscriber = subscribers.find((s) => s.id === selectedSubscriber)
+        if (subscriber) {
+          selectedClientId = subscriber.client_id
+        }
+      } else if (clientType === "registered") {
         if (!clientName.trim()) {
           toast.error("Digite ou selecione um cliente")
           setIsLoading(false)
           return
         }
-        
-        // Tentar encontrar o cliente pelo nome/email
-        const client = clients.find(
-          c => c.full_name === clientName || c.email === clientName || c.id === clientName
-        )
-        
+
+        const client = clients.find((c) => c.full_name === clientName || c.email === clientName || c.id === clientName)
+
         if (client) {
           selectedClientId = client.id
         } else {
-          // Se não encontrou, trata como cliente esporádico
           toast.error("Cliente não encontrado. Use 'Cliente Esporádico' para novos clientes.")
           setIsLoading(false)
           return
@@ -287,6 +311,12 @@ export default function AdicionarAgendamentoStaff() {
                     </Label>
                   </div>
                   <div className="flex items-center space-x-2 p-3 border border-gold/20 rounded-lg">
+                    <RadioGroupItem value="subscriber" id="subscriber" />
+                    <Label htmlFor="subscriber" className="cursor-pointer flex-1">
+                      Assinante Mensal
+                    </Label>
+                  </div>
+                  <div className="flex items-center space-x-2 p-3 border border-gold/20 rounded-lg">
                     <RadioGroupItem value="sporadic" id="sporadic" />
                     <Label htmlFor="sporadic" className="cursor-pointer flex-1">
                       Cliente Esporádico (sem cadastro)
@@ -320,6 +350,27 @@ export default function AdicionarAgendamentoStaff() {
                       </option>
                     ))}
                   </datalist>
+                </div>
+              )}
+
+              {clientType === "subscriber" && (
+                <div className="space-y-2">
+                  <Label htmlFor="subscriber">Assinante *</Label>
+                  <Select value={selectedSubscriber} onValueChange={setSelectedSubscriber} required>
+                    <SelectTrigger className="border-gold/20">
+                      <SelectValue placeholder="Selecione um assinante" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {subscribers.map((sub: any) => (
+                        <SelectItem key={sub.id} value={sub.id}>
+                          {sub.profiles?.full_name} - {sub.subscription_plans?.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  {subscribers.length === 0 && (
+                    <p className="text-sm text-muted-foreground">Nenhum assinante ativo encontrado</p>
+                  )}
                 </div>
               )}
 
