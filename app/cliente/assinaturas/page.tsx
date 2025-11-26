@@ -202,7 +202,7 @@ export default async function AssinaturasPage() {
                         {hasSubscription ? (
                           <span>Plano Ativo</span>
                         ) : (
-                          <Link href={`/cliente/assinaturas/${plan.id}/assinar`}>Clique aqui</Link>
+                          <Link href={`/cliente/assinaturas/plano/${plan.id}/assinar`}>Clique aqui</Link>
                         )}
                       </Button>
                     </CardContent>

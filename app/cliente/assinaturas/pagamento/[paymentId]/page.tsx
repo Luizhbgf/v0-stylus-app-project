@@ -44,7 +44,8 @@ export default function PagarAssinatura({ params }: { params: { paymentId: strin
         *,
         subscription:subscriptions(
           *,
-          plan:subscription_plans(name, description)
+          plan:subscription_plans(name, description),
+          staff:staff_id(full_name, pix_key, phone)
         )
       `,
       )
@@ -60,7 +61,6 @@ export default function PagarAssinatura({ params }: { params: { paymentId: strin
     setPayment(paymentData)
     setSubscription(paymentData.subscription)
 
-    // Generate PIX code if not exists
     if (!paymentData.pix_copy_paste) {
       await generatePixCode(paymentData)
     } else {
@@ -69,13 +69,12 @@ export default function PagarAssinatura({ params }: { params: { paymentId: strin
   }
 
   const generatePixCode = async (paymentData: any) => {
-    // Generate a simple PIX code (in production, integrate with payment gateway)
-    const pixKey = "pix@styllus.com.br" // Replace with actual PIX key from env
+    const staffPixKey = paymentData.subscription?.staff?.pix_key || "pix@styllus.com.br"
     const amount = Number(paymentData.amount).toFixed(2)
     const txid = `SUB${paymentData.subscription_id.slice(0, 8).toUpperCase()}${Date.now()}`
 
     // Simplified PIX format (in production, use proper PIX payload format)
-    const pixCopyPaste = `${pixKey}|${amount}|${txid}|Assinatura Styllus`
+    const pixCopyPaste = `${staffPixKey}|${amount}|${txid}|Assinatura Styllus - ${paymentData.subscription?.staff?.full_name}`
 
     setPixCode(pixCopyPaste)
 
@@ -85,7 +84,7 @@ export default function PagarAssinatura({ params }: { params: { paymentId: strin
       .update({
         pix_copy_paste: pixCopyPaste,
         pix_txid: txid,
-        pix_key: pixKey,
+        pix_key: staffPixKey,
       })
       .eq("id", params.paymentId)
   }
@@ -200,6 +199,15 @@ export default function PagarAssinatura({ params }: { params: { paymentId: strin
                   <li>Cole o código e confirme o pagamento</li>
                   <li>Após pagar, clique em "Confirmei o Pagamento"</li>
                 </ol>
+                {subscription?.staff && (
+                  <div className="p-3 bg-primary/10 rounded-lg border border-primary/20">
+                    <p className="text-sm font-medium text-foreground mb-1">Pagamento para:</p>
+                    <p className="text-sm text-foreground">{subscription.staff.full_name}</p>
+                    {subscription.staff.pix_key && (
+                      <p className="text-xs text-muted-foreground mt-1">Chave PIX: {subscription.staff.pix_key}</p>
+                    )}
+                  </div>
+                )}
               </div>
 
               <div className="space-y-3">

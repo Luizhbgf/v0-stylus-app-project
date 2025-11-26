@@ -78,11 +78,11 @@ export default function AssinarPlano({ params }: { params: { planId: string } })
         .select("*")
         .eq("plan_id", params.planId)
         .eq("client_id", user.id)
-        .eq("status", "active")
+        .in("status", ["active", "pending"])
         .single()
 
       if (existing) {
-        toast.error("Você já possui uma assinatura ativa para este plano")
+        toast.error("Você já possui uma assinatura ativa ou pendente para este plano")
         router.push("/cliente/assinaturas")
         return
       }
@@ -99,14 +99,13 @@ export default function AssinarPlano({ params }: { params: { planId: string } })
         nextBilling.setMonth(nextBilling.getMonth() + 1)
       }
 
-      // Create subscription
       const { data: subscription, error: subscriptionError } = await supabase
         .from("subscriptions")
         .insert({
           plan_id: params.planId,
           client_id: user.id,
           staff_id: plan.staff_id,
-          status: "active",
+          status: "pending", // Changed from "active" to "pending"
           start_date: startDate.toISOString(),
           next_billing_date: nextBilling.toISOString(),
           price: plan.price,
@@ -135,7 +134,7 @@ export default function AssinarPlano({ params }: { params: { planId: string } })
 
       if (paymentError) throw paymentError
 
-      toast.success("Assinatura criada com sucesso!")
+      toast.success("Assinatura criada! Complete o pagamento para ativar.")
       router.push(`/cliente/assinaturas/pagar/${payment.id}`)
     } catch (error: any) {
       toast.error(error.message || "Erro ao criar assinatura")
