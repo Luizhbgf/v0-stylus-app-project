@@ -66,7 +66,7 @@ export default function AdminFinanceiroPage() {
   }, [profile, selectedStaff, startDate, endDate])
 
   async function loadPayments() {
-    const appointmentsQuery = supabase
+    let query = supabase
       .from("appointments")
       .select(
         `
@@ -77,30 +77,33 @@ export default function AdminFinanceiroPage() {
       `,
       )
       .eq("status", "completed")
-      .gte("date", startDate)
-      .lte("date", endDate + "T23:59:59")
-      .order("date", { ascending: false })
+      .gte("appointment_date", startDate)
+      .lte("appointment_date", endDate + "T23:59:59")
+      .order("appointment_date", { ascending: false })
 
-    const { data: appointmentsData } = await appointmentsQuery
-
-    let filteredData = appointmentsData || []
     if (selectedStaff !== "all") {
-      filteredData = filteredData.filter((a) => a.staff_id === selectedStaff)
+      query = query.eq("staff_id", selectedStaff)
     }
 
-    const paymentsData = filteredData.map((apt) => ({
-      id: apt.id,
-      amount: apt.custom_price || apt.service?.price || 0,
-      payment_date: apt.date,
-      payment_method: apt.payment_method || "Não especificado",
-      status: "completed",
-      client: apt.client,
-      appointment: {
-        service: apt.service,
-        staff: apt.staff,
-      },
-    }))
+    const { data: appointmentsData } = await query
 
+    console.log("[v0] Appointments data:", appointmentsData)
+
+    const paymentsData =
+      appointmentsData?.map((apt) => ({
+        id: apt.id,
+        amount: apt.custom_price || apt.service?.price || 0,
+        payment_date: apt.appointment_date,
+        payment_method: apt.payment_method || "Não especificado",
+        status: "completed",
+        client: apt.client,
+        appointment: {
+          service: apt.service,
+          staff: apt.staff,
+        },
+      })) || []
+
+    console.log("[v0] Payments processed:", paymentsData.length)
     setPayments(paymentsData)
   }
 
@@ -291,9 +294,11 @@ export default function AdminFinanceiroPage() {
           </Card>
 
           <Card className="border-gold/20">
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Pagamentos Pendentes</CardTitle>
-              <DollarSign className="h-4 w-4 text-yellow-500" />
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 text-foreground">
+                <Award className="h-5 w-5 text-gold" />
+                Pagamentos Pendentes
+              </CardTitle>
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold text-foreground">R$ {pendingRevenue.toFixed(2)}</div>

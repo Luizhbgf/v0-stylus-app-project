@@ -132,6 +132,16 @@ export default function AdminAgendaPage() {
           <p className="text-muted-foreground">Visualize todos os agendamentos de todos os profissionais</p>
         </div>
 
+        <div className="mb-6">
+          <Button
+            onClick={() => router.push("/admin/agenda/adicionar")}
+            className="bg-gold hover:bg-gold/90 text-white"
+          >
+            <Calendar className="h-4 w-4 mr-2" />
+            Adicionar Agendamento
+          </Button>
+        </div>
+
         <Card className="border-gold/20 mb-6">
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-foreground">
