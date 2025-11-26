@@ -4,8 +4,8 @@ import { useState, useEffect } from "react"
 import { createClient as createClientClient } from "@/lib/supabase/client"
 import { useRouter } from "next/navigation"
 import { Navbar } from "@/components/navbar"
-import { Card, CardContent } from "@/components/ui/card"
-import { Plus, ChevronLeft, ChevronRight } from "lucide-react"
+import { Card } from "@/components/ui/card"
+import { Plus, ChevronLeft, ChevronRight, CalendarDays } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import Link from "next/link"
 import {
@@ -17,12 +17,13 @@ import {
   isSameDay,
   parseISO,
   differenceInMinutes,
+  isToday,
 } from "date-fns"
 import { ptBR } from "date-fns/locale"
 
-const TIME_SLOTS = Array.from({ length: 13 }, (_, i) => {
-  const hour = i + 8
-  return `${hour.toString().padStart(2, "0")}:00`
+const TIME_SLOTS = Array.from({ length: 16 }, (_, i) => {
+  const hour = i + 6
+  return hour
 })
 
 export default function StaffAgenda() {
@@ -30,7 +31,7 @@ export default function StaffAgenda() {
   const [appointments, setAppointments] = useState<any[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [currentDate, setCurrentDate] = useState(new Date())
-  const [viewMode, setViewMode] = useState<"week" | "day">("week")
+  const [viewMode, setViewMode] = useState<"day" | "week">("week")
 
   const router = useRouter()
   const supabase = createClientClient()
@@ -61,6 +62,27 @@ export default function StaffAgenda() {
     const durationMinutes = differenceInMinutes(endTime, startTime) || appointment.service?.duration || 60
     // 1 minuto = ~1.2px, mínimo 48px
     return Math.max(48, durationMinutes * 1.2)
+  }
+
+  const getEventStyle = (appointment: any) => {
+    const aptDate = parseISO(appointment.appointment_date)
+    const hours = aptDate.getHours()
+    const minutes = aptDate.getMinutes()
+
+    const startTime = parseISO(appointment.appointment_date)
+    const endTime = parseISO(appointment.end_time || appointment.appointment_date)
+    const durationMinutes = differenceInMinutes(endTime, startTime) || appointment.service?.duration || 60
+
+    // Posição top baseada na hora e minuto exato (cada hora = 80px)
+    const topPosition = (hours - 6) * 80 + (minutes / 60) * 80
+
+    // Altura proporcional à duração (1 minuto = 1.33px)
+    const height = Math.max(32, (durationMinutes / 60) * 80)
+
+    return {
+      top: `${topPosition}px`,
+      height: `${height}px`,
+    }
   }
 
   const formatDuration = (appointment: any) => {
@@ -175,45 +197,54 @@ export default function StaffAgenda() {
     <div className="min-h-screen bg-background">
       <Navbar user={profile} />
 
-      <div className="container mx-auto px-4 py-8">
-        <div className="mb-8 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+      <div className="container mx-auto px-4 py-6 max-w-7xl">
+        {/* Header estilo iPhone */}
+        <div className="mb-6 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
           <div>
-            <h1 className="text-3xl sm:text-4xl font-bold text-foreground mb-2">Minha Agenda</h1>
-            <p className="text-muted-foreground">Visualize seus agendamentos em formato de calendário</p>
+            <h1 className="text-3xl sm:text-4xl font-bold tracking-tight mb-1">
+              {format(currentDate, "MMMM yyyy", { locale: ptBR })}
+            </h1>
+            <p className="text-muted-foreground text-sm">Sua agenda de atendimentos</p>
           </div>
           <Link href="/staff/agenda/adicionar">
-            <Button className="bg-gold hover:bg-gold/90 text-black w-full sm:w-auto">
-              <Plus className="mr-2 h-4 w-4" />
-              Adicionar
+            <Button size="lg" className="bg-gold hover:bg-gold/90 text-black font-semibold rounded-full shadow-lg">
+              <Plus className="mr-2 h-5 w-5" />
+              Novo
             </Button>
           </Link>
         </div>
 
-        <div className="flex flex-wrap items-center gap-4 mb-6">
-          <div className="flex items-center gap-2">
-            <Button variant="outline" size="icon" onClick={goToPrevious}>
-              <ChevronLeft className="h-4 w-4" />
+        {/* Controles de navegação estilo iPhone */}
+        <div className="mb-6 flex flex-wrap items-center gap-3">
+          <div className="flex items-center bg-card border border-border rounded-full overflow-hidden">
+            <Button variant="ghost" size="icon" onClick={goToPrevious} className="rounded-none hover:bg-accent">
+              <ChevronLeft className="h-5 w-5" />
             </Button>
-            <Button variant="outline" onClick={goToToday}>
+            <Button
+              variant="ghost"
+              onClick={goToToday}
+              className="px-4 rounded-none hover:bg-accent font-medium border-x border-border"
+            >
+              <CalendarDays className="h-4 w-4 mr-2" />
               Hoje
             </Button>
-            <Button variant="outline" size="icon" onClick={goToNext}>
-              <ChevronRight className="h-4 w-4" />
+            <Button variant="ghost" size="icon" onClick={goToNext} className="rounded-none hover:bg-accent">
+              <ChevronRight className="h-5 w-5" />
             </Button>
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex items-center bg-card border border-border rounded-full overflow-hidden">
             <Button
-              variant={viewMode === "day" ? "default" : "outline"}
+              variant="ghost"
               onClick={() => setViewMode("day")}
-              className={viewMode === "day" ? "bg-gold hover:bg-gold/90 text-black" : ""}
+              className={`px-6 rounded-none ${viewMode === "day" ? "bg-gold text-black font-semibold" : "hover:bg-accent"}`}
             >
               Dia
             </Button>
             <Button
-              variant={viewMode === "week" ? "default" : "outline"}
+              variant="ghost"
               onClick={() => setViewMode("week")}
-              className={viewMode === "week" ? "bg-gold hover:bg-gold/90 text-black" : ""}
+              className={`px-6 rounded-none border-l border-border ${viewMode === "week" ? "bg-gold text-black font-semibold" : "hover:bg-accent"}`}
             >
               Semana
             </Button>
@@ -221,190 +252,131 @@ export default function StaffAgenda() {
         </div>
 
         {isLoading ? (
-          <div className="text-center py-12">
+          <div className="text-center py-20">
             <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-gold mx-auto mb-4"></div>
-            <p className="text-muted-foreground">Carregando...</p>
+            <p className="text-muted-foreground">Carregando agenda...</p>
           </div>
         ) : (
-          <>
-            {/* Mobile View - Lista */}
-            <div className="md:hidden space-y-4">
-              {daysToDisplay.map((day) => {
-                const dayAppointments = appointments.filter((apt) => isSameDay(parseISO(apt.appointment_date), day))
-
-                return (
-                  <Card key={day.toISOString()} className="border-gold/20">
-                    <CardContent className="p-4">
-                      <div className="mb-4 pb-3 border-b border-border">
-                        <div className="text-sm font-semibold text-muted-foreground">
-                          {format(day, "EEEE", { locale: ptBR })}
+          <Card className="border-border shadow-lg overflow-hidden">
+            <div className="overflow-x-auto">
+              <div className={viewMode === "week" ? "min-w-[900px]" : "min-w-[400px]"}>
+                {/* Header com dias da semana estilo iPhone */}
+                <div
+                  className="grid border-b border-border bg-card/50 backdrop-blur sticky top-0 z-20"
+                  style={{
+                    gridTemplateColumns: viewMode === "week" ? `70px repeat(7, 1fr)` : `70px 1fr`,
+                  }}
+                >
+                  <div className="p-4"></div>
+                  {daysToDisplay.map((day) => {
+                    const today = isToday(day)
+                    return (
+                      <div key={day.toISOString()} className="p-4 text-center border-l border-border">
+                        <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+                          {format(day, "EEE", { locale: ptBR })}
                         </div>
-                        <div className={`text-2xl font-bold ${isSameDay(day, new Date()) ? "text-gold" : ""}`}>
-                          {format(day, "dd 'de' MMMM", { locale: ptBR })}
+                        <div
+                          className={`mt-1 inline-flex items-center justify-center w-10 h-10 rounded-full font-bold text-lg ${
+                            today ? "bg-gold text-black" : "text-foreground"
+                          }`}
+                        >
+                          {format(day, "dd")}
                         </div>
                       </div>
+                    )
+                  })}
+                </div>
 
-                      {dayAppointments.length === 0 ? (
-                        <p className="text-muted-foreground text-center py-6">Nenhum agendamento</p>
-                      ) : (
-                        <div className="space-y-3">
-                          {dayAppointments
-                            .sort(
-                              (a, b) => parseISO(a.appointment_date).getTime() - parseISO(b.appointment_date).getTime(),
-                            )
-                            .map((apt) => {
-                              const isSubscriber = apt.client?.subscriptions?.[0]?.status === "active"
-                              const duration = formatDuration(apt)
-                              const aptDate = parseISO(apt.appointment_date)
-
-                              return (
-                                <Link key={apt.id} href={`/staff/agenda/${apt.id}`}>
-                                  <div
-                                    className={`p-4 rounded-lg border-2 ${
-                                      isSubscriber
-                                        ? "bg-green-500/10 border-green-500/40 hover:bg-green-500/20"
-                                        : "bg-gold/10 border-gold/40 hover:bg-gold/20"
-                                    } transition-colors`}
-                                  >
-                                    <div className="flex items-start justify-between mb-2">
-                                      <div className="flex-1">
-                                        <div className="font-bold text-lg mb-1">{apt.service?.name}</div>
-                                        <div className="text-base text-muted-foreground">
-                                          {apt.client_type === "sporadic"
-                                            ? apt.sporadic_client_name
-                                            : apt.client?.full_name}
-                                        </div>
-                                      </div>
-                                      {isSubscriber && (
-                                        <div className="px-2 py-1 bg-green-500/20 text-green-700 dark:text-green-300 rounded text-xs font-semibold">
-                                          Assinante
-                                        </div>
-                                      )}
-                                    </div>
-                                    <div className="flex items-center gap-4 text-sm text-muted-foreground">
-                                      <div className="flex items-center gap-1 font-medium">
-                                        🕐 {format(aptDate, "HH:mm")}
-                                      </div>
-                                      <div className="flex items-center gap-1 font-medium">⏱ {duration}</div>
-                                    </div>
-                                  </div>
-                                </Link>
-                              )
-                            })}
-                        </div>
-                      )}
-                    </CardContent>
-                  </Card>
-                )
-              })}
-            </div>
-
-            {/* Desktop View - Grade de Calendário */}
-            <Card className="border-gold/20 hidden md:block">
-              <CardContent className="p-0">
-                <div className="overflow-x-auto">
-                  <div className="min-w-[800px]">
-                    {/* Header with dates */}
-                    <div
-                      className="grid gap-px bg-border sticky top-0 z-10"
-                      style={{ gridTemplateColumns: `80px repeat(${daysToDisplay.length}, 1fr)` }}
-                    >
-                      <div className="bg-card p-4 font-semibold text-sm">Hora</div>
-                      {daysToDisplay.map((day) => (
-                        <div key={day.toISOString()} className="bg-card p-4 text-center">
-                          <div className="text-sm font-semibold">{format(day, "EEE", { locale: ptBR })}</div>
-                          <div className={`text-2xl font-bold ${isSameDay(day, new Date()) ? "text-gold" : ""}`}>
-                            {format(day, "dd")}
-                          </div>
-                          <div className="text-xs text-muted-foreground">{format(day, "MMM", { locale: ptBR })}</div>
+                {/* Grid de horários com eventos estilo iPhone Calendar */}
+                <div className="relative">
+                  <div
+                    className="grid"
+                    style={{
+                      gridTemplateColumns: viewMode === "week" ? `70px repeat(7, 1fr)` : `70px 1fr`,
+                    }}
+                  >
+                    {/* Coluna de horários */}
+                    <div className="relative">
+                      {TIME_SLOTS.map((hour) => (
+                        <div key={hour} className="h-20 relative border-t border-border">
+                          <span className="absolute -top-3 right-3 text-xs font-medium text-muted-foreground">
+                            {hour.toString().padStart(2, "0")}:00
+                          </span>
                         </div>
                       ))}
                     </div>
 
-                    {/* Time slots */}
-                    <div className="relative">
-                      {TIME_SLOTS.map((timeSlot, index) => (
-                        <div
-                          key={timeSlot}
-                          className="grid gap-px bg-border relative"
-                          style={{
-                            gridTemplateColumns: `80px repeat(${daysToDisplay.length}, 1fr)`,
-                            minHeight: "80px",
-                          }}
-                        >
-                          <div className="bg-card p-3 text-sm font-medium text-muted-foreground sticky left-0">
-                            {timeSlot}
-                          </div>
-                          {daysToDisplay.map((day) => {
-                            const slotAppointments = getAppointmentsForSlot(day, timeSlot)
-                            const isAvailable = slotAppointments.length === 0
+                    {/* Colunas de dias com eventos */}
+                    {daysToDisplay.map((day, dayIndex) => {
+                      const dayAppointments = appointments.filter((apt) =>
+                        isSameDay(parseISO(apt.appointment_date), day),
+                      )
+
+                      return (
+                        <div key={day.toISOString()} className="relative border-l border-border">
+                          {/* Linhas de hora */}
+                          {TIME_SLOTS.map((hour) => (
+                            <div key={`${day.toISOString()}-${hour}`} className="h-20 border-t border-border"></div>
+                          ))}
+
+                          {/* Eventos sobrepostos estilo iPhone */}
+                          {dayAppointments.map((apt, index) => {
+                            const isSubscriber = apt.client?.subscriptions?.[0]?.status === "active"
+                            const style = getEventStyle(apt)
+                            const aptDate = parseISO(apt.appointment_date)
 
                             return (
-                              <div
-                                key={`${day.toISOString()}-${timeSlot}`}
-                                className={`bg-card p-2 transition-colors relative ${
-                                  isAvailable ? "hover:bg-accent cursor-pointer" : ""
-                                }`}
-                              >
-                                {slotAppointments.map((apt) => {
-                                  const isSubscriber = apt.client?.subscriptions?.[0]?.status === "active"
-                                  const height = getAppointmentHeight(apt)
-                                  const duration = formatDuration(apt)
-
-                                  return (
-                                    <Link key={apt.id} href={`/staff/agenda/${apt.id}`}>
-                                      <div
-                                        className={`group relative rounded p-2 mb-1 text-xs border overflow-hidden ${
-                                          isSubscriber
-                                            ? "bg-green-500/20 border-green-500/40"
-                                            : "bg-gold/20 border-gold/40"
-                                        }`}
-                                        style={{ minHeight: `${height}px` }}
-                                      >
-                                        <div className="font-semibold truncate">{apt.service?.name}</div>
-                                        <div className="text-muted-foreground truncate text-[11px]">
-                                          {apt.client_type === "sporadic"
-                                            ? apt.sporadic_client_name
-                                            : apt.client?.full_name}
-                                        </div>
-                                        <div className="text-muted-foreground/80 text-[10px] mt-1 font-medium">
-                                          ⏱ {duration}
-                                        </div>
-                                        <div className="text-muted-foreground/70 text-[10px]">
-                                          {format(parseISO(apt.appointment_date), "HH:mm")}
-                                        </div>
-                                      </div>
-                                    </Link>
-                                  )
-                                })}
-                              </div>
+                              <Link key={apt.id} href={`/staff/agenda/${apt.id}`}>
+                                <div
+                                  className={`absolute left-1 right-1 rounded-lg overflow-hidden shadow-md transition-all hover:shadow-xl hover:scale-[1.02] cursor-pointer ${
+                                    isSubscriber
+                                      ? "bg-gradient-to-br from-emerald-500 to-emerald-600"
+                                      : "bg-gradient-to-br from-amber-500 to-amber-600"
+                                  }`}
+                                  style={{
+                                    top: style.top,
+                                    height: style.height,
+                                    zIndex: 10,
+                                  }}
+                                >
+                                  <div className="p-2 h-full flex flex-col text-white">
+                                    <div className="font-semibold text-sm leading-tight mb-0.5 line-clamp-1">
+                                      {apt.service?.name}
+                                    </div>
+                                    <div className="text-xs opacity-90 line-clamp-1">
+                                      {apt.client_type === "sporadic"
+                                        ? apt.sporadic_client_name
+                                        : apt.client?.full_name}
+                                    </div>
+                                    <div className="mt-auto text-xs font-medium opacity-95">
+                                      {format(aptDate, "HH:mm")} · {formatDuration(apt)}
+                                    </div>
+                                  </div>
+                                </div>
+                              </Link>
                             )
                           })}
                         </div>
-                      ))}
-                    </div>
+                      )
+                    })}
                   </div>
                 </div>
-              </CardContent>
-            </Card>
-
-            {/* Legend */}
-            <div className="mt-4 flex flex-wrap gap-4 text-sm">
-              <div className="flex items-center gap-2">
-                <div className="w-4 h-4 bg-green-500/20 border border-green-500/40 rounded"></div>
-                <span>Assinante</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <div className="w-4 h-4 bg-gold/20 border border-gold/40 rounded"></div>
-                <span>Cliente Regular</span>
-              </div>
-              <div className="flex items-center gap-2 hidden md:flex">
-                <div className="w-4 h-4 bg-card border border-border rounded"></div>
-                <span>Horário Disponível</span>
               </div>
             </div>
-          </>
+          </Card>
         )}
+
+        {/* Legenda estilo iPhone */}
+        <div className="mt-6 flex flex-wrap gap-4">
+          <div className="flex items-center gap-2 px-4 py-2 bg-card border border-border rounded-full">
+            <div className="w-3 h-3 bg-gradient-to-br from-emerald-500 to-emerald-600 rounded-full"></div>
+            <span className="text-sm font-medium">Assinante</span>
+          </div>
+          <div className="flex items-center gap-2 px-4 py-2 bg-card border border-border rounded-full">
+            <div className="w-3 h-3 bg-gradient-to-br from-amber-500 to-amber-600 rounded-full"></div>
+            <span className="text-sm font-medium">Cliente Regular</span>
+          </div>
+        </div>
       </div>
     </div>
   )
