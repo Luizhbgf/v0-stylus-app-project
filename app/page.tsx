@@ -1,6 +1,6 @@
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
-import { Calendar, Sparkles, Star, ArrowRight, Shield, Award } from "lucide-react"
+import { Calendar, Sparkles, Star, ArrowRight, Shield, Award, MessageCircle } from "lucide-react"
 import Image from "next/image"
 import Link from "next/link"
 import { Navbar } from "@/components/navbar"
@@ -64,6 +64,14 @@ export default async function HomePage() {
     const { data } = await supabase.from("subscription_plans").select("*").in("id", homepageSettings.featured_plans)
     featuredPlans = data || []
   }
+
+  const { data: staffMembers } = await supabase
+    .from("profiles")
+    .select("*")
+    .gte("user_level", 20)
+    .lte("user_level", 29)
+    .eq("is_active", true)
+    .order("full_name")
 
   const settings = homepageSettings || {
     hero_title: "Sua Beleza, Nossa Paixão",
@@ -227,6 +235,120 @@ export default async function HomePage() {
                   <ArrowRight className="ml-2 h-5 w-5" />
                 </Button>
               </Link>
+            </div>
+          </div>
+        </section>
+      )}
+
+      {staffMembers && staffMembers.length > 0 && (
+        <section className="py-24 bg-background">
+          <div className="container mx-auto px-4">
+            <div className="text-center mb-20">
+              <div className="inline-block px-4 py-2 rounded-full bg-primary/10 text-primary text-sm font-semibold mb-4">
+                NOSSA EQUIPE
+              </div>
+              <h2 className="font-serif text-5xl md:text-6xl font-bold text-foreground mb-6">
+                Conheça Nossos Profissionais
+              </h2>
+              <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
+                Especialistas qualificados prontos para cuidar de você
+              </p>
+            </div>
+
+            <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8 max-w-7xl mx-auto">
+              {staffMembers.map((staff) => {
+                const qualifications = staff.qualifications || []
+                const portfolioImages = staff.portfolio_images || []
+                const whatsappNumber = staff.whatsapp_number || staff.phone
+
+                return (
+                  <Card
+                    key={staff.id}
+                    className="border-primary/10 overflow-hidden hover:shadow-2xl hover:shadow-primary/10 transition-all duration-300 group"
+                  >
+                    <div className="relative h-64 bg-gradient-to-br from-primary/20 to-primary/5">
+                      {staff.avatar_url ? (
+                        <Image
+                          src={staff.avatar_url || "/placeholder.svg"}
+                          alt={staff.full_name || "Profissional"}
+                          fill
+                          className="object-cover"
+                        />
+                      ) : (
+                        <div className="absolute inset-0 flex items-center justify-center">
+                          <div className="w-32 h-32 rounded-full bg-primary/10 flex items-center justify-center text-primary text-4xl font-bold">
+                            {staff.full_name?.charAt(0) || "?"}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+
+                    <div className="p-6 space-y-4">
+                      <div>
+                        <h3 className="text-2xl font-bold text-foreground mb-1">{staff.full_name || "Profissional"}</h3>
+                        {staff.specialties && staff.specialties.length > 0 && (
+                          <p className="text-sm text-primary font-medium">{staff.specialties.join(" • ")}</p>
+                        )}
+                      </div>
+
+                      {staff.bio && (
+                        <p className="text-sm text-muted-foreground leading-relaxed line-clamp-3">{staff.bio}</p>
+                      )}
+
+                      {qualifications.length > 0 && (
+                        <div>
+                          <p className="text-sm font-semibold text-foreground mb-2">Qualificações:</p>
+                          <ul className="space-y-1">
+                            {qualifications.slice(0, 3).map((qual: any, idx: number) => (
+                              <li key={idx} className="flex items-center gap-2 text-sm text-muted-foreground">
+                                <Award className="h-4 w-4 text-primary flex-shrink-0" />
+                                <span className="line-clamp-1">{qual.title || qual}</span>
+                              </li>
+                            ))}
+                          </ul>
+                          {qualifications.length > 3 && (
+                            <p className="text-xs text-muted-foreground mt-1">+{qualifications.length - 3} mais</p>
+                          )}
+                        </div>
+                      )}
+
+                      {portfolioImages.length > 0 && (
+                        <div>
+                          <p className="text-sm font-semibold text-foreground mb-2">Portfólio:</p>
+                          <div className="grid grid-cols-3 gap-2">
+                            {portfolioImages.slice(0, 3).map((img: string, idx: number) => (
+                              <div key={idx} className="relative h-20 rounded-lg overflow-hidden bg-muted">
+                                <Image
+                                  src={img || "/placeholder.svg"}
+                                  alt={`Portfolio ${idx + 1}`}
+                                  fill
+                                  className="object-cover"
+                                />
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
+                      {whatsappNumber && (
+                        <Button
+                          asChild
+                          className="w-full bg-green-600 hover:bg-green-700 text-white group-hover:scale-105 transition-transform"
+                        >
+                          <a
+                            href={`https://wa.me/${whatsappNumber.replace(/\D/g, "")}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                          >
+                            <MessageCircle className="h-4 w-4 mr-2" />
+                            Conversar no WhatsApp
+                          </a>
+                        </Button>
+                      )}
+                    </div>
+                  </Card>
+                )
+              })}
             </div>
           </div>
         </section>

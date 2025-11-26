@@ -4,6 +4,8 @@ import { Navbar } from "@/components/navbar"
 import { Card, CardContent } from "@/components/ui/card"
 import { BookOpen, Clock } from "lucide-react"
 import { Button } from "@/components/ui/button"
+import Link from "next/link"
+import { Plus } from "lucide-react"
 
 export default async function StaffCursos() {
   const supabase = await createClient()
@@ -32,15 +34,60 @@ export default async function StaffCursos() {
     )
     .eq("staff_id", user.id)
 
+  const { data: myCourses } = await supabase
+    .from("courses")
+    .select("*, course_modules(count)")
+    .eq("instructor", user.id)
+    .order("created_at", { ascending: false })
+
   return (
     <div className="min-h-screen bg-background">
       <Navbar user={profile} />
 
       <div className="container mx-auto px-4 py-8">
-        <div className="mb-8">
-          <h1 className="text-4xl font-bold text-foreground mb-2">Cursos e Treinamentos</h1>
-          <p className="text-muted-foreground">Aprimore suas habilidades profissionais</p>
+        <div className="mb-8 flex items-center justify-between">
+          <div>
+            <h1 className="text-4xl font-bold text-foreground mb-2">Cursos e Treinamentos</h1>
+            <p className="text-muted-foreground">Aprimore suas habilidades profissionais</p>
+          </div>
+          <Button asChild className="bg-primary hover:bg-primary/90 text-black">
+            <Link href="/staff/cursos/criar">
+              <Plus className="h-4 w-4 mr-2" />
+              Criar Curso
+            </Link>
+          </Button>
         </div>
+
+        {myCourses && myCourses.length > 0 && (
+          <div className="mb-8">
+            <h2 className="text-2xl font-bold text-foreground mb-4">Meus Cursos Criados</h2>
+            <div className="grid md:grid-cols-2 gap-4">
+              {myCourses.map((course) => (
+                <Card key={course.id} className="border-gold/20">
+                  <CardContent className="p-6">
+                    <h3 className="text-lg font-semibold text-foreground mb-2">{course.title}</h3>
+                    <p className="text-sm text-muted-foreground mb-4 line-clamp-2">{course.description}</p>
+                    <div className="flex items-center justify-between mb-4">
+                      <span className="text-sm text-muted-foreground flex items-center gap-1">
+                        <Clock className="h-4 w-4" />
+                        {course.duration}h
+                      </span>
+                      <span className="text-sm text-muted-foreground">
+                        {course.course_modules?.[0]?.count || 0} módulos
+                      </span>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span className="text-lg font-bold text-gold">R$ {Number(course.price).toFixed(2)}</span>
+                      <Button asChild size="sm" className="bg-gold hover:bg-gold/90 text-black">
+                        <Link href={`/staff/cursos/${course.id}/editar`}>Editar</Link>
+                      </Button>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          </div>
+        )}
 
         {enrollments && enrollments.length > 0 && (
           <div className="mb-8">

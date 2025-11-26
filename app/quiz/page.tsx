@@ -1,20 +1,19 @@
 "use client"
 
 import { Calendar } from "@/components/ui/calendar"
-
-import { useState, useEffect } from "react"
+import { ThemeToggle } from "@/components/theme-toggle"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import { Label } from "@/components/ui/label"
-import { ArrowLeft, ArrowRight, Sparkles, Clock, MessageCircle, Star, Award, CheckCircle } from "lucide-react"
-import Link from "next/link"
-import Image from "next/image"
-import { ThemeToggle } from "@/components/theme-toggle"
-import { createClient } from "@/lib/supabase/client"
 import { useRouter } from "next/navigation"
-import { toast } from "sonner"
+import { createClient } from "@/lib/supabase/client"
 import { motion, AnimatePresence } from "framer-motion"
+import { Sparkles, Star, ArrowLeft, ArrowRight, Clock, Award, MessageCircle, CheckCircle } from "lucide-react"
+import Image from "next/image"
+import Link from "next/link"
+import { toast } from "sonner"
+import { useState, useEffect } from "react"
 
 export default function QuizPage() {
   const [currentQuestion, setCurrentQuestion] = useState(0)
@@ -22,6 +21,8 @@ export default function QuizPage() {
   const [questions, setQuestions] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [result, setResult] = useState<any>(null)
+  const [aiMessage, setAiMessage] = useState<string>("")
+  const [loadingAiMessage, setLoadingAiMessage] = useState(false)
   const [user, setUser] = useState<any>(null)
   const [direction, setDirection] = useState(0)
 
@@ -119,14 +120,38 @@ export default function QuizPage() {
             ? feedbackData.data.reduce((sum, f) => sum + f.rating, 0) / feedbackData.data.length
             : 0
 
-        setResult({
+        const resultData = {
           ...bestMatch,
           services: servicesData.data || [],
           courses: coursesData.data || [],
           subscriptions: subscriptionsData.data || [],
           feedback: feedbackData.data || [],
           avgRating,
-        })
+        }
+
+        setResult(resultData)
+
+        setLoadingAiMessage(true)
+        try {
+          const response = await fetch("/api/quiz/personalize", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              staffId: bestMatch.id,
+              userAnswers: answers,
+              quizQuestions: questions,
+            }),
+          })
+
+          if (response.ok) {
+            const data = await response.json()
+            setAiMessage(data.message)
+          }
+        } catch (error) {
+          console.error("[v0] Error fetching AI message:", error)
+        } finally {
+          setLoadingAiMessage(false)
+        }
       }
     } catch (error) {
       console.error("[v0] Error calculating quiz result:", error)
@@ -180,6 +205,42 @@ export default function QuizPage() {
               <h1 className="text-4xl font-bold text-foreground mb-4">Encontramos seu match perfeito!</h1>
               <p className="text-muted-foreground text-lg">Baseado nas suas preferências, recomendamos:</p>
             </div>
+
+            {aiMessage && (
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.2 }}
+                className="mb-6"
+              >
+                <Card className="border-gold/20 bg-gradient-to-br from-gold/5 to-transparent">
+                  <CardContent className="p-6">
+                    <div className="flex items-start gap-3 mb-3">
+                      <div className="flex-shrink-0 w-8 h-8 bg-gold/10 rounded-full flex items-center justify-center">
+                        <Sparkles className="h-4 w-4 text-gold" />
+                      </div>
+                      <div className="flex-1">
+                        <h3 className="font-semibold text-foreground mb-2">Por que esta recomendação?</h3>
+                        <p className="text-muted-foreground leading-relaxed whitespace-pre-wrap">{aiMessage}</p>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              </motion.div>
+            )}
+
+            {loadingAiMessage && !aiMessage && (
+              <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="mb-6">
+                <Card className="border-gold/20">
+                  <CardContent className="p-6">
+                    <div className="flex items-center gap-3">
+                      <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-gold"></div>
+                      <p className="text-sm text-muted-foreground">Gerando recomendação personalizada...</p>
+                    </div>
+                  </CardContent>
+                </Card>
+              </motion.div>
+            )}
 
             <Card className="border-gold/20 overflow-hidden">
               <div className="bg-gradient-to-br from-gold/10 via-transparent to-transparent p-8">

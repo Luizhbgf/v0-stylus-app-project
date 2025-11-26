@@ -49,7 +49,7 @@ importers:
         version: 1.1.1(@types/react-dom@19.0.0)(@types/react@19.0.0)(react-dom@19.0.0(react@19.0.0))(react@19.0.0)
       '@supabase/ssr':
         specifier: latest
-        version: 0.7.0(@supabase/supabase-js@2.76.0)
+        version: 0.8.0(@supabase/supabase-js@2.76.0)
       '@supabase/supabase-js':
         specifier: ^2.45.0
         version: 2.76.0
@@ -57,7 +57,7 @@ importers:
         specifier: latest
         version: 2.0.0
       ai:
-        specifier: 5.0.102
+        specifier: latest
         version: 5.0.102(zod@4.1.13)
       class-variance-authority:
         specifier: ^0.7.1
@@ -101,6 +101,9 @@ importers:
       tw-animate-css:
         specifier: latest
         version: 1.4.0
+      zod:
+        specifier: latest
+        version: 4.1.13
     devDependencies:
       '@tailwindcss/postcss':
         specifier: ^4.1.9
@@ -1069,10 +1072,10 @@ packages:
   '@supabase/realtime-js@2.76.0':
     resolution: {integrity: sha512-1C4RXOS7v1Go8GIJGtfwUwJDG7RxzlU1WdgeqRBX8u+2vnl0qQ+2HQl21mHvbKPLrKGxP/1iwYhj8kwFuExX3g==}
 
-  '@supabase/ssr@0.7.0':
-    resolution: {integrity: sha512-G65t5EhLSJ5c8hTCcXifSL9Q/ZRXvqgXeNo+d3P56f4U1IxwTqjB64UfmfixvmMcjuxnq2yGqEWVJqUcO+AzAg==}
+  '@supabase/ssr@0.8.0':
+    resolution: {integrity: sha512-/PKk8kNFSs8QvvJ2vOww1mF5/c5W8y42duYtXvkOSe+yZKRgTTZywYG2l41pjhNomqESZCpZtXuWmYjFRMV+dw==}
     peerDependencies:
-      '@supabase/supabase-js': ^2.43.4
+      '@supabase/supabase-js': ^2.76.1
 
   '@supabase/storage-js@2.76.0':
     resolution: {integrity: sha512-v011IlS2eZz4Xkutkw8x8Lm9lGjV8tK1vqQeoVkX5hrXYJE/jTg2++Xt/ENG5jp8MErDY/P5JcWAOlAsuumnvQ==}
@@ -2486,7 +2489,7 @@ snapshots:
       - bufferutil
       - utf-8-validate
 
-  '@supabase/ssr@0.7.0(@supabase/supabase-js@2.76.0)':
+  '@supabase/ssr@0.8.0(@supabase/supabase-js@2.76.0)':
     dependencies:
       '@supabase/supabase-js': 2.76.0
       cookie: 1.0.2
