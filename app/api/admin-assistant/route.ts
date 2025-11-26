@@ -8,7 +8,7 @@ export async function POST(req: Request) {
     console.log("[v0] Message:", message)
     console.log("[v0] Metrics:", metrics)
 
-    const supabase = createServerClient()
+    const supabase = await createServerClient()
 
     const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString()
 
