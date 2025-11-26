@@ -248,7 +248,7 @@ export default async function HomePage() {
               <Link href="/quiz">
                 <Button size="lg" className="bg-primary hover:bg-primary/90 text-black font-semibold">
                   Encontrar Profissional
-                  <ArrowRight className="ml-2 h-5 w-5" />
+                  <ArrowRight className="ml-3 h-5 w-5" />
                 </Button>
               </Link>
             </div>
@@ -349,7 +349,7 @@ export default async function HomePage() {
                     )}
 
                     <Button asChild className="w-full">
-                      <Link href={`/cliente/assinaturas/${plan.id}/assinar`}>Assinar Agora</Link>
+                      <Link href={`/cliente/assinaturas/plano/${plan.id}/assinar`}>Assinar Agora</Link>
                     </Button>
                   </div>
                 </Card>
