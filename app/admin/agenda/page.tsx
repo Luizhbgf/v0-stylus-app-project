@@ -119,10 +119,14 @@ export default function AdminAgendaPage() {
   }
 
   const getAppointmentsForSlot = (date: Date, timeSlot: string) => {
+    const slotHour = Number.parseInt(timeSlot.split(":")[0])
+
     return appointments.filter((apt) => {
       const aptDate = parseISO(apt.appointment_date)
-      const aptTime = format(aptDate, "HH:mm")
-      return isSameDay(aptDate, date) && aptTime === timeSlot
+      const aptHour = aptDate.getHours()
+
+      // Check if appointment is on the same day and starts in this hour slot
+      return isSameDay(aptDate, date) && aptHour === slotHour
     })
   }
 
