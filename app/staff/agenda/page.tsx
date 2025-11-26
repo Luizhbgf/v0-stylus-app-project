@@ -227,79 +227,105 @@ export default function StaffAgenda() {
           </div>
         ) : (
           <>
-            {/* Mobile View - Lista */}
-            <div className="md:hidden space-y-4">
-              {daysToDisplay.map((day) => {
-                const dayAppointments = appointments.filter((apt) => isSameDay(parseISO(apt.appointment_date), day))
-
-                return (
-                  <Card key={day.toISOString()} className="border-gold/20">
-                    <CardContent className="p-4">
-                      <div className="mb-4 pb-3 border-b border-border">
-                        <div className="text-sm font-semibold text-muted-foreground">
-                          {format(day, "EEEE", { locale: ptBR })}
+            {/* Mobile View - Grade com menos dias */}
+            <Card className="border-gold/20 md:hidden">
+              <CardContent className="p-0">
+                <div className="overflow-x-auto">
+                  <div className="min-w-full">
+                    {/* Header simplificado para mobile */}
+                    <div
+                      className="grid gap-px bg-border sticky top-0 z-10"
+                      style={{ gridTemplateColumns: `70px repeat(${Math.min(daysToDisplay.length, 3)}, 1fr)` }}
+                    >
+                      <div className="bg-card p-3 font-semibold text-sm">Hora</div>
+                      {daysToDisplay.slice(0, 3).map((day) => (
+                        <div key={day.toISOString()} className="bg-card p-3 text-center">
+                          <div className="text-xs font-semibold">{format(day, "EEE", { locale: ptBR })}</div>
+                          <div className={`text-xl font-bold ${isSameDay(day, new Date()) ? "text-gold" : ""}`}>
+                            {format(day, "dd")}
+                          </div>
+                          <div className="text-[10px] text-muted-foreground">
+                            {format(day, "MMM", { locale: ptBR })}
+                          </div>
                         </div>
-                        <div className={`text-2xl font-bold ${isSameDay(day, new Date()) ? "text-gold" : ""}`}>
-                          {format(day, "dd 'de' MMMM", { locale: ptBR })}
-                        </div>
-                      </div>
+                      ))}
+                    </div>
 
-                      {dayAppointments.length === 0 ? (
-                        <p className="text-muted-foreground text-center py-6">Nenhum agendamento</p>
-                      ) : (
-                        <div className="space-y-3">
-                          {dayAppointments
-                            .sort(
-                              (a, b) => parseISO(a.appointment_date).getTime() - parseISO(b.appointment_date).getTime(),
-                            )
-                            .map((apt) => {
-                              const isSubscriber = apt.client?.subscriptions?.[0]?.status === "active"
-                              const duration = formatDuration(apt)
-                              const aptDate = parseISO(apt.appointment_date)
+                    {/* Time slots com altura maior para mobile */}
+                    <div className="relative">
+                      {TIME_SLOTS.map((timeSlot) => (
+                        <div
+                          key={timeSlot}
+                          className="grid gap-px bg-border relative"
+                          style={{
+                            gridTemplateColumns: `70px repeat(${Math.min(daysToDisplay.length, 3)}, 1fr)`,
+                            minHeight: "100px",
+                          }}
+                        >
+                          <div className="bg-card p-3 text-sm font-semibold text-muted-foreground sticky left-0 flex items-start">
+                            {timeSlot}
+                          </div>
+                          {daysToDisplay.slice(0, 3).map((day) => {
+                            const slotAppointments = getAppointmentsForSlot(day, timeSlot)
+                            const isAvailable = slotAppointments.length === 0
 
-                              return (
-                                <Link key={apt.id} href={`/staff/agenda/${apt.id}`}>
-                                  <div
-                                    className={`p-4 rounded-lg border-2 ${
-                                      isSubscriber
-                                        ? "bg-green-500/10 border-green-500/40 hover:bg-green-500/20"
-                                        : "bg-gold/10 border-gold/40 hover:bg-gold/20"
-                                    } transition-colors`}
-                                  >
-                                    <div className="flex items-start justify-between mb-2">
-                                      <div className="flex-1">
-                                        <div className="font-bold text-lg mb-1">{apt.service?.name}</div>
-                                        <div className="text-base text-muted-foreground">
+                            return (
+                              <div
+                                key={`${day.toISOString()}-${timeSlot}`}
+                                className={`bg-card p-2 transition-colors relative ${
+                                  isAvailable ? "hover:bg-accent" : ""
+                                }`}
+                              >
+                                {slotAppointments.map((apt) => {
+                                  const isSubscriber = apt.client?.subscriptions?.[0]?.status === "active"
+                                  const height = getAppointmentHeight(apt)
+                                  const duration = formatDuration(apt)
+
+                                  return (
+                                    <Link key={apt.id} href={`/staff/agenda/${apt.id}`}>
+                                      <div
+                                        className={`group relative rounded-lg p-2 mb-2 text-xs border-2 overflow-hidden ${
+                                          isSubscriber
+                                            ? "bg-green-500/20 border-green-500/50 hover:bg-green-500/30"
+                                            : "bg-gold/20 border-gold/50 hover:bg-gold/30"
+                                        }`}
+                                        style={{ minHeight: `${Math.max(height, 80)}px` }}
+                                      >
+                                        <div className="font-bold text-sm mb-1 leading-tight line-clamp-2">
+                                          {apt.service?.name}
+                                        </div>
+                                        <div className="text-muted-foreground text-xs leading-tight line-clamp-1 mb-2">
                                           {apt.client_type === "sporadic"
                                             ? apt.sporadic_client_name
                                             : apt.client?.full_name}
                                         </div>
-                                      </div>
-                                      {isSubscriber && (
-                                        <div className="px-2 py-1 bg-green-500/20 text-green-700 dark:text-green-300 rounded text-xs font-semibold">
-                                          Assinante
+                                        <div className="text-muted-foreground/90 text-xs font-semibold mt-auto">
+                                          ⏱️ {duration}
                                         </div>
-                                      )}
-                                    </div>
-                                    <div className="flex items-center gap-4 text-sm text-muted-foreground">
-                                      <div className="flex items-center gap-1 font-medium">
-                                        🕐 {format(aptDate, "HH:mm")}
+                                        <div className="text-muted-foreground/80 text-xs font-medium">
+                                          🕐 {format(parseISO(apt.appointment_date), "HH:mm")}
+                                        </div>
+                                        {isSubscriber && (
+                                          <div className="mt-1 inline-block px-1.5 py-0.5 bg-green-500/30 text-green-700 dark:text-green-300 rounded text-[10px] font-bold">
+                                            ⭐
+                                          </div>
+                                        )}
                                       </div>
-                                      <div className="flex items-center gap-1 font-medium">⏱ {duration}</div>
-                                    </div>
-                                  </div>
-                                </Link>
-                              )
-                            })}
+                                    </Link>
+                                  )
+                                })}
+                              </div>
+                            )
+                          })}
                         </div>
-                      )}
-                    </CardContent>
-                  </Card>
-                )
-              })}
-            </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
 
-            {/* Desktop View - Grade de Calendário */}
+            {/* Desktop View - Grade completa */}
             <Card className="border-gold/20 hidden md:block">
               <CardContent className="p-0">
                 <div className="overflow-x-auto">
