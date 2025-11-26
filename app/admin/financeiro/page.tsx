@@ -7,9 +7,11 @@ import { Navbar } from "@/components/navbar"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { DollarSign, TrendingUp, TrendingDown, Calendar, Filter, Award } from "lucide-react"
+import { Button } from "@/components/ui/button"
+import { DollarSign, TrendingUp, TrendingDown, Calendar, Filter, Award, Trash2 } from "lucide-react"
 import { format, startOfMonth, endOfMonth, subMonths } from "date-fns"
 import { ptBR } from "date-fns/locale"
+import { useToast } from "@/hooks/use-toast"
 
 type Profile = {
   id: string
@@ -27,6 +29,7 @@ export default function AdminFinanceiroPage() {
   const [selectedStaff, setSelectedStaff] = useState<string>("all")
   const [startDate, setStartDate] = useState(format(startOfMonth(new Date()), "yyyy-MM-dd"))
   const [endDate, setEndDate] = useState(format(endOfMonth(new Date()), "yyyy-MM-dd"))
+  const { toast } = useToast()
 
   useEffect(() => {
     async function loadData() {
@@ -63,41 +66,66 @@ export default function AdminFinanceiroPage() {
   }, [profile, selectedStaff, startDate, endDate])
 
   async function loadPayments() {
-    const query = supabase
-      .from("payments")
+    const appointmentsQuery = supabase
+      .from("appointments")
       .select(
         `
         *,
         client:client_id(full_name),
-        appointment:appointment_id(
-          service:services(name),
-          staff:staff_id(id, full_name)
-        )
+        service:service_id(name, price),
+        staff:staff_id(id, full_name)
       `,
       )
-      .gte("payment_date", new Date(startDate).toISOString())
-      .lte("payment_date", new Date(endDate + "T23:59:59").toISOString())
-      .order("payment_date", { ascending: false })
+      .eq("status", "completed")
+      .gte("date", startDate)
+      .lte("date", endDate + "T23:59:59")
+      .order("date", { ascending: false })
 
-    const { data } = await query
+    const { data: appointmentsData } = await appointmentsQuery
 
-    let filteredData = data || []
+    let filteredData = appointmentsData || []
     if (selectedStaff !== "all") {
-      filteredData = filteredData.filter((p) => p.appointment?.staff?.id === selectedStaff)
+      filteredData = filteredData.filter((a) => a.staff_id === selectedStaff)
     }
 
-    setPayments(filteredData)
+    const paymentsData = filteredData.map((apt) => ({
+      id: apt.id,
+      amount: apt.custom_price || apt.service?.price || 0,
+      payment_date: apt.date,
+      payment_method: apt.payment_method || "Não especificado",
+      status: "completed",
+      client: apt.client,
+      appointment: {
+        service: apt.service,
+        staff: apt.staff,
+      },
+    }))
+
+    setPayments(paymentsData)
   }
 
-  if (loading || !profile) {
-    return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-gold mx-auto mb-4"></div>
-          <p className="text-muted-foreground">Carregando...</p>
-        </div>
-      </div>
-    )
+  async function handleDelete(appointmentId: string) {
+    if (!confirm("Tem certeza que deseja excluir este registro? Esta ação não pode ser desfeita.")) {
+      return
+    }
+
+    const { error } = await supabase.from("appointments").delete().eq("id", appointmentId)
+
+    if (error) {
+      toast({
+        title: "Erro",
+        description: "Não foi possível excluir o registro.",
+        variant: "destructive",
+      })
+      return
+    }
+
+    toast({
+      title: "Sucesso",
+      description: "Registro excluído com sucesso.",
+    })
+
+    loadPayments()
   }
 
   const currentMonth = new Date()
@@ -111,7 +139,7 @@ export default function AdminFinanceiroPage() {
     payments
       ?.filter((p) => {
         const date = new Date(p.payment_date)
-        return date >= currentMonthStart && date <= currentMonthEnd && p.status === "completed"
+        return date >= currentMonthStart && date <= currentMonthEnd
       })
       .reduce((sum, p) => sum + Number(p.amount), 0) || 0
 
@@ -119,48 +147,42 @@ export default function AdminFinanceiroPage() {
     payments
       ?.filter((p) => {
         const date = new Date(p.payment_date)
-        return date >= lastMonthStart && date <= lastMonthEnd && p.status === "completed"
+        return date >= lastMonthStart && date <= lastMonthEnd
       })
       .reduce((sum, p) => sum + Number(p.amount), 0) || 0
 
   const revenueChange = lastMonthRevenue > 0 ? ((currentMonthRevenue - lastMonthRevenue) / lastMonthRevenue) * 100 : 0
 
-  const totalRevenue =
-    payments?.filter((p) => p.status === "completed").reduce((sum, p) => sum + Number(p.amount), 0) || 0
+  const totalRevenue = payments?.reduce((sum, p) => sum + Number(p.amount), 0) || 0
 
-  const pendingRevenue =
-    payments?.filter((p) => p.status === "pending").reduce((sum, p) => sum + Number(p.amount), 0) || 0
+  const pendingRevenue = 0
 
   const serviceStats: Record<string, { count: number; revenue: number }> = {}
-  payments
-    .filter((p) => p.status === "completed")
-    .forEach((p) => {
-      const serviceName = p.appointment?.service?.name || "Desconhecido"
-      if (!serviceStats[serviceName]) {
-        serviceStats[serviceName] = { count: 0, revenue: 0 }
-      }
-      serviceStats[serviceName].count++
-      serviceStats[serviceName].revenue += Number(p.amount)
-    })
+  payments.forEach((p) => {
+    const serviceName = p.appointment?.service?.name || "Desconhecido"
+    if (!serviceStats[serviceName]) {
+      serviceStats[serviceName] = { count: 0, revenue: 0 }
+    }
+    serviceStats[serviceName].count++
+    serviceStats[serviceName].revenue += Number(p.amount)
+  })
 
   const topServices = Object.entries(serviceStats)
     .sort((a, b) => b[1].revenue - a[1].revenue)
     .slice(0, 5)
 
   const staffRevenue: Record<string, { name: string; revenue: number; count: number }> = {}
-  payments
-    .filter((p) => p.status === "completed")
-    .forEach((p) => {
-      const staffId = p.appointment?.staff?.id
-      const staffName = p.appointment?.staff?.full_name || "Desconhecido"
-      if (staffId && !staffRevenue[staffId]) {
-        staffRevenue[staffId] = { name: staffName, revenue: 0, count: 0 }
-      }
-      if (staffId) {
-        staffRevenue[staffId].revenue += Number(p.amount)
-        staffRevenue[staffId].count++
-      }
-    })
+  payments.forEach((p) => {
+    const staffId = p.appointment?.staff?.id
+    const staffName = p.appointment?.staff?.full_name || "Desconhecido"
+    if (staffId && !staffRevenue[staffId]) {
+      staffRevenue[staffId] = { name: staffName, revenue: 0, count: 0 }
+    }
+    if (staffId) {
+      staffRevenue[staffId].revenue += Number(p.amount)
+      staffRevenue[staffId].count++
+    }
+  })
 
   const topStaff = Object.values(staffRevenue)
     .sort((a, b) => b.revenue - a.revenue)
@@ -343,7 +365,7 @@ export default function AdminFinanceiroPage() {
 
         <Card className="border-gold/20">
           <CardHeader>
-            <CardTitle className="text-foreground">Histórico de Pagamentos</CardTitle>
+            <CardTitle className="text-foreground">Histórico de Serviços Concluídos</CardTitle>
           </CardHeader>
           <CardContent>
             {payments && payments.length > 0 ? (
@@ -353,7 +375,7 @@ export default function AdminFinanceiroPage() {
                     key={payment.id}
                     className="flex items-center justify-between p-4 bg-card/50 rounded-lg border border-gold/10"
                   >
-                    <div>
+                    <div className="flex-1">
                       <h3 className="font-semibold text-foreground">
                         {payment.client?.full_name || "Cliente não identificado"}
                       </h3>
@@ -367,32 +389,28 @@ export default function AdminFinanceiroPage() {
                         {format(new Date(payment.payment_date), "dd/MM/yyyy HH:mm")}
                       </p>
                     </div>
-                    <div className="text-right">
-                      <p className="text-lg font-bold text-gold">R$ {Number(payment.amount).toFixed(2)}</p>
-                      <span
-                        className={`inline-block px-3 py-1 rounded-full text-xs font-medium mt-1 ${
-                          payment.status === "completed"
-                            ? "bg-green-500/10 text-green-500"
-                            : payment.status === "pending"
-                              ? "bg-yellow-500/10 text-yellow-500"
-                              : "bg-red-500/10 text-red-500"
-                        }`}
+                    <div className="text-right flex items-center gap-4">
+                      <div>
+                        <p className="text-lg font-bold text-gold">R$ {Number(payment.amount).toFixed(2)}</p>
+                        <span className="inline-block px-3 py-1 rounded-full text-xs font-medium mt-1 bg-green-500/10 text-green-500">
+                          Concluído
+                        </span>
+                        <p className="text-xs text-muted-foreground mt-1">{payment.payment_method}</p>
+                      </div>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => handleDelete(payment.id)}
+                        className="text-red-500 hover:text-red-700 hover:bg-red-50"
                       >
-                        {payment.status === "completed"
-                          ? "Concluído"
-                          : payment.status === "pending"
-                            ? "Pendente"
-                            : "Cancelado"}
-                      </span>
-                      <p className="text-xs text-muted-foreground mt-1">{payment.payment_method}</p>
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
                     </div>
                   </div>
                 ))}
               </div>
             ) : (
-              <p className="text-center text-muted-foreground py-4">
-                Nenhum pagamento registrado no período selecionado
-              </p>
+              <p className="text-center text-muted-foreground py-4">Nenhum serviço concluído no período selecionado</p>
             )}
           </CardContent>
         </Card>
