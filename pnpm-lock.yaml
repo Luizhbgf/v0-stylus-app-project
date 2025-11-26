@@ -57,7 +57,7 @@ importers:
         specifier: latest
         version: 2.0.0
       ai:
-        specifier: latest
+        specifier: 5.0.102
         version: 5.0.102(zod@4.1.13)
       class-variance-authority:
         specifier: ^0.7.1
@@ -101,9 +101,6 @@ importers:
       tw-animate-css:
         specifier: latest
         version: 1.4.0
-      zod:
-        specifier: latest
-        version: 4.1.13
     devDependencies:
       '@tailwindcss/postcss':
         specifier: ^4.1.9
