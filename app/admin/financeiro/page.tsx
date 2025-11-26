@@ -93,10 +93,14 @@ export default function AdminFinanceiroPage() {
       appointmentsData?.map((apt) => ({
         id: apt.id,
         amount: apt.custom_price || apt.service?.price || 0,
+        original_price: apt.original_price || apt.service?.price || 0,
+        custom_price: apt.custom_price,
         payment_date: apt.appointment_date,
         payment_method: apt.payment_method || "Não especificado",
         status: "completed",
         client: apt.client,
+        sporadic_client_name: apt.sporadic_client_name,
+        client_type: apt.client_type,
         appointment: {
           service: apt.service,
           staff: apt.staff,
@@ -382,7 +386,9 @@ export default function AdminFinanceiroPage() {
                   >
                     <div className="flex-1">
                       <h3 className="font-semibold text-foreground">
-                        {payment.client?.full_name || "Cliente não identificado"}
+                        {payment.client_type === "sporadic"
+                          ? payment.sporadic_client_name
+                          : payment.client?.full_name || "Cliente não identificado"}
                       </h3>
                       <p className="text-sm text-muted-foreground">
                         Profissional: {payment.appointment?.staff?.full_name || "N/A"}
@@ -397,6 +403,26 @@ export default function AdminFinanceiroPage() {
                     <div className="text-right flex items-center gap-4">
                       <div>
                         <p className="text-lg font-bold text-gold">R$ {Number(payment.amount).toFixed(2)}</p>
+                        {payment.custom_price &&
+                          payment.original_price &&
+                          Number(payment.custom_price) !== Number(payment.original_price) && (
+                            <div className="text-xs mt-1 space-y-0.5">
+                              <p className="text-muted-foreground">
+                                Original:{" "}
+                                <span className="line-through">R$ {Number(payment.original_price).toFixed(2)}</span>
+                              </p>
+                              <p
+                                className={
+                                  Number(payment.custom_price) > Number(payment.original_price)
+                                    ? "text-green-500"
+                                    : "text-red-500"
+                                }
+                              >
+                                {Number(payment.custom_price) > Number(payment.original_price) ? "↑" : "↓"} R${" "}
+                                {Math.abs(Number(payment.custom_price) - Number(payment.original_price)).toFixed(2)}
+                              </p>
+                            </div>
+                          )}
                         <span className="inline-block px-3 py-1 rounded-full text-xs font-medium mt-1 bg-green-500/10 text-green-500">
                           Concluído
                         </span>

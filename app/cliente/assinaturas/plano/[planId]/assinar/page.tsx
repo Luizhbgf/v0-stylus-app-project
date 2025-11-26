@@ -135,7 +135,7 @@ export default function AssinarPlano({ params }: { params: { planId: string } })
       if (paymentError) throw paymentError
 
       toast.success("Assinatura criada! Complete o pagamento para ativar.")
-      router.push(`/cliente/assinaturas/pagar/${payment.id}`)
+      router.push(`/cliente/assinaturas/pagamento/${payment.id}`)
     } catch (error: any) {
       toast.error(error.message || "Erro ao criar assinatura")
     } finally {

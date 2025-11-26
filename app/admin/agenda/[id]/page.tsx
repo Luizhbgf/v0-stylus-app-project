@@ -442,6 +442,29 @@ export default function AdminGerenciarAgendamento() {
                       onChange={(e) => setEditData({ ...editData, custom_price: e.target.value })}
                       placeholder="Deixe vazio para usar preço padrão"
                     />
+                    {appointment.custom_price && appointment.original_price && (
+                      <div className="text-sm space-y-1 mt-2 p-2 bg-muted/50 rounded">
+                        <div className="flex justify-between">
+                          <span className="text-muted-foreground">Valor Original:</span>
+                          <span className="font-medium">R$ {Number(appointment.original_price).toFixed(2)}</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-muted-foreground">Valor Alterado:</span>
+                          <span className="font-medium text-primary">
+                            R$ {Number(appointment.custom_price).toFixed(2)}
+                          </span>
+                        </div>
+                        <div className="flex justify-between border-t border-border pt-1 mt-1">
+                          <span className="text-muted-foreground">Diferença:</span>
+                          <span
+                            className={`font-semibold ${Number(appointment.custom_price) > Number(appointment.original_price) ? "text-green-500" : "text-red-500"}`}
+                          >
+                            {Number(appointment.custom_price) > Number(appointment.original_price) ? "+" : ""}
+                            R$ {(Number(appointment.custom_price) - Number(appointment.original_price)).toFixed(2)}
+                          </span>
+                        </div>
+                      </div>
+                    )}
                   </div>
 
                   <div className="space-y-2">
@@ -548,6 +571,20 @@ export default function AdminGerenciarAgendamento() {
                     <div>
                       <p className="text-sm text-muted-foreground">Valor</p>
                       <p className="text-foreground font-medium text-2xl">R$ {displayPrice.toFixed(2)}</p>
+                      {appointment.custom_price && appointment.original_price && (
+                        <div className="mt-2 text-xs space-y-1">
+                          <div className="flex items-center justify-between">
+                            <span className="text-muted-foreground">Original:</span>
+                            <span className="line-through">R$ {Number(appointment.original_price).toFixed(2)}</span>
+                          </div>
+                          <div className="flex items-center justify-between">
+                            <span className="text-muted-foreground">Alterado:</span>
+                            <span className="font-semibold text-primary">
+                              R$ {Number(appointment.custom_price).toFixed(2)}
+                            </span>
+                          </div>
+                        </div>
+                      )}
                       <Badge
                         variant="outline"
                         className={

@@ -62,6 +62,50 @@ export default function AdminRelatoriosPage() {
   useEffect(() => {
     if (profile) {
       loadReportData()
+
+      const appointmentsChannel = supabase
+        .channel("admin-reports-appointments")
+        .on(
+          "postgres_changes",
+          {
+            event: "*",
+            schema: "public",
+            table: "appointments",
+          },
+          (payload) => {
+            console.log("[v0] Appointments changed, reloading reports:", payload)
+            loadReportData()
+          },
+        )
+        .on(
+          "postgres_changes",
+          {
+            event: "*",
+            schema: "public",
+            table: "payments",
+          },
+          (payload) => {
+            console.log("[v0] Payments changed, reloading reports:", payload)
+            loadReportData()
+          },
+        )
+        .on(
+          "postgres_changes",
+          {
+            event: "*",
+            schema: "public",
+            table: "feedback",
+          },
+          (payload) => {
+            console.log("[v0] Feedback changed, reloading reports:", payload)
+            loadReportData()
+          },
+        )
+        .subscribe()
+
+      return () => {
+        supabase.removeChannel(appointmentsChannel)
+      }
     }
   }, [period, selectedStaff, profile])
 
@@ -129,8 +173,11 @@ export default function AdminRelatoriosPage() {
     const { data: feedback } = await feedbackQuery
 
     const completedAppointments = appointments?.filter((a) => a.status === "completed") || []
-    const totalRevenue =
-      payments?.filter((p) => p.status === "completed").reduce((sum, p) => sum + Number(p.amount), 0) || 0
+
+    const totalRevenue = completedAppointments.reduce((sum, a) => {
+      const price = a.custom_price || a.service?.price || 0
+      return sum + Number(price)
+    }, 0)
 
     const avgRating =
       feedback && feedback.length > 0 ? feedback.reduce((sum, f) => sum + f.rating, 0) / feedback.length : 0
@@ -144,7 +191,7 @@ export default function AdminRelatoriosPage() {
         serviceStats[serviceName] = { count: 0, revenue: 0, avgRating: 0, feedbackCount: 0 }
       }
       serviceStats[serviceName].count++
-      serviceStats[serviceName].revenue += Number(a.service?.price || 0)
+      serviceStats[serviceName].revenue += Number(a.custom_price || a.service?.price || 0)
 
       const serviceFeedback = feedback?.filter((f) => f.appointment_id === a.id)
       if (serviceFeedback && serviceFeedback.length > 0) {
@@ -163,7 +210,7 @@ export default function AdminRelatoriosPage() {
     const staffPerformance = staff.map((s) => {
       const staffAppointments = completedAppointments.filter((a) => a.staff_id === s.id)
       const staffFeedback = feedback?.filter((f) => f.staff_id === s.id) || []
-      const revenue = staffAppointments.reduce((sum, a) => sum + Number(a.service?.price || 0), 0)
+      const revenue = staffAppointments.reduce((sum, a) => sum + Number(a.custom_price || a.service?.price || 0), 0)
       const avgStaffRating =
         staffFeedback.length > 0 ? staffFeedback.reduce((sum, f) => sum + f.rating, 0) / staffFeedback.length : 0
 
@@ -180,11 +227,13 @@ export default function AdminRelatoriosPage() {
     const clientStats: Record<string, { visits: number; spent: number; lastVisit: Date }> = {}
     completedAppointments.forEach((a) => {
       const clientId = a.client_id
+      if (!clientId) return
+
       if (!clientStats[clientId]) {
         clientStats[clientId] = { visits: 0, spent: 0, lastVisit: new Date(a.appointment_date) }
       }
       clientStats[clientId].visits++
-      clientStats[clientId].spent += Number(a.service?.price || 0)
+      clientStats[clientId].spent += Number(a.custom_price || a.service?.price || 0)
       const appointmentDate = new Date(a.appointment_date)
       if (appointmentDate > clientStats[clientId].lastVisit) {
         clientStats[clientId].lastVisit = appointmentDate
@@ -211,6 +260,7 @@ export default function AdminRelatoriosPage() {
       periodLabel: period === "quinzenal" ? "Últimas 2 Semanas" : period === "mensal" ? "Mês Atual" : "Últimos 6 Meses",
       startDate,
       endDate,
+      lastUpdate: new Date(), // Add timestamp for real-time indicator
     })
   }
 
@@ -283,6 +333,12 @@ export default function AdminRelatoriosPage() {
           <div>
             <h1 className="text-4xl font-bold text-foreground mb-2">Relatórios e Análises</h1>
             <p className="text-muted-foreground">Visão analítica e insights de desempenho</p>
+            <div className="flex items-center gap-2 mt-2">
+              <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
+              <span className="text-xs text-muted-foreground">
+                Atualizado em tempo real • Última atualização: {format(reportData.lastUpdate, "HH:mm:ss")}
+              </span>
+            </div>
           </div>
 
           <div className="flex flex-col sm:flex-row gap-3">
