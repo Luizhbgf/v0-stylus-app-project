@@ -237,7 +237,7 @@ export default function AdicionarAgendamentoAdmin() {
         appointment_date: appointmentDateTime.toISOString(),
         status: "confirmed",
         notes,
-        client_type: clientType === "sporadic" ? "sporadic" : "registered",
+        client_type: clientType === "none" ? "event" : clientType,
         sporadic_client_name: clientType === "sporadic" ? sporadicName : null,
         sporadic_client_phone: clientType === "sporadic" ? sporadicPhone : null,
         event_title: clientType === "none" ? eventTitle : null,

@@ -9,13 +9,13 @@ import { Label } from "@/components/ui/label"
 import { Navbar } from "@/components/navbar"
 import { useRouter, useParams } from "next/navigation"
 import { toast } from "sonner"
-import { ArrowLeft, Calendar, Clock, User, DollarSign, X, UserX, CheckCircle, Edit2, Save } from "lucide-react"
+import { ArrowLeft, Calendar, Clock, User, DollarSign, Edit2, Save } from "lucide-react"
 import Link from "next/link"
 import { Badge } from "@/components/ui/badge"
 import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 
-export default function GerenciarAgendamento() {
+export default function AdminGerenciarAgendamento() {
   const [profile, setProfile] = useState<any>(null)
   const [appointment, setAppointment] = useState<any>(null)
   const [isLoading, setIsLoading] = useState(false)
@@ -24,6 +24,7 @@ export default function GerenciarAgendamento() {
     appointment_date: "",
     appointment_time: "",
     service_id: "",
+    staff_id: "",
     client_id: "",
     client_type: "",
     sporadic_client_name: "",
@@ -35,6 +36,7 @@ export default function GerenciarAgendamento() {
   })
   const [services, setServices] = useState<any[]>([])
   const [clients, setClients] = useState<any[]>([])
+  const [staffMembers, setStaffMembers] = useState<any[]>([])
   const router = useRouter()
   const params = useParams()
   const supabase = createClient()
@@ -65,6 +67,14 @@ export default function GerenciarAgendamento() {
       .order("full_name")
     setClients(clientsData || [])
 
+    const { data: staffData } = await supabase
+      .from("profiles")
+      .select("*")
+      .gte("user_level", 20)
+      .eq("is_active", true)
+      .order("full_name")
+    setStaffMembers(staffData || [])
+
     const { data: appointmentData } = await supabase
       .from("appointments")
       .select(
@@ -87,6 +97,7 @@ export default function GerenciarAgendamento() {
         appointment_date: appointmentDate.toISOString().split("T")[0],
         appointment_time: appointmentDate.toTimeString().slice(0, 5),
         service_id: appointmentData.service_id || "",
+        staff_id: appointmentData.staff_id || "",
         client_id: appointmentData.client_id || "",
         client_type: appointmentData.client_type || "registered",
         sporadic_client_name: appointmentData.sporadic_client_name || "",
@@ -107,6 +118,7 @@ export default function GerenciarAgendamento() {
       const updateData: any = {
         appointment_date: appointmentDateTime.toISOString(),
         service_id: editData.service_id || null,
+        staff_id: editData.staff_id || null,
         client_type: editData.client_type,
         payment_status: editData.payment_status,
         notes: editData.notes || null,
@@ -138,7 +150,7 @@ export default function GerenciarAgendamento() {
       setIsEditing(false)
       loadData()
     } catch (error) {
-      console.error("[v0] Erro ao atualizar agendamento:", error)
+      console.error("Erro ao atualizar agendamento:", error)
       toast.error("Erro ao atualizar agendamento")
     } finally {
       setIsLoading(false)
@@ -159,9 +171,9 @@ export default function GerenciarAgendamento() {
       if (error) throw error
 
       toast.success("Agendamento marcado como concluído!")
-      router.push("/staff/agenda")
+      router.push("/admin/agenda")
     } catch (error) {
-      console.error("[v0] Erro ao concluir agendamento:", error)
+      console.error("Erro ao concluir agendamento:", error)
       toast.error("Erro ao concluir agendamento")
     } finally {
       setIsLoading(false)
@@ -181,9 +193,9 @@ export default function GerenciarAgendamento() {
       if (error) throw error
 
       toast.success("Cliente marcado como não compareceu")
-      router.push("/staff/agenda")
+      router.push("/admin/agenda")
     } catch (error) {
-      console.error("[v0] Erro ao marcar não comparecimento:", error)
+      console.error("Erro ao marcar não comparecimento:", error)
       toast.error("Erro ao marcar não comparecimento")
     } finally {
       setIsLoading(false)
@@ -203,9 +215,9 @@ export default function GerenciarAgendamento() {
       if (error) throw error
 
       toast.success("Agendamento cancelado")
-      router.push("/staff/agenda")
+      router.push("/admin/agenda")
     } catch (error) {
-      console.error("[v0] Erro ao cancelar agendamento:", error)
+      console.error("Erro ao cancelar agendamento:", error)
       toast.error("Erro ao cancelar agendamento")
     } finally {
       setIsLoading(false)
@@ -224,7 +236,7 @@ export default function GerenciarAgendamento() {
       <div className="container mx-auto px-4 py-8 max-w-2xl">
         <div className="mb-6">
           <Link
-            href="/staff/agenda"
+            href="/admin/agenda"
             className="inline-flex items-center text-sm text-muted-foreground hover:text-foreground mb-4 transition-colors"
           >
             <ArrowLeft className="mr-2 h-4 w-4" />
@@ -307,6 +319,25 @@ export default function GerenciarAgendamento() {
                         onChange={(e) => setEditData({ ...editData, appointment_time: e.target.value })}
                       />
                     </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="edit-staff">Profissional</Label>
+                    <Select
+                      value={editData.staff_id}
+                      onValueChange={(value) => setEditData({ ...editData, staff_id: value })}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Selecione um profissional" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {staffMembers.map((staff) => (
+                          <SelectItem key={staff.id} value={staff.id}>
+                            {staff.full_name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                   </div>
 
                   <div className="space-y-2">
@@ -461,6 +492,16 @@ export default function GerenciarAgendamento() {
                     </div>
                   </div>
 
+                  {appointment.staff && (
+                    <div className="flex items-start gap-3">
+                      <User className="h-5 w-5 text-gold mt-0.5" />
+                      <div>
+                        <p className="text-sm text-muted-foreground">Profissional</p>
+                        <p className="text-foreground font-medium">{appointment.staff.full_name}</p>
+                      </div>
+                    </div>
+                  )}
+
                   {appointment.service && (
                     <div className="flex items-start gap-3">
                       <Clock className="h-5 w-5 text-gold mt-0.5" />
@@ -481,25 +522,26 @@ export default function GerenciarAgendamento() {
                         <p className="text-sm text-muted-foreground">{appointment.sporadic_client_phone}</p>
                       </div>
                     </div>
+                  ) : appointment.client_type === "event" ? (
+                    <div className="flex items-start gap-3">
+                      <User className="h-5 w-5 text-gold mt-0.5" />
+                      <div>
+                        <p className="text-sm text-muted-foreground">Evento</p>
+                        <p className="text-foreground font-medium">{appointment.event_title}</p>
+                      </div>
+                    </div>
                   ) : appointment.client ? (
                     <div className="flex items-start gap-3">
                       <User className="h-5 w-5 text-gold mt-0.5" />
                       <div>
                         <p className="text-sm text-muted-foreground">Cliente</p>
                         <p className="text-foreground font-medium">{appointment.client.full_name}</p>
-                        <p className="text-sm text-muted-foreground">{appointment.client.phone}</p>
-                        <p className="text-sm text-muted-foreground">{appointment.client.email}</p>
+                        {appointment.client.phone && (
+                          <p className="text-sm text-muted-foreground">{appointment.client.phone}</p>
+                        )}
                       </div>
                     </div>
-                  ) : (
-                    <div className="flex items-start gap-3">
-                      <User className="h-5 w-5 text-gold mt-0.5" />
-                      <div>
-                        <p className="text-sm text-muted-foreground">Evento</p>
-                        <p className="text-foreground font-medium">{appointment.event_title || "Sem título"}</p>
-                      </div>
-                    </div>
-                  )}
+                  ) : null}
 
                   <div className="flex items-start gap-3">
                     <DollarSign className="h-5 w-5 text-gold mt-0.5" />
@@ -527,7 +569,7 @@ export default function GerenciarAgendamento() {
 
                   {appointment.notes && (
                     <div className="pt-4 border-t border-gold/20">
-                      <p className="text-sm text-muted-foreground mb-1">Observações</p>
+                      <p className="text-sm text-muted-foreground mb-2">Observações</p>
                       <p className="text-foreground">{appointment.notes}</p>
                     </div>
                   )}
@@ -536,41 +578,46 @@ export default function GerenciarAgendamento() {
             </CardContent>
           </Card>
 
-          {!isEditing &&
-            appointment.status !== "completed" &&
-            appointment.status !== "cancelled" &&
-            appointment.status !== "no_show" && (
-              <Card className="border-gold/20">
-                <CardHeader>
-                  <CardTitle>Ações</CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-3">
+          {!isEditing && (
+            <Card className="border-gold/20">
+              <CardHeader>
+                <CardTitle>Ações</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                {appointment.status !== "completed" && (
                   <Button
-                    className="w-full bg-green-600 hover:bg-green-700 text-white"
                     onClick={handleComplete}
                     disabled={isLoading}
+                    className="w-full bg-green-600 hover:bg-green-700 text-white"
                   >
-                    <CheckCircle className="mr-2 h-4 w-4" />
                     Marcar como Concluído
                   </Button>
+                )}
 
+                {appointment.status !== "no_show" && appointment.status !== "cancelled" && (
                   <Button
-                    variant="outline"
-                    className="w-full border-orange-500/20 text-orange-500 hover:bg-orange-500/10 bg-transparent"
                     onClick={handleNoShow}
                     disabled={isLoading}
+                    variant="outline"
+                    className="w-full bg-transparent"
                   >
-                    <UserX className="mr-2 h-4 w-4" />
                     Cliente Não Compareceu
                   </Button>
+                )}
 
-                  <Button variant="destructive" className="w-full" onClick={handleCancel} disabled={isLoading}>
-                    <X className="mr-2 h-4 w-4" />
+                {appointment.status !== "cancelled" && (
+                  <Button
+                    onClick={handleCancel}
+                    disabled={isLoading}
+                    variant="destructive"
+                    className="w-full bg-red-600 hover:bg-red-700"
+                  >
                     Cancelar Agendamento
                   </Button>
-                </CardContent>
-              </Card>
-            )}
+                )}
+              </CardContent>
+            </Card>
+          )}
         </div>
       </div>
     </div>

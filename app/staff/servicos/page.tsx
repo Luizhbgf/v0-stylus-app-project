@@ -2,7 +2,7 @@ import { redirect } from "next/navigation"
 import { createClient } from "@/lib/supabase/server"
 import { Navbar } from "@/components/navbar"
 import { Card, CardContent } from "@/components/ui/card"
-import { Briefcase, Clock, Plus } from "lucide-react"
+import { Briefcase, Clock, Plus, Trash2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import Link from "next/link"
 
@@ -81,12 +81,17 @@ export default async function StaffServicos() {
                       {staffService.service?.is_active ? "Ativo" : "Inativo"}
                     </span>
                   </div>
-                  <div className="flex gap-2 mt-4">
-                    <Button asChild variant="outline" className="flex-1 bg-transparent">
-                      <Link href={`/staff/servicos/${staffService.service_id}`}>Ver Detalhes</Link>
+                  <div className="grid grid-cols-3 gap-2 mt-4">
+                    <Button asChild variant="outline" className="bg-transparent">
+                      <Link href={`/staff/servicos/${staffService.service_id}`}>Ver</Link>
                     </Button>
-                    <Button asChild className="flex-1 bg-gold hover:bg-gold/90 text-black">
+                    <Button asChild className="bg-gold hover:bg-gold/90 text-black">
                       <Link href={`/staff/servicos/${staffService.service_id}/editar`}>Editar</Link>
+                    </Button>
+                    <Button asChild variant="destructive" className="bg-red-600 hover:bg-red-700">
+                      <Link href={`/staff/servicos/${staffService.service_id}/excluir`}>
+                        <Trash2 className="h-4 w-4" />
+                      </Link>
                     </Button>
                   </div>
                 </CardContent>
