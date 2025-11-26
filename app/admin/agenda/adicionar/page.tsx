@@ -273,7 +273,10 @@ export default function AdicionarAgendamentoAdmin() {
       }
 
       toast.success("Agendamento criado com sucesso!")
-      router.push("/admin/agenda")
+      router.refresh()
+      setTimeout(() => {
+        router.push("/admin/agenda")
+      }, 100)
     } catch (error) {
       console.error("Erro ao criar agendamento:", error)
       toast.error("Erro ao criar agendamento")

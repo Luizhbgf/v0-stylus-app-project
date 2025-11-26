@@ -242,7 +242,9 @@ export default function AdicionarAgendamentoStaff() {
 
       toast.success("Agendamento criado com sucesso!")
       router.refresh()
-      router.push("/staff/agenda")
+      setTimeout(() => {
+        router.push("/staff/agenda")
+      }, 100)
     } catch (error) {
       console.error("Erro ao criar agendamento:", error)
       toast.error("Erro ao criar agendamento")
