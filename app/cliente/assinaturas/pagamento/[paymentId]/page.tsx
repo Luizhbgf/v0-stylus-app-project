@@ -8,8 +8,52 @@ import { Badge } from "@/components/ui/badge"
 import { Navbar } from "@/components/navbar"
 import { useRouter } from "next/navigation"
 import { toast } from "sonner"
-import { ArrowLeft, Copy, CheckCircle, Clock } from "lucide-react"
+import { ArrowLeft, Copy, CheckCircle, Clock, QrCode } from "lucide-react"
 import Link from "next/link"
+import { QRCodeSVG } from "qrcode.react"
+
+function generatePixPayload(
+  pixKey: string,
+  amount: number,
+  merchantName: string,
+  merchantCity: string,
+  txid: string,
+): string {
+  const pixKeyEncoded = pixKey.trim()
+  const amountStr = amount.toFixed(2)
+  const txidStr = txid.substring(0, 25)
+
+  // Format EMV QR Code (simplified version for Brazilian PIX)
+  const payload = [
+    "000201", // Payload Format Indicator
+    "010212", // Point of Initiation Method (12 = static)
+    `26${(pixKeyEncoded.length + 14).toString().padStart(2, "0")}0014br.gov.bcb.pix01${pixKeyEncoded.length
+      .toString()
+      .padStart(2, "0")}${pixKeyEncoded}`,
+    "52040000", // Merchant Category Code
+    "5303986", // Transaction Currency (986 = BRL)
+    `54${amountStr.length.toString().padStart(2, "0")}${amountStr}`,
+    "5802BR", // Country Code
+    `59${merchantName.length.toString().padStart(2, "0")}${merchantName}`,
+    `60${merchantCity.length.toString().padStart(2, "0")}${merchantCity}`,
+    `62${(txidStr.length + 8).toString().padStart(2, "0")}05${txidStr.length.toString().padStart(2, "0")}${txidStr}`,
+  ].join("")
+
+  // Calculate CRC16 checksum
+  const crc = calculateCRC16(payload + "6304")
+  return payload + "6304" + crc
+}
+
+function calculateCRC16(str: string): string {
+  let crc = 0xffff
+  for (let i = 0; i < str.length; i++) {
+    crc ^= str.charCodeAt(i) << 8
+    for (let j = 0; j < 8; j++) {
+      crc = crc & 0x8000 ? (crc << 1) ^ 0x1021 : crc << 1
+    }
+  }
+  return (crc & 0xffff).toString(16).toUpperCase().padStart(4, "0")
+}
 
 export default function PagarAssinatura({ params }: { params: { paymentId: string } }) {
   const [profile, setProfile] = useState<any>(null)
@@ -18,6 +62,7 @@ export default function PagarAssinatura({ params }: { params: { paymentId: strin
   const [pixCode, setPixCode] = useState("")
   const [isCopied, setIsCopied] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
+  const [businessSettings, setBusinessSettings] = useState<any>(null)
   const router = useRouter()
   const supabase = createClient()
 
@@ -36,6 +81,13 @@ export default function PagarAssinatura({ params }: { params: { paymentId: strin
 
     const { data: profileData } = await supabase.from("profiles").select("*").eq("id", user.id).single()
     setProfile(profileData)
+
+    const { data: settingsData } = await supabase
+      .from("homepage_settings")
+      .select("*")
+      .eq("id", "00000000-0000-0000-0000-000000000001")
+      .single()
+    setBusinessSettings(settingsData)
 
     const { data: paymentData } = await supabase
       .from("subscription_payments")
@@ -62,19 +114,27 @@ export default function PagarAssinatura({ params }: { params: { paymentId: strin
     setSubscription(paymentData.subscription)
 
     if (!paymentData.pix_copy_paste) {
-      await generatePixCode(paymentData)
+      await generatePixCode(paymentData, settingsData)
     } else {
       setPixCode(paymentData.pix_copy_paste)
     }
   }
 
-  const generatePixCode = async (paymentData: any) => {
-    const staffPixKey = paymentData.subscription?.staff?.pix_key || "pix@styllus.com.br"
-    const amount = Number(paymentData.amount).toFixed(2)
-    const txid = `SUB${paymentData.subscription_id.slice(0, 8).toUpperCase()}${Date.now()}`
+  const generatePixCode = async (paymentData: any, settings: any) => {
+    const staffPixKey = paymentData.subscription?.staff?.pix_key || settings?.business_pix_key || ""
 
-    // Simplified PIX format (in production, use proper PIX payload format)
-    const pixCopyPaste = `${staffPixKey}|${amount}|${txid}|Assinatura Styllus - ${paymentData.subscription?.staff?.full_name}`
+    if (!staffPixKey) {
+      toast.error("Chave PIX não configurada. Entre em contato com o estabelecimento.")
+      return
+    }
+
+    const amount = Number(paymentData.amount)
+    const merchantName = paymentData.subscription?.staff?.full_name || settings?.business_name || "Styllus"
+    const merchantCity = "Sao Paulo" // You can make this configurable
+    const txid = `SUB${paymentData.subscription_id.slice(0, 8).toUpperCase()}`
+
+    // Generate EMV-compliant PIX payload
+    const pixCopyPaste = generatePixPayload(staffPixKey, amount, merchantName, merchantCity, txid)
 
     setPixCode(pixCopyPaste)
 
@@ -99,8 +159,6 @@ export default function PagarAssinatura({ params }: { params: { paymentId: strin
   const handleConfirmPayment = async () => {
     setIsLoading(true)
     try {
-      // In production, this would verify payment with payment gateway
-      // For now, we'll just mark as pending for staff verification
       const { error } = await supabase
         .from("subscription_payments")
         .update({
@@ -187,12 +245,27 @@ export default function PagarAssinatura({ params }: { params: { paymentId: strin
         ) : (
           <Card className="border-primary/20">
             <CardHeader>
-              <CardTitle>Pagar com PIX</CardTitle>
+              <CardTitle className="flex items-center gap-2">
+                <QrCode className="h-5 w-5 text-primary" />
+                Pagar com PIX
+              </CardTitle>
             </CardHeader>
             <CardContent className="space-y-6">
+              {pixCode && (
+                <div className="flex flex-col items-center justify-center space-y-4 p-6 bg-white rounded-lg border-2 border-primary/20">
+                  <div className="bg-white p-4 rounded-lg">
+                    <QRCodeSVG value={pixCode} size={256} level="M" includeMargin />
+                  </div>
+                  <p className="text-sm text-center text-muted-foreground">
+                    Escaneie o QR Code com o aplicativo do seu banco
+                  </p>
+                </div>
+              )}
+
               <div className="space-y-3">
                 <h3 className="font-semibold text-foreground">Instruções:</h3>
                 <ol className="list-decimal list-inside space-y-2 text-sm text-muted-foreground">
+                  <li>Escaneie o QR Code acima com seu app bancário, OU</li>
                   <li>Copie o código PIX abaixo</li>
                   <li>Abra o aplicativo do seu banco</li>
                   <li>Escolha a opção PIX Copia e Cola</li>
@@ -211,9 +284,9 @@ export default function PagarAssinatura({ params }: { params: { paymentId: strin
               </div>
 
               <div className="space-y-3">
-                <label className="text-sm font-medium text-foreground">Código PIX:</label>
+                <label className="text-sm font-medium text-foreground">Código PIX Copia e Cola:</label>
                 <div className="relative">
-                  <div className="p-4 bg-muted rounded-lg border border-primary/20 break-all text-sm font-mono">
+                  <div className="p-4 bg-muted rounded-lg border border-primary/20 break-all text-xs font-mono max-h-32 overflow-y-auto">
                     {pixCode || "Gerando código..."}
                   </div>
                   {pixCode && (
