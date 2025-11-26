@@ -212,16 +212,16 @@ export default async function ClienteAgenda({ searchParams }: { searchParams: { 
                                 zIndex: 10,
                               }}
                             >
-                              <div className="p-2 h-full flex flex-col text-white">
-                                <div className="font-semibold text-sm leading-tight mb-0.5 line-clamp-1">
-                                  {apt.service?.name}
-                                </div>
-                                <div className="text-xs opacity-90 line-clamp-1">{apt.staff?.full_name}</div>
-                                <div className="mt-auto flex items-center justify-between">
-                                  <div className="text-xs font-medium opacity-95">
-                                    {format(aptDate, "HH:mm")} · {formatDuration(apt)}
+                              <div className="p-3 h-full flex flex-col text-white">
+                                <div className="font-bold text-base leading-tight mb-1">{apt.service?.name}</div>
+                                <div className="text-sm opacity-95 mb-1">{apt.staff?.full_name}</div>
+                                <div className="mt-auto pt-2 border-t border-white/20 flex items-center justify-between gap-2">
+                                  <div className="text-sm font-semibold flex items-center gap-2">
+                                    <span>{format(aptDate, "HH:mm")}</span>
+                                    <span className="opacity-75">•</span>
+                                    <span>{formatDuration(apt)}</span>
                                   </div>
-                                  <Badge className="text-[10px] px-1.5 py-0 bg-white/20 hover:bg-white/30 border-0">
+                                  <Badge className="text-xs px-2 py-0.5 bg-white/25 hover:bg-white/35 border-0 font-semibold">
                                     {getStatusLabel(apt.status)}
                                   </Badge>
                                 </div>

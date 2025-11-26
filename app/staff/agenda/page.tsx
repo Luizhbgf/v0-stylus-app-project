@@ -339,17 +339,17 @@ export default function StaffAgenda() {
                                     zIndex: 10,
                                   }}
                                 >
-                                  <div className="p-2 h-full flex flex-col text-white">
-                                    <div className="font-semibold text-sm leading-tight mb-0.5 line-clamp-1">
-                                      {apt.service?.name}
-                                    </div>
-                                    <div className="text-xs opacity-90 line-clamp-1">
+                                  <div className="p-3 h-full flex flex-col text-white">
+                                    <div className="font-bold text-base leading-tight mb-1">{apt.service?.name}</div>
+                                    <div className="text-sm opacity-95 mb-1">
                                       {apt.client_type === "sporadic"
                                         ? apt.sporadic_client_name
                                         : apt.client?.full_name}
                                     </div>
-                                    <div className="mt-auto text-xs font-medium opacity-95">
-                                      {format(aptDate, "HH:mm")} · {formatDuration(apt)}
+                                    <div className="mt-auto pt-2 border-t border-white/20 text-sm font-semibold flex items-center gap-2">
+                                      <span>{format(aptDate, "HH:mm")}</span>
+                                      <span className="opacity-75">•</span>
+                                      <span>{formatDuration(apt)}</span>
                                     </div>
                                   </div>
                                 </div>

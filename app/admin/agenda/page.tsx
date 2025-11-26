@@ -327,22 +327,20 @@ export default function AdminAgendaPage() {
                                 zIndex: 10,
                               }}
                             >
-                              <div className="p-2 h-full flex flex-col text-white relative">
+                              <div className="p-3 h-full flex flex-col text-white relative">
                                 <button
                                   onClick={(e) => deleteAppointment(apt.id, e)}
-                                  className="absolute top-1 right-1 opacity-0 group-hover:opacity-100 transition-opacity bg-red-500 hover:bg-red-600 rounded-full p-1.5 shadow-lg"
+                                  className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity bg-red-500 hover:bg-red-600 rounded-full p-1.5 shadow-lg z-10"
                                 >
-                                  <Trash2 className="h-3 w-3" />
+                                  <Trash2 className="h-3.5 w-3.5" />
                                 </button>
-                                <div className="font-semibold text-sm leading-tight mb-0.5 line-clamp-1 pr-8">
-                                  {apt.service?.name}
-                                </div>
-                                <div className="text-xs opacity-90 line-clamp-1">{apt.client?.full_name}</div>
-                                {apt.staff && (
-                                  <div className="text-xs opacity-80 line-clamp-1">{apt.staff.full_name}</div>
-                                )}
-                                <div className="mt-auto text-xs font-medium opacity-95">
-                                  {format(aptDate, "HH:mm")} · {formatDuration(apt)}
+                                <div className="font-bold text-base leading-tight mb-1 pr-8">{apt.service?.name}</div>
+                                <div className="text-sm opacity-95 mb-0.5">{apt.client?.full_name}</div>
+                                {apt.staff && <div className="text-xs opacity-90 mb-1">{apt.staff.full_name}</div>}
+                                <div className="mt-auto pt-2 border-t border-white/20 text-sm font-semibold flex items-center gap-2">
+                                  <span>{format(aptDate, "HH:mm")}</span>
+                                  <span className="opacity-75">•</span>
+                                  <span>{formatDuration(apt)}</span>
                                 </div>
                               </div>
                             </div>
