@@ -8,7 +8,16 @@ import { Card, CardContent } from "@/components/ui/card"
 import { Plus, ChevronLeft, ChevronRight } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import Link from "next/link"
-import { format, addDays, startOfWeek, endOfWeek, eachDayOfInterval, isSameDay, parseISO } from "date-fns"
+import {
+  format,
+  addDays,
+  startOfWeek,
+  endOfWeek,
+  eachDayOfInterval,
+  isSameDay,
+  parseISO,
+  differenceInMinutes,
+} from "date-fns"
 import { ptBR } from "date-fns/locale"
 
 const TIME_SLOTS = Array.from({ length: 13 }, (_, i) => {
@@ -44,6 +53,27 @@ export default function StaffAgenda() {
     if (appointment.payment_status === "overdue") return "Devedor"
     if (appointment.client_type === "sporadic") return "Esporádico"
     return "Padrão"
+  }
+
+  const getAppointmentHeight = (appointment: any) => {
+    const startTime = parseISO(appointment.appointment_date)
+    const endTime = parseISO(appointment.end_time || appointment.appointment_date)
+    const durationMinutes = differenceInMinutes(endTime, startTime) || appointment.service?.duration || 60
+    // 1 minuto = ~1.2px, mínimo 48px
+    return Math.max(48, durationMinutes * 1.2)
+  }
+
+  const formatDuration = (appointment: any) => {
+    const startTime = parseISO(appointment.appointment_date)
+    const endTime = parseISO(appointment.end_time || appointment.appointment_date)
+    const durationMinutes = differenceInMinutes(endTime, startTime) || appointment.service?.duration || 60
+
+    if (durationMinutes >= 60) {
+      const hours = Math.floor(durationMinutes / 60)
+      const minutes = durationMinutes % 60
+      return minutes > 0 ? `${hours}h${minutes}m` : `${hours}h`
+    }
+    return `${durationMinutes}m`
   }
 
   useEffect(() => {
@@ -200,69 +230,92 @@ export default function StaffAgenda() {
             <Card className="border-gold/20">
               <CardContent className="p-0">
                 <div className="overflow-x-auto">
-                  <div className="min-w-[800px]">
+                  <div className="min-w-[600px] sm:min-w-[800px]">
                     {/* Header with dates */}
                     <div
-                      className="grid gap-px bg-border"
-                      style={{ gridTemplateColumns: `80px repeat(${daysToDisplay.length}, 1fr)` }}
+                      className="grid gap-px bg-border sticky top-0 z-10"
+                      style={{ gridTemplateColumns: `60px repeat(${daysToDisplay.length}, 1fr)` }}
                     >
-                      <div className="bg-card p-4 font-semibold text-sm">Horário</div>
+                      <div className="bg-card p-2 sm:p-4 font-semibold text-xs sm:text-sm">Hora</div>
                       {daysToDisplay.map((day) => (
-                        <div key={day.toISOString()} className="bg-card p-4 text-center">
-                          <div className="text-sm font-semibold">{format(day, "EEE", { locale: ptBR })}</div>
-                          <div className={`text-2xl font-bold ${isSameDay(day, new Date()) ? "text-gold" : ""}`}>
+                        <div key={day.toISOString()} className="bg-card p-2 sm:p-4 text-center">
+                          <div className="text-xs sm:text-sm font-semibold">{format(day, "EEE", { locale: ptBR })}</div>
+                          <div
+                            className={`text-lg sm:text-2xl font-bold ${isSameDay(day, new Date()) ? "text-gold" : ""}`}
+                          >
                             {format(day, "dd")}
                           </div>
-                          <div className="text-xs text-muted-foreground">{format(day, "MMM", { locale: ptBR })}</div>
+                          <div className="text-[10px] sm:text-xs text-muted-foreground">
+                            {format(day, "MMM", { locale: ptBR })}
+                          </div>
                         </div>
                       ))}
                     </div>
 
                     {/* Time slots */}
-                    {TIME_SLOTS.map((timeSlot) => (
-                      <div
-                        key={timeSlot}
-                        className="grid gap-px bg-border"
-                        style={{ gridTemplateColumns: `80px repeat(${daysToDisplay.length}, 1fr)` }}
-                      >
-                        <div className="bg-card p-4 text-sm font-medium text-muted-foreground">{timeSlot}</div>
-                        {daysToDisplay.map((day) => {
-                          const slotAppointments = getAppointmentsForSlot(day, timeSlot)
-                          const isAvailable = slotAppointments.length === 0
+                    <div className="relative">
+                      {TIME_SLOTS.map((timeSlot, index) => (
+                        <div
+                          key={timeSlot}
+                          className="grid gap-px bg-border relative"
+                          style={{
+                            gridTemplateColumns: `60px repeat(${daysToDisplay.length}, 1fr)`,
+                            minHeight: "80px",
+                          }}
+                        >
+                          <div className="bg-card p-2 text-xs sm:text-sm font-medium text-muted-foreground sticky left-0">
+                            {timeSlot}
+                          </div>
+                          {daysToDisplay.map((day) => {
+                            const slotAppointments = getAppointmentsForSlot(day, timeSlot)
+                            const isAvailable = slotAppointments.length === 0
 
-                          return (
-                            <div
-                              key={`${day.toISOString()}-${timeSlot}`}
-                              className={`bg-card p-2 min-h-[80px] transition-colors ${
-                                isAvailable ? "hover:bg-accent cursor-pointer" : ""
-                              }`}
-                            >
-                              {slotAppointments.map((apt) => {
-                                const isSubscriber = apt.client?.subscriptions?.[0]?.status === "active"
-                                return (
-                                  <Link key={apt.id} href={`/staff/agenda/${apt.id}`}>
-                                    <div
-                                      className={`group relative rounded p-2 mb-2 text-xs border ${
-                                        isSubscriber
-                                          ? "bg-green-500/20 border-green-500/40"
-                                          : "bg-gold/20 border-gold/40"
-                                      }`}
-                                    >
-                                      <div className="font-semibold truncate">{apt.service?.name}</div>
-                                      <div className="text-muted-foreground truncate">
-                                        {apt.client_type === "sporadic"
-                                          ? apt.sporadic_client_name
-                                          : apt.client?.full_name}
+                            return (
+                              <div
+                                key={`${day.toISOString()}-${timeSlot}`}
+                                className={`bg-card p-1 sm:p-2 transition-colors relative ${
+                                  isAvailable ? "hover:bg-accent cursor-pointer" : ""
+                                }`}
+                              >
+                                {slotAppointments.map((apt) => {
+                                  const isSubscriber = apt.client?.subscriptions?.[0]?.status === "active"
+                                  const height = getAppointmentHeight(apt)
+                                  const duration = formatDuration(apt)
+
+                                  return (
+                                    <Link key={apt.id} href={`/staff/agenda/${apt.id}`}>
+                                      <div
+                                        className={`group relative rounded p-1.5 sm:p-2 mb-1 text-[10px] sm:text-xs border overflow-hidden ${
+                                          isSubscriber
+                                            ? "bg-green-500/20 border-green-500/40"
+                                            : "bg-gold/20 border-gold/40"
+                                        }`}
+                                        style={{ minHeight: `${height}px` }}
+                                      >
+                                        <div className="font-semibold truncate text-[10px] sm:text-xs">
+                                          {apt.service?.name}
+                                        </div>
+                                        <div className="text-muted-foreground truncate text-[9px] sm:text-[11px]">
+                                          {apt.client_type === "sporadic"
+                                            ? apt.sporadic_client_name
+                                            : apt.client?.full_name}
+                                        </div>
+                                        <div className="text-muted-foreground/80 text-[9px] sm:text-[10px] mt-0.5 font-medium">
+                                          ⏱ {duration}
+                                        </div>
+                                        <div className="text-muted-foreground/70 text-[9px] sm:text-[10px]">
+                                          {format(parseISO(apt.appointment_date), "HH:mm")}
+                                        </div>
                                       </div>
-                                    </div>
-                                  </Link>
-                                )
-                              })}
-                            </div>
-                          )
-                        })}
-                      </div>
-                    ))}
+                                    </Link>
+                                  )
+                                })}
+                              </div>
+                            )
+                          })}
+                        </div>
+                      ))}
+                    </div>
                   </div>
                 </div>
               </CardContent>

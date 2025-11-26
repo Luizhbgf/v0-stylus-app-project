@@ -8,7 +8,16 @@ import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Trash2, ChevronLeft, ChevronRight, Plus } from "lucide-react"
-import { format, addDays, startOfWeek, endOfWeek, eachDayOfInterval, isSameDay, parseISO } from "date-fns"
+import {
+  format,
+  addDays,
+  startOfWeek,
+  endOfWeek,
+  eachDayOfInterval,
+  isSameDay,
+  parseISO,
+  differenceInMinutes,
+} from "date-fns"
 import { ptBR } from "date-fns/locale"
 import { toast } from "sonner"
 
@@ -129,6 +138,26 @@ export default function AdminAgendaPage() {
     setCurrentDate(new Date())
   }
 
+  const getAppointmentHeight = (appointment: any) => {
+    const startTime = parseISO(appointment.appointment_date)
+    const endTime = parseISO(appointment.end_time || appointment.appointment_date)
+    const durationMinutes = differenceInMinutes(endTime, startTime) || appointment.service?.duration || 60
+    return Math.max(48, durationMinutes * 1.2)
+  }
+
+  const formatDuration = (appointment: any) => {
+    const startTime = parseISO(appointment.appointment_date)
+    const endTime = parseISO(appointment.end_time || appointment.appointment_date)
+    const durationMinutes = differenceInMinutes(endTime, startTime) || appointment.service?.duration || 60
+
+    if (durationMinutes >= 60) {
+      const hours = Math.floor(durationMinutes / 60)
+      const minutes = durationMinutes % 60
+      return minutes > 0 ? `${hours}h${minutes}m` : `${hours}h`
+    }
+    return `${durationMinutes}m`
+  }
+
   if (loading || !profile) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
@@ -216,20 +245,22 @@ export default function AdminAgendaPage() {
         <Card className="border-gold/20">
           <CardContent className="p-0">
             <div className="overflow-x-auto">
-              <div className="min-w-[800px]">
+              <div className="min-w-[600px] sm:min-w-[800px]">
                 {/* Header with dates */}
                 <div
-                  className="grid gap-px bg-border"
-                  style={{ gridTemplateColumns: `80px repeat(${daysToDisplay.length}, 1fr)` }}
+                  className="grid gap-px bg-border sticky top-0 z-10"
+                  style={{ gridTemplateColumns: `60px repeat(${daysToDisplay.length}, 1fr)` }}
                 >
-                  <div className="bg-card p-4 font-semibold text-sm">Horário</div>
+                  <div className="bg-card p-2 sm:p-4 font-semibold text-xs sm:text-sm">Hora</div>
                   {daysToDisplay.map((day) => (
-                    <div key={day.toISOString()} className="bg-card p-4 text-center">
-                      <div className="text-sm font-semibold">{format(day, "EEE", { locale: ptBR })}</div>
-                      <div className={`text-2xl font-bold ${isSameDay(day, new Date()) ? "text-gold" : ""}`}>
+                    <div key={day.toISOString()} className="bg-card p-2 sm:p-4 text-center">
+                      <div className="text-xs sm:text-sm font-semibold">{format(day, "EEE", { locale: ptBR })}</div>
+                      <div className={`text-lg sm:text-2xl font-bold ${isSameDay(day, new Date()) ? "text-gold" : ""}`}>
                         {format(day, "dd")}
                       </div>
-                      <div className="text-xs text-muted-foreground">{format(day, "MMM", { locale: ptBR })}</div>
+                      <div className="text-[10px] sm:text-xs text-muted-foreground">
+                        {format(day, "MMM", { locale: ptBR })}
+                      </div>
                     </div>
                   ))}
                 </div>
@@ -238,10 +269,15 @@ export default function AdminAgendaPage() {
                 {TIME_SLOTS.map((timeSlot) => (
                   <div
                     key={timeSlot}
-                    className="grid gap-px bg-border"
-                    style={{ gridTemplateColumns: `80px repeat(${daysToDisplay.length}, 1fr)` }}
+                    className="grid gap-px bg-border relative"
+                    style={{
+                      gridTemplateColumns: `60px repeat(${daysToDisplay.length}, 1fr)`,
+                      minHeight: "80px",
+                    }}
                   >
-                    <div className="bg-card p-4 text-sm font-medium text-muted-foreground">{timeSlot}</div>
+                    <div className="bg-card p-2 text-xs sm:text-sm font-medium text-muted-foreground sticky left-0">
+                      {timeSlot}
+                    </div>
                     {daysToDisplay.map((day) => {
                       const slotAppointments = getAppointmentsForSlot(day, timeSlot)
                       const isAvailable = slotAppointments.length === 0
@@ -249,28 +285,44 @@ export default function AdminAgendaPage() {
                       return (
                         <div
                           key={`${day.toISOString()}-${timeSlot}`}
-                          className={`bg-card p-2 min-h-[80px] transition-colors ${
+                          className={`bg-card p-1 sm:p-2 transition-colors relative ${
                             isAvailable ? "hover:bg-accent cursor-pointer" : ""
                           }`}
                         >
-                          {slotAppointments.map((apt) => (
-                            <div
-                              key={apt.id}
-                              className="group relative bg-gold/20 border border-gold/40 rounded p-2 mb-2 text-xs"
-                            >
-                              <div className="font-semibold truncate">{apt.service?.name}</div>
-                              <div className="text-muted-foreground truncate">{apt.client?.full_name}</div>
-                              {apt.staff && (
-                                <div className="text-muted-foreground truncate text-[10px]">{apt.staff.full_name}</div>
-                              )}
-                              <button
-                                onClick={() => deleteAppointment(apt.id)}
-                                className="absolute top-1 right-1 opacity-0 group-hover:opacity-100 transition-opacity bg-red-500 text-white rounded p-1"
+                          {slotAppointments.map((apt) => {
+                            const height = getAppointmentHeight(apt)
+                            const duration = formatDuration(apt)
+
+                            return (
+                              <div
+                                key={apt.id}
+                                className="group relative bg-gold/20 border border-gold/40 rounded p-1.5 sm:p-2 mb-1 text-[10px] sm:text-xs overflow-hidden"
+                                style={{ minHeight: `${height}px` }}
                               >
-                                <Trash2 className="h-3 w-3" />
-                              </button>
-                            </div>
-                          ))}
+                                <div className="font-semibold truncate text-[10px] sm:text-xs">{apt.service?.name}</div>
+                                <div className="text-muted-foreground truncate text-[9px] sm:text-[11px]">
+                                  {apt.client?.full_name}
+                                </div>
+                                {apt.staff && (
+                                  <div className="text-muted-foreground truncate text-[9px] sm:text-[10px]">
+                                    {apt.staff.full_name}
+                                  </div>
+                                )}
+                                <div className="text-muted-foreground/80 text-[9px] sm:text-[10px] mt-0.5 font-medium">
+                                  ⏱ {duration}
+                                </div>
+                                <div className="text-muted-foreground/70 text-[9px] sm:text-[10px]">
+                                  {format(parseISO(apt.appointment_date), "HH:mm")}
+                                </div>
+                                <button
+                                  onClick={() => deleteAppointment(apt.id)}
+                                  className="absolute top-1 right-1 opacity-0 group-hover:opacity-100 transition-opacity bg-red-500 text-white rounded p-1"
+                                >
+                                  <Trash2 className="h-3 w-3" />
+                                </button>
+                              </div>
+                            )
+                          })}
                         </div>
                       )
                     })}
