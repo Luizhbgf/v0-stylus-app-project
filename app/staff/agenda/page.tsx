@@ -283,9 +283,9 @@ export default function StaffAgenda() {
                                     </div>
                                     <div className="flex items-center gap-4 text-sm text-muted-foreground">
                                       <div className="flex items-center gap-1 font-medium">
-                                        🕐 {format(aptDate, "HH:mm")}
+                                        {format(aptDate, "HH:mm")}
                                       </div>
-                                      <div className="flex items-center gap-1 font-medium">⏱ {duration}</div>
+                                      <div className="flex items-center gap-1 font-medium">{duration}</div>
                                     </div>
                                   </div>
                                 </Link>
@@ -368,7 +368,7 @@ export default function StaffAgenda() {
                                             : apt.client?.full_name}
                                         </div>
                                         <div className="text-muted-foreground/80 text-[10px] mt-1 font-medium">
-                                          ⏱ {duration}
+                                          {duration}
                                         </div>
                                         <div className="text-muted-foreground/70 text-[10px]">
                                           {format(parseISO(apt.appointment_date), "HH:mm")}
