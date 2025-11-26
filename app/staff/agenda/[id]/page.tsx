@@ -9,34 +9,32 @@ import { Label } from "@/components/ui/label"
 import { Navbar } from "@/components/navbar"
 import { useRouter, useParams } from "next/navigation"
 import { toast } from "sonner"
-import { ArrowLeft, Calendar, Clock, User, DollarSign, X, UserX, CheckCircle, Edit2 } from "lucide-react"
+import { ArrowLeft, Calendar, Clock, User, DollarSign, X, UserX, CheckCircle, Edit2, Save } from "lucide-react"
 import Link from "next/link"
 import { Badge } from "@/components/ui/badge"
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogTrigger,
-} from "@/components/ui/alert-dialog"
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog"
+import { Textarea } from "@/components/ui/textarea"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 
 export default function GerenciarAgendamento() {
   const [profile, setProfile] = useState<any>(null)
   const [appointment, setAppointment] = useState<any>(null)
   const [isLoading, setIsLoading] = useState(false)
+  const [isEditing, setIsEditing] = useState(false)
+  const [editData, setEditData] = useState({
+    appointment_date: "",
+    appointment_time: "",
+    service_id: "",
+    client_id: "",
+    client_type: "",
+    sporadic_client_name: "",
+    sporadic_client_phone: "",
+    event_title: "",
+    custom_price: "",
+    payment_status: "",
+    notes: "",
+  })
+  const [services, setServices] = useState<any[]>([])
+  const [clients, setClients] = useState<any[]>([])
   const [isEditingPrice, setIsEditingPrice] = useState(false)
   const [newPrice, setNewPrice] = useState("")
   const router = useRouter()
@@ -59,7 +57,16 @@ export default function GerenciarAgendamento() {
     const { data: profileData } = await supabase.from("profiles").select("*").eq("id", user.id).single()
     setProfile(profileData)
 
-    // Load appointment
+    const { data: servicesData } = await supabase.from("services").select("*").eq("is_active", true).order("name")
+    setServices(servicesData || [])
+
+    const { data: clientsData } = await supabase
+      .from("profiles")
+      .select("id, full_name, email, phone")
+      .eq("user_level", 10)
+      .order("full_name")
+    setClients(clientsData || [])
+
     const { data: appointmentData } = await supabase
       .from("appointments")
       .select(
@@ -77,6 +84,67 @@ export default function GerenciarAgendamento() {
       setAppointment(appointmentData)
       const currentPrice = appointmentData.custom_price || appointmentData.service?.price || 0
       setNewPrice(currentPrice.toString())
+
+      const appointmentDate = new Date(appointmentData.appointment_date)
+      setEditData({
+        appointment_date: appointmentDate.toISOString().split("T")[0],
+        appointment_time: appointmentDate.toTimeString().slice(0, 5),
+        service_id: appointmentData.service_id || "",
+        client_id: appointmentData.client_id || "",
+        client_type: appointmentData.client_type || "registered",
+        sporadic_client_name: appointmentData.sporadic_client_name || "",
+        sporadic_client_phone: appointmentData.sporadic_client_phone || "",
+        event_title: appointmentData.event_title || "",
+        custom_price: currentPrice.toString(),
+        payment_status: appointmentData.payment_status || "pending",
+        notes: appointmentData.notes || "",
+      })
+    }
+  }
+
+  const handleSaveEdit = async () => {
+    setIsLoading(true)
+    try {
+      const appointmentDateTime = new Date(`${editData.appointment_date}T${editData.appointment_time}`)
+
+      const updateData: any = {
+        appointment_date: appointmentDateTime.toISOString(),
+        service_id: editData.service_id || null,
+        client_type: editData.client_type,
+        payment_status: editData.payment_status,
+        notes: editData.notes || null,
+        custom_price: editData.custom_price ? Number.parseFloat(editData.custom_price) : null,
+      }
+
+      if (editData.client_type === "registered") {
+        updateData.client_id = editData.client_id || null
+        updateData.sporadic_client_name = null
+        updateData.sporadic_client_phone = null
+        updateData.event_title = null
+      } else if (editData.client_type === "sporadic") {
+        updateData.client_id = null
+        updateData.sporadic_client_name = editData.sporadic_client_name
+        updateData.sporadic_client_phone = editData.sporadic_client_phone
+        updateData.event_title = null
+      } else if (editData.client_type === "event") {
+        updateData.client_id = null
+        updateData.sporadic_client_name = null
+        updateData.sporadic_client_phone = null
+        updateData.event_title = editData.event_title
+      }
+
+      const { error } = await supabase.from("appointments").update(updateData).eq("id", appointment.id)
+
+      if (error) throw error
+
+      toast.success("Agendamento atualizado com sucesso!")
+      setIsEditing(false)
+      loadData()
+    } catch (error) {
+      console.error("[v0] Erro ao atualizar agendamento:", error)
+      toast.error("Erro ao atualizar agendamento")
+    } finally {
+      setIsLoading(false)
     }
   }
 
@@ -192,8 +260,28 @@ export default function GerenciarAgendamento() {
             <ArrowLeft className="mr-2 h-4 w-4" />
             Voltar para Agenda
           </Link>
-          <h1 className="text-3xl font-bold text-foreground">Gerenciar Agendamento</h1>
-          <p className="text-muted-foreground">Visualize e gerencie os detalhes do agendamento</p>
+          <div className="flex items-center justify-between">
+            <div>
+              <h1 className="text-3xl font-bold text-foreground">Gerenciar Agendamento</h1>
+              <p className="text-muted-foreground">Visualize e gerencie os detalhes do agendamento</p>
+            </div>
+            {!isEditing ? (
+              <Button onClick={() => setIsEditing(true)} variant="outline">
+                <Edit2 className="mr-2 h-4 w-4" />
+                Editar Tudo
+              </Button>
+            ) : (
+              <div className="flex gap-2">
+                <Button onClick={() => setIsEditing(false)} variant="outline">
+                  Cancelar
+                </Button>
+                <Button onClick={handleSaveEdit} disabled={isLoading}>
+                  <Save className="mr-2 h-4 w-4" />
+                  {isLoading ? "Salvando..." : "Salvar"}
+                </Button>
+              </div>
+            )}
+          </div>
         </div>
 
         <div className="space-y-6">
@@ -228,151 +316,273 @@ export default function GerenciarAgendamento() {
               </div>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div className="flex items-start gap-3">
-                <Calendar className="h-5 w-5 text-gold mt-0.5" />
-                <div>
-                  <p className="text-sm text-muted-foreground">Data e Hora</p>
-                  <p className="text-foreground font-medium">
-                    {appointmentDate.toLocaleDateString("pt-BR", {
-                      weekday: "long",
-                      year: "numeric",
-                      month: "long",
-                      day: "numeric",
-                    })}
-                  </p>
-                  <p className="text-foreground font-medium">
-                    {appointmentDate.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}
-                  </p>
-                </div>
-              </div>
-
-              {appointment.service && (
-                <div className="flex items-start gap-3">
-                  <Clock className="h-5 w-5 text-gold mt-0.5" />
-                  <div>
-                    <p className="text-sm text-muted-foreground">Serviço</p>
-                    <p className="text-foreground font-medium">{appointment.service.name}</p>
-                    <p className="text-sm text-muted-foreground">{appointment.service.duration} minutos</p>
+              {isEditing ? (
+                <div className="space-y-4 p-4 bg-muted/30 rounded-lg border border-gold/20">
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="edit-date">Data</Label>
+                      <Input
+                        id="edit-date"
+                        type="date"
+                        value={editData.appointment_date}
+                        onChange={(e) => setEditData({ ...editData, appointment_date: e.target.value })}
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="edit-time">Horário</Label>
+                      <Input
+                        id="edit-time"
+                        type="time"
+                        value={editData.appointment_time}
+                        onChange={(e) => setEditData({ ...editData, appointment_time: e.target.value })}
+                      />
+                    </div>
                   </div>
-                </div>
-              )}
 
-              {appointment.client_type === "sporadic" ? (
-                <div className="flex items-start gap-3">
-                  <User className="h-5 w-5 text-gold mt-0.5" />
-                  <div>
-                    <p className="text-sm text-muted-foreground">Cliente Esporádico</p>
-                    <p className="text-foreground font-medium">{appointment.sporadic_client_name}</p>
-                    <p className="text-sm text-muted-foreground">{appointment.sporadic_client_phone}</p>
+                  <div className="space-y-2">
+                    <Label htmlFor="edit-service">Serviço</Label>
+                    <Select
+                      value={editData.service_id}
+                      onValueChange={(value) => setEditData({ ...editData, service_id: value })}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Selecione um serviço" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {services.map((service) => (
+                          <SelectItem key={service.id} value={service.id}>
+                            {service.name} - R$ {service.price.toFixed(2)} ({service.duration}min)
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                   </div>
-                </div>
-              ) : appointment.client ? (
-                <div className="flex items-start gap-3">
-                  <User className="h-5 w-5 text-gold mt-0.5" />
-                  <div>
-                    <p className="text-sm text-muted-foreground">Cliente</p>
-                    <p className="text-foreground font-medium">{appointment.client.full_name}</p>
-                    <p className="text-sm text-muted-foreground">{appointment.client.phone}</p>
-                    <p className="text-sm text-muted-foreground">{appointment.client.email}</p>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="edit-client-type">Tipo de Cliente</Label>
+                    <Select
+                      value={editData.client_type}
+                      onValueChange={(value) => setEditData({ ...editData, client_type: value })}
+                    >
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="registered">Cliente Registrado</SelectItem>
+                        <SelectItem value="sporadic">Cliente Esporádico</SelectItem>
+                        <SelectItem value="event">Evento</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  {editData.client_type === "registered" && (
+                    <div className="space-y-2">
+                      <Label htmlFor="edit-client">Cliente</Label>
+                      <Select
+                        value={editData.client_id}
+                        onValueChange={(value) => setEditData({ ...editData, client_id: value })}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Selecione um cliente" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {clients.map((client) => (
+                            <SelectItem key={client.id} value={client.id}>
+                              {client.full_name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  )}
+
+                  {editData.client_type === "sporadic" && (
+                    <>
+                      <div className="space-y-2">
+                        <Label htmlFor="edit-sporadic-name">Nome do Cliente</Label>
+                        <Input
+                          id="edit-sporadic-name"
+                          value={editData.sporadic_client_name}
+                          onChange={(e) => setEditData({ ...editData, sporadic_client_name: e.target.value })}
+                          placeholder="Nome completo"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="edit-sporadic-phone">Telefone do Cliente</Label>
+                        <Input
+                          id="edit-sporadic-phone"
+                          value={editData.sporadic_client_phone}
+                          onChange={(e) => setEditData({ ...editData, sporadic_client_phone: e.target.value })}
+                          placeholder="(00) 00000-0000"
+                        />
+                      </div>
+                    </>
+                  )}
+
+                  {editData.client_type === "event" && (
+                    <div className="space-y-2">
+                      <Label htmlFor="edit-event-title">Título do Evento</Label>
+                      <Input
+                        id="edit-event-title"
+                        value={editData.event_title}
+                        onChange={(e) => setEditData({ ...editData, event_title: e.target.value })}
+                        placeholder="Ex: Reunião, Almoço, etc."
+                      />
+                    </div>
+                  )}
+
+                  <div className="space-y-2">
+                    <Label htmlFor="edit-price">Valor Personalizado (R$)</Label>
+                    <Input
+                      id="edit-price"
+                      type="number"
+                      step="0.01"
+                      value={editData.custom_price}
+                      onChange={(e) => setEditData({ ...editData, custom_price: e.target.value })}
+                      placeholder="Deixe vazio para usar preço padrão"
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="edit-payment-status">Status de Pagamento</Label>
+                    <Select
+                      value={editData.payment_status}
+                      onValueChange={(value) => setEditData({ ...editData, payment_status: value })}
+                    >
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="pending">Pendente</SelectItem>
+                        <SelectItem value="paid">Pago</SelectItem>
+                        <SelectItem value="overdue">Atrasado</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="edit-notes">Observações</Label>
+                    <Textarea
+                      id="edit-notes"
+                      value={editData.notes}
+                      onChange={(e) => setEditData({ ...editData, notes: e.target.value })}
+                      placeholder="Adicione observações sobre o agendamento..."
+                      rows={3}
+                    />
                   </div>
                 </div>
               ) : (
-                <div className="flex items-start gap-3">
-                  <User className="h-5 w-5 text-gold mt-0.5" />
-                  <div>
-                    <p className="text-sm text-muted-foreground">Evento</p>
-                    <p className="text-foreground font-medium">{appointment.event_title || "Sem título"}</p>
+                <>
+                  <div className="flex items-start gap-3">
+                    <Calendar className="h-5 w-5 text-gold mt-0.5" />
+                    <div>
+                      <p className="text-sm text-muted-foreground">Data e Hora</p>
+                      <p className="text-foreground font-medium">
+                        {appointmentDate.toLocaleDateString("pt-BR", {
+                          weekday: "long",
+                          year: "numeric",
+                          month: "long",
+                          day: "numeric",
+                        })}
+                      </p>
+                      <p className="text-foreground font-medium">
+                        {appointmentDate.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}
+                      </p>
+                    </div>
                   </div>
-                </div>
-              )}
 
-              {appointment.service?.price && (
-                <div className="flex items-start gap-3">
-                  <DollarSign className="h-5 w-5 text-gold mt-0.5" />
-                  <div className="flex-1">
-                    <p className="text-sm text-muted-foreground">Valor</p>
-                    <div className="flex items-center justify-between">
+                  {appointment.service && (
+                    <div className="flex items-start gap-3">
+                      <Clock className="h-5 w-5 text-gold mt-0.5" />
                       <div>
-                        <p className="text-foreground font-medium text-lg">R$ {displayPrice.toFixed(2)}</p>
-                        {appointment.custom_price && (
-                          <p className="text-xs text-muted-foreground">
-                            (Preço original: R$ {appointment.service.price.toFixed(2)})
-                          </p>
-                        )}
-                        <Badge
-                          variant="outline"
-                          className={
-                            appointment.payment_status === "paid"
-                              ? "bg-green-500/10 text-green-500 border-green-500/20"
-                              : appointment.payment_status === "overdue"
-                                ? "bg-red-500/10 text-red-500 border-red-500/20"
-                                : "bg-yellow-500/10 text-yellow-500 border-yellow-500/20"
-                          }
-                        >
-                          {appointment.payment_status === "paid"
-                            ? "Pago"
-                            : appointment.payment_status === "overdue"
-                              ? "Atrasado"
-                              : "Pendente"}
-                        </Badge>
+                        <p className="text-sm text-muted-foreground">Serviço</p>
+                        <p className="text-foreground font-medium">{appointment.service.name}</p>
+                        <p className="text-sm text-muted-foreground">{appointment.service.duration} minutos</p>
                       </div>
-                      <Dialog open={isEditingPrice} onOpenChange={setIsEditingPrice}>
-                        <DialogTrigger asChild>
-                          <Button variant="outline" size="sm">
+                    </div>
+                  )}
+
+                  {appointment.client_type === "sporadic" ? (
+                    <div className="flex items-start gap-3">
+                      <User className="h-5 w-5 text-gold mt-0.5" />
+                      <div>
+                        <p className="text-sm text-muted-foreground">Cliente Esporádico</p>
+                        <p className="text-foreground font-medium">{appointment.sporadic_client_name}</p>
+                        <p className="text-sm text-muted-foreground">{appointment.sporadic_client_phone}</p>
+                      </div>
+                    </div>
+                  ) : appointment.client ? (
+                    <div className="flex items-start gap-3">
+                      <User className="h-5 w-5 text-gold mt-0.5" />
+                      <div>
+                        <p className="text-sm text-muted-foreground">Cliente</p>
+                        <p className="text-foreground font-medium">{appointment.client.full_name}</p>
+                        <p className="text-sm text-muted-foreground">{appointment.client.phone}</p>
+                        <p className="text-sm text-muted-foreground">{appointment.client.email}</p>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="flex items-start gap-3">
+                      <User className="h-5 w-5 text-gold mt-0.5" />
+                      <div>
+                        <p className="text-sm text-muted-foreground">Evento</p>
+                        <p className="text-foreground font-medium">{appointment.event_title || "Sem título"}</p>
+                      </div>
+                    </div>
+                  )}
+
+                  {appointment.service?.price && (
+                    <div className="flex items-start gap-3">
+                      <DollarSign className="h-5 w-5 text-gold mt-0.5" />
+                      <div className="flex-1">
+                        <p className="text-sm text-muted-foreground">Valor</p>
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <p className="text-foreground font-medium text-lg">R$ {displayPrice.toFixed(2)}</p>
+                            {appointment.custom_price && (
+                              <p className="text-xs text-muted-foreground">
+                                (Preço original: R$ {appointment.service.price.toFixed(2)})
+                              </p>
+                            )}
+                            <Badge
+                              variant="outline"
+                              className={
+                                appointment.payment_status === "paid"
+                                  ? "bg-green-500/10 text-green-500 border-green-500/20"
+                                  : appointment.payment_status === "overdue"
+                                    ? "bg-red-500/10 text-red-500 border-red-500/20"
+                                    : "bg-yellow-500/10 text-yellow-500 border-yellow-500/20"
+                              }
+                            >
+                              {appointment.payment_status === "paid"
+                                ? "Pago"
+                                : appointment.payment_status === "overdue"
+                                  ? "Atrasado"
+                                  : "Pendente"}
+                            </Badge>
+                          </div>
+                          <Button variant="outline" size="sm" onClick={() => setIsEditingPrice(true)}>
                             <Edit2 className="h-4 w-4 mr-2" />
                             Editar Valor
                           </Button>
-                        </DialogTrigger>
-                        <DialogContent>
-                          <DialogHeader>
-                            <DialogTitle>Editar Valor do Agendamento</DialogTitle>
-                            <DialogDescription>
-                              Altere o valor apenas para este agendamento específico. O preço do serviço permanece
-                              inalterado.
-                            </DialogDescription>
-                          </DialogHeader>
-                          <div className="space-y-4 py-4">
-                            <div className="space-y-2">
-                              <Label htmlFor="price">Novo Valor (R$)</Label>
-                              <Input
-                                id="price"
-                                type="number"
-                                step="0.01"
-                                min="0"
-                                value={newPrice}
-                                onChange={(e) => setNewPrice(e.target.value)}
-                                placeholder="0.00"
-                              />
-                              <p className="text-xs text-muted-foreground">
-                                Preço padrão do serviço: R$ {appointment.service.price.toFixed(2)}
-                              </p>
-                            </div>
-                          </div>
-                          <DialogFooter>
-                            <Button variant="outline" onClick={() => setIsEditingPrice(false)}>
-                              Cancelar
-                            </Button>
-                            <Button onClick={handleUpdatePrice} disabled={isLoading}>
-                              {isLoading ? "Salvando..." : "Salvar"}
-                            </Button>
-                          </DialogFooter>
-                        </DialogContent>
-                      </Dialog>
+                        </div>
+                      </div>
                     </div>
-                  </div>
-                </div>
-              )}
+                  )}
 
-              {appointment.notes && (
-                <div className="pt-4 border-t border-gold/20">
-                  <p className="text-sm text-muted-foreground mb-1">Observações</p>
-                  <p className="text-foreground">{appointment.notes}</p>
-                </div>
+                  {appointment.notes && (
+                    <div className="pt-4 border-t border-gold/20">
+                      <p className="text-sm text-muted-foreground mb-1">Observações</p>
+                      <p className="text-foreground">{appointment.notes}</p>
+                    </div>
+                  )}
+                </>
               )}
             </CardContent>
           </Card>
 
-          {appointment.status !== "completed" &&
+          {!isEditing &&
+            appointment.status !== "completed" &&
             appointment.status !== "cancelled" &&
             appointment.status !== "no_show" && (
               <Card className="border-gold/20">
@@ -380,77 +590,29 @@ export default function GerenciarAgendamento() {
                   <CardTitle>Ações</CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-3">
-                  <AlertDialog>
-                    <AlertDialogTrigger asChild>
-                      <Button className="w-full bg-green-600 hover:bg-green-700 text-white" disabled={isLoading}>
-                        <CheckCircle className="mr-2 h-4 w-4" />
-                        Marcar como Concluído
-                      </Button>
-                    </AlertDialogTrigger>
-                    <AlertDialogContent>
-                      <AlertDialogHeader>
-                        <AlertDialogTitle>Confirmar conclusão</AlertDialogTitle>
-                        <AlertDialogDescription>
-                          Tem certeza que deseja marcar este agendamento como concluído? O pagamento será marcado como
-                          pago.
-                        </AlertDialogDescription>
-                      </AlertDialogHeader>
-                      <AlertDialogFooter>
-                        <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                        <AlertDialogAction onClick={handleComplete}>Confirmar</AlertDialogAction>
-                      </AlertDialogFooter>
-                    </AlertDialogContent>
-                  </AlertDialog>
+                  <Button
+                    className="w-full bg-green-600 hover:bg-green-700 text-white"
+                    onClick={handleComplete}
+                    disabled={isLoading}
+                  >
+                    <CheckCircle className="mr-2 h-4 w-4" />
+                    Marcar como Concluído
+                  </Button>
 
-                  <AlertDialog>
-                    <AlertDialogTrigger asChild>
-                      <Button
-                        variant="outline"
-                        className="w-full border-orange-500/20 text-orange-500 hover:bg-orange-500/10 bg-transparent"
-                        disabled={isLoading}
-                      >
-                        <UserX className="mr-2 h-4 w-4" />
-                        Cliente Não Compareceu
-                      </Button>
-                    </AlertDialogTrigger>
-                    <AlertDialogContent>
-                      <AlertDialogHeader>
-                        <AlertDialogTitle>Confirmar não comparecimento</AlertDialogTitle>
-                        <AlertDialogDescription>
-                          Tem certeza que o cliente não compareceu ao agendamento?
-                        </AlertDialogDescription>
-                      </AlertDialogHeader>
-                      <AlertDialogFooter>
-                        <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                        <AlertDialogAction onClick={handleNoShow} className="bg-orange-500 hover:bg-orange-600">
-                          Confirmar
-                        </AlertDialogAction>
-                      </AlertDialogFooter>
-                    </AlertDialogContent>
-                  </AlertDialog>
+                  <Button
+                    variant="outline"
+                    className="w-full border-orange-500/20 text-orange-500 hover:bg-orange-500/10 bg-transparent"
+                    onClick={handleNoShow}
+                    disabled={isLoading}
+                  >
+                    <UserX className="mr-2 h-4 w-4" />
+                    Cliente Não Compareceu
+                  </Button>
 
-                  <AlertDialog>
-                    <AlertDialogTrigger asChild>
-                      <Button variant="destructive" className="w-full" disabled={isLoading}>
-                        <X className="mr-2 h-4 w-4" />
-                        Cancelar Agendamento
-                      </Button>
-                    </AlertDialogTrigger>
-                    <AlertDialogContent>
-                      <AlertDialogHeader>
-                        <AlertDialogTitle>Confirmar cancelamento</AlertDialogTitle>
-                        <AlertDialogDescription>
-                          Tem certeza que deseja cancelar este agendamento? Esta ação não pode ser desfeita.
-                        </AlertDialogDescription>
-                      </AlertDialogHeader>
-                      <AlertDialogFooter>
-                        <AlertDialogCancel>Voltar</AlertDialogCancel>
-                        <AlertDialogAction onClick={handleCancel} className="bg-red-600 hover:bg-red-700">
-                          Cancelar Agendamento
-                        </AlertDialogAction>
-                      </AlertDialogFooter>
-                    </AlertDialogContent>
-                  </AlertDialog>
+                  <Button variant="destructive" className="w-full" onClick={handleCancel} disabled={isLoading}>
+                    <X className="mr-2 h-4 w-4" />
+                    Cancelar Agendamento
+                  </Button>
                 </CardContent>
               </Card>
             )}
