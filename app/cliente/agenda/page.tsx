@@ -1,11 +1,40 @@
-import { redirect } from 'next/navigation'
+import { redirect } from "next/navigation"
 import { createClient } from "@/lib/supabase/server"
 import { Navbar } from "@/components/navbar"
 import { Card, CardContent } from "@/components/ui/card"
-import { Calendar, Clock } from 'lucide-react'
+import { ChevronLeft, ChevronRight } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
+import { Button } from "@/components/ui/button"
+import { format, startOfWeek, endOfWeek, eachDayOfInterval, isSameDay, parseISO } from "date-fns"
+import { ptBR } from "date-fns/locale"
+import Link from "next/link"
 
-export default async function ClienteAgenda() {
+const TIME_SLOTS = Array.from({ length: 13 }, (_, i) => {
+  const hour = i + 8
+  return `${hour.toString().padStart(2, "0")}:00`
+})
+
+function AgendaNavigation({ currentWeek }: { currentWeek: string }) {
+  return (
+    <div className="flex items-center gap-2 mb-6">
+      <Link href={`?week=${new Date(new Date(currentWeek).getTime() - 7 * 24 * 60 * 60 * 1000).toISOString()}`}>
+        <Button variant="outline" size="icon">
+          <ChevronLeft className="h-4 w-4" />
+        </Button>
+      </Link>
+      <Link href={`?week=${new Date().toISOString()}`}>
+        <Button variant="outline">Hoje</Button>
+      </Link>
+      <Link href={`?week=${new Date(new Date(currentWeek).getTime() + 7 * 24 * 60 * 60 * 1000).toISOString()}`}>
+        <Button variant="outline" size="icon">
+          <ChevronRight className="h-4 w-4" />
+        </Button>
+      </Link>
+    </div>
+  )
+}
+
+export default async function ClienteAgenda({ searchParams }: { searchParams: { week?: string } }) {
   const supabase = await createClient()
 
   const {
@@ -16,10 +45,9 @@ export default async function ClienteAgenda() {
   const { data: profile } = await supabase.from("profiles").select("*").eq("id", user.id).single()
   if (!profile) redirect("/auth/login")
 
-  // Get all appointments for the next 30 days
-  const today = new Date()
-  const thirtyDaysLater = new Date(today)
-  thirtyDaysLater.setDate(today.getDate() + 30)
+  const currentDate = searchParams.week ? new Date(searchParams.week) : new Date()
+  const weekStart = startOfWeek(currentDate, { weekStartsOn: 0 })
+  const weekEnd = endOfWeek(currentDate, { weekStartsOn: 0 })
 
   const { data: appointments } = await supabase
     .from("appointments")
@@ -35,25 +63,20 @@ export default async function ClienteAgenda() {
     `,
     )
     .eq("client_id", user.id)
-    .gte("appointment_date", today.toISOString())
-    .lte("appointment_date", thirtyDaysLater.toISOString())
+    .gte("appointment_date", weekStart.toISOString())
+    .lte("appointment_date", new Date(weekEnd.getTime() + 24 * 60 * 60 * 1000).toISOString())
+    .neq("status", "cancelled")
     .order("appointment_date", { ascending: true })
 
-  const itemsByDate: Record<string, any[]> = {}
+  const daysToDisplay = eachDayOfInterval({ start: weekStart, end: weekEnd })
 
-  appointments?.forEach((apt) => {
-    const date = new Date(apt.appointment_date).toLocaleDateString("pt-BR")
-    if (!itemsByDate[date]) itemsByDate[date] = []
-    itemsByDate[date].push({
-      ...apt,
-      type: "appointment",
+  const getAppointmentsForSlot = (date: Date, timeSlot: string) => {
+    return (appointments || []).filter((apt) => {
+      const aptDate = parseISO(apt.appointment_date)
+      const aptTime = format(aptDate, "HH:mm")
+      return isSameDay(aptDate, date) && aptTime === timeSlot
     })
-  })
-
-  // Sort each day's items by time
-  Object.keys(itemsByDate).forEach((date) => {
-    itemsByDate[date].sort((a, b) => new Date(a.appointment_date).getTime() - new Date(b.appointment_date).getTime())
-  })
+  }
 
   return (
     <div className="min-h-screen bg-background">
@@ -62,87 +85,91 @@ export default async function ClienteAgenda() {
       <div className="container mx-auto px-4 py-8">
         <div className="mb-8">
           <h1 className="text-3xl sm:text-4xl font-bold text-foreground mb-2">Minha Agenda</h1>
-          <p className="text-muted-foreground">Seus agendamentos dos próximos 30 dias</p>
+          <p className="text-muted-foreground">Visualize seus agendamentos da semana</p>
         </div>
 
-        <div className="space-y-6">
-          {itemsByDate && Object.keys(itemsByDate).length > 0 ? (
-            Object.entries(itemsByDate).map(([date, items]) => (
-              <div key={date}>
-                <h2 className="text-xl font-bold text-foreground mb-4 flex items-center gap-2">
-                  <Calendar className="h-5 w-5 text-gold" />
-                  {date}
-                </h2>
-                <div className="grid gap-4">
-                  {items.map((item) => (
-                    <Card key={item.id} className="border-gold/20">
-                      <CardContent className="p-4 sm:p-6">
-                        <div className="flex flex-col sm:flex-row justify-between items-start gap-4">
-                          <div className="flex-1">
-                            <div className="flex items-start gap-2 mb-2">
-                              <h3 className="text-lg font-semibold text-foreground">
-                                {item.event_title || item.service?.name}
-                              </h3>
-                              <Badge variant="outline" className="text-xs">
-                                Agendamento
-                              </Badge>
-                            </div>
-                            <p className="text-sm text-muted-foreground mb-1">
-                              Profissional: {item.staff?.full_name || "N/A"}
-                            </p>
-                            <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                              <Clock className="h-4 w-4" />
-                              {new Date(item.appointment_date).toLocaleTimeString("pt-BR", {
-                                hour: "2-digit",
-                                minute: "2-digit",
-                              })}
-                            </div>
-                            {item.notes && <p className="text-sm text-muted-foreground mt-2">Obs: {item.notes}</p>}
-                            {item.staff_notes && (
-                              <p className="text-sm text-muted-foreground mt-2">
-                                Observações do profissional: {item.staff_notes}
-                              </p>
-                            )}
-                          </div>
-                          <div className="text-left sm:text-right w-full sm:w-auto">
-                            <span
-                              className={`inline-block px-3 py-1 rounded-full text-xs font-medium ${
-                                item.status === "completed"
-                                  ? "bg-green-500/10 text-green-500"
-                                  : item.status === "confirmed"
-                                    ? "bg-blue-500/10 text-blue-500"
-                                    : item.status === "cancelled"
-                                      ? "bg-red-500/10 text-red-500"
-                                      : "bg-yellow-500/10 text-yellow-500"
-                              }`}
-                            >
-                              {item.status === "completed"
-                                ? "Concluído"
-                                : item.status === "confirmed"
-                                  ? "Confirmado"
-                                  : item.status === "cancelled"
-                                    ? "Cancelado"
-                                    : "Pendente"}
-                            </span>
-                            {item.service?.price && (
-                              <p className="text-sm text-muted-foreground mt-2">R$ {item.service.price}</p>
-                            )}
-                          </div>
-                        </div>
-                      </CardContent>
-                    </Card>
+        <AgendaNavigation currentWeek={currentDate.toISOString()} />
+
+        <Card className="border-gold/20">
+          <CardContent className="p-0">
+            <div className="overflow-x-auto">
+              <div className="min-w-[800px]">
+                {/* Header with dates */}
+                <div
+                  className="grid gap-px bg-border"
+                  style={{ gridTemplateColumns: `80px repeat(${daysToDisplay.length}, 1fr)` }}
+                >
+                  <div className="bg-card p-4 font-semibold text-sm">Horário</div>
+                  {daysToDisplay.map((day) => (
+                    <div key={day.toISOString()} className="bg-card p-4 text-center">
+                      <div className="text-sm font-semibold">{format(day, "EEE", { locale: ptBR })}</div>
+                      <div className={`text-2xl font-bold ${isSameDay(day, new Date()) ? "text-gold" : ""}`}>
+                        {format(day, "dd")}
+                      </div>
+                      <div className="text-xs text-muted-foreground">{format(day, "MMM", { locale: ptBR })}</div>
+                    </div>
                   ))}
                 </div>
+
+                {/* Time slots */}
+                {TIME_SLOTS.map((timeSlot) => (
+                  <div
+                    key={timeSlot}
+                    className="grid gap-px bg-border"
+                    style={{ gridTemplateColumns: `80px repeat(${daysToDisplay.length}, 1fr)` }}
+                  >
+                    <div className="bg-card p-4 text-sm font-medium text-muted-foreground">{timeSlot}</div>
+                    {daysToDisplay.map((day) => {
+                      const slotAppointments = getAppointmentsForSlot(day, timeSlot)
+                      const isAvailable = slotAppointments.length === 0
+
+                      return (
+                        <div
+                          key={`${day.toISOString()}-${timeSlot}`}
+                          className="bg-card p-2 min-h-[80px] transition-colors"
+                        >
+                          {slotAppointments.map((apt) => (
+                            <div key={apt.id} className="bg-gold/20 border border-gold/40 rounded p-2 mb-2 text-xs">
+                              <div className="font-semibold truncate">{apt.service?.name}</div>
+                              <div className="text-muted-foreground truncate">{apt.staff?.full_name}</div>
+                              <Badge
+                                variant="outline"
+                                className={`text-[10px] mt-1 ${
+                                  apt.status === "completed"
+                                    ? "bg-green-500/10 text-green-500"
+                                    : apt.status === "confirmed"
+                                      ? "bg-blue-500/10 text-blue-500"
+                                      : "bg-yellow-500/10 text-yellow-500"
+                                }`}
+                              >
+                                {apt.status === "completed"
+                                  ? "Concluído"
+                                  : apt.status === "confirmed"
+                                    ? "Confirmado"
+                                    : "Pendente"}
+                              </Badge>
+                            </div>
+                          ))}
+                        </div>
+                      )
+                    })}
+                  </div>
+                ))}
               </div>
-            ))
-          ) : (
-            <Card className="border-gold/20">
-              <CardContent className="p-12 text-center">
-                <Calendar className="h-12 w-12 text-gold mx-auto mb-4" />
-                <p className="text-muted-foreground">Nenhum agendamento nos próximos 30 dias</p>
-              </CardContent>
-            </Card>
-          )}
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Legend */}
+        <div className="mt-4 flex flex-wrap gap-4 text-sm">
+          <div className="flex items-center gap-2">
+            <div className="w-4 h-4 bg-gold/20 border border-gold/40 rounded"></div>
+            <span>Seu Agendamento</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <div className="w-4 h-4 bg-card border border-border rounded"></div>
+            <span>Horário Disponível</span>
+          </div>
         </div>
       </div>
     </div>
