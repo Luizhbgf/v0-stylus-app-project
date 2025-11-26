@@ -30,6 +30,7 @@ export default function AdminConfiguracoes() {
     show_services: true,
     show_courses: false,
     show_plans: false,
+    show_employees: true,
     featured_services: [] as string[],
     featured_testimonials: [] as any[],
     featured_courses: [] as string[],
@@ -69,6 +70,7 @@ export default function AdminConfiguracoes() {
         show_services: settingsRes.data.show_services ?? true,
         show_courses: settingsRes.data.show_courses ?? false,
         show_plans: settingsRes.data.show_plans ?? false,
+        show_employees: settingsRes.data.show_employees ?? true,
         featured_services: settingsRes.data.featured_services || [],
         featured_testimonials: settingsRes.data.featured_testimonials || [],
         featured_courses: settingsRes.data.featured_courses || [],
@@ -317,6 +319,17 @@ export default function AdminConfiguracoes() {
                 id="show-plans"
                 checked={settings.show_plans}
                 onCheckedChange={(checked) => setSettings({ ...settings, show_plans: checked })}
+              />
+            </div>
+            <div className="flex items-center justify-between">
+              <div>
+                <Label htmlFor="show-employees">Mostrar Funcionários</Label>
+                <p className="text-sm text-muted-foreground">Exibir showcase de funcionários</p>
+              </div>
+              <Switch
+                id="show-employees"
+                checked={settings.show_employees}
+                onCheckedChange={(checked) => setSettings({ ...settings, show_employees: checked })}
               />
             </div>
           </CardContent>

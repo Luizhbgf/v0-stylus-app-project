@@ -55,23 +55,39 @@ export default async function HomePage() {
     featuredServices = data || []
   }
 
-  if (homepageSettings?.show_courses && homepageSettings?.featured_courses?.length) {
-    const { data } = await supabase.from("courses").select("*").in("id", homepageSettings.featured_courses)
-    featuredCourses = data || []
+  if (homepageSettings?.show_courses) {
+    if (homepageSettings?.featured_courses?.length) {
+      const { data } = await supabase.from("courses").select("*").in("id", homepageSettings.featured_courses)
+      featuredCourses = data || []
+    } else {
+      // If no featured courses, show all active courses
+      const { data } = await supabase.from("courses").select("*").eq("is_active", true).limit(6)
+      featuredCourses = data || []
+    }
   }
 
-  if (homepageSettings?.show_plans && homepageSettings?.featured_plans?.length) {
-    const { data } = await supabase.from("subscription_plans").select("*").in("id", homepageSettings.featured_plans)
-    featuredPlans = data || []
+  if (homepageSettings?.show_plans) {
+    if (homepageSettings?.featured_plans?.length) {
+      const { data } = await supabase.from("subscription_plans").select("*").in("id", homepageSettings.featured_plans)
+      featuredPlans = data || []
+    } else {
+      // If no featured plans, show all active plans
+      const { data } = await supabase.from("subscription_plans").select("*").eq("is_active", true).limit(6)
+      featuredPlans = data || []
+    }
   }
 
-  const { data: staffMembers } = await supabase
-    .from("profiles")
-    .select("*")
-    .gte("user_level", 20)
-    .lte("user_level", 29)
-    .eq("is_active", true)
-    .order("full_name")
+  let staffMembers = []
+  if (homepageSettings?.show_employees !== false) {
+    const { data } = await supabase
+      .from("profiles")
+      .select("*")
+      .gte("user_level", 20)
+      .lte("user_level", 29)
+      .eq("is_active", true)
+      .order("full_name")
+    staffMembers = data || []
+  }
 
   const settings = homepageSettings || {
     hero_title: "Sua Beleza, Nossa Paixão",
@@ -86,6 +102,7 @@ export default async function HomePage() {
     show_services: true,
     show_courses: false,
     show_plans: false,
+    show_employees: true,
     featured_testimonials: [],
   }
 
@@ -183,7 +200,6 @@ export default async function HomePage() {
         </div>
       </section>
 
-      {/* Services Section */}
       {settings.show_services && (
         <section id="servicos" className="py-24 bg-muted/30">
           <div className="container mx-auto px-4">
@@ -235,6 +251,109 @@ export default async function HomePage() {
                   <ArrowRight className="ml-2 h-5 w-5" />
                 </Button>
               </Link>
+            </div>
+          </div>
+        </section>
+      )}
+
+      {settings.show_courses && featuredCourses.length > 0 && (
+        <section className="py-24 bg-background">
+          <div className="container mx-auto px-4">
+            <div className="text-center mb-20">
+              <div className="inline-block px-4 py-2 rounded-full bg-primary/10 text-primary text-sm font-semibold mb-4">
+                CURSOS
+              </div>
+              <h2 className="font-serif text-5xl md:text-6xl font-bold text-foreground mb-6">Cursos Disponíveis</h2>
+              <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
+                Aprenda com nossos profissionais especializados
+              </p>
+            </div>
+
+            <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8 max-w-7xl mx-auto">
+              {featuredCourses.map((course) => (
+                <Card
+                  key={course.id}
+                  className="border-primary/10 overflow-hidden hover:shadow-xl hover:shadow-primary/5 transition-all duration-300 group"
+                >
+                  <div className="relative h-48 bg-gradient-to-br from-primary/20 to-primary/5">
+                    {course.thumbnail_url ? (
+                      <Image
+                        src={course.thumbnail_url || "/placeholder.svg"}
+                        alt={course.title}
+                        fill
+                        className="object-cover"
+                      />
+                    ) : (
+                      <div className="absolute inset-0 flex items-center justify-center">
+                        <Sparkles className="h-16 w-16 text-primary/30" />
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="p-6 space-y-4">
+                    <div>
+                      <h3 className="text-xl font-bold text-foreground mb-2">{course.title}</h3>
+                      <p className="text-sm text-muted-foreground line-clamp-2">{course.description}</p>
+                    </div>
+
+                    <div className="flex items-center justify-between text-sm">
+                      <span className="text-muted-foreground">{course.level || "Todos os níveis"}</span>
+                      <span className="font-bold text-primary text-lg">R$ {course.price}</span>
+                    </div>
+
+                    <Button asChild className="w-full">
+                      <Link href={`/cliente/cursos/${course.id}`}>Ver Detalhes</Link>
+                    </Button>
+                  </div>
+                </Card>
+              ))}
+            </div>
+          </div>
+        </section>
+      )}
+
+      {settings.show_plans && featuredPlans.length > 0 && (
+        <section className="py-24 bg-muted/30">
+          <div className="container mx-auto px-4">
+            <div className="text-center mb-20">
+              <div className="inline-block px-4 py-2 rounded-full bg-primary/10 text-primary text-sm font-semibold mb-4">
+                PLANOS
+              </div>
+              <h2 className="font-serif text-5xl md:text-6xl font-bold text-foreground mb-6">Planos de Assinatura</h2>
+              <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
+                Escolha o plano ideal para manter sua beleza sempre em dia
+              </p>
+            </div>
+
+            <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8 max-w-7xl mx-auto">
+              {featuredPlans.map((plan) => (
+                <Card
+                  key={plan.id}
+                  className="border-primary/10 hover:shadow-xl hover:shadow-primary/10 transition-all duration-300 overflow-hidden"
+                >
+                  <div className="p-6 md:p-8 space-y-6">
+                    <div>
+                      <h3 className="text-2xl font-bold text-foreground mb-2">{plan.name}</h3>
+                      <p className="text-sm text-muted-foreground">{plan.description}</p>
+                    </div>
+
+                    <div className="flex items-baseline gap-2">
+                      <span className="text-4xl font-bold text-primary">R$ {plan.price}</span>
+                      <span className="text-sm text-muted-foreground">/{plan.billing_frequency || "mês"}</span>
+                    </div>
+
+                    {plan.services_per_period && (
+                      <p className="text-sm text-muted-foreground">
+                        {plan.services_per_period} serviços por {plan.billing_frequency || "mês"}
+                      </p>
+                    )}
+
+                    <Button asChild className="w-full">
+                      <Link href={`/cliente/assinaturas/${plan.id}/assinar`}>Assinar Agora</Link>
+                    </Button>
+                  </div>
+                </Card>
+              ))}
             </div>
           </div>
         </section>
@@ -354,7 +473,6 @@ export default async function HomePage() {
         </section>
       )}
 
-      {/* Testimonials Section */}
       {settings.show_testimonials && (
         <section className="py-24">
           <div className="container mx-auto px-4">
@@ -392,7 +510,6 @@ export default async function HomePage() {
         </section>
       )}
 
-      {/* CTA Section */}
       <section className="py-32 relative overflow-hidden">
         <div className="absolute inset-0 bg-gradient-to-br from-primary/10 via-background to-primary/5" />
         <div
@@ -422,7 +539,6 @@ export default async function HomePage() {
         </div>
       </section>
 
-      {/* Footer */}
       <footer className="bg-card border-t border-primary/10 py-16">
         <div className="container mx-auto px-4">
           <div className="grid md:grid-cols-4 gap-12 mb-12">
