@@ -254,7 +254,6 @@ export default function StaffAgenda() {
                             )
                             .map((apt) => {
                               const isSubscriber = apt.client?.subscriptions?.[0]?.status === "active"
-                              const duration = formatDuration(apt)
                               const aptDate = parseISO(apt.appointment_date)
 
                               return (
@@ -285,7 +284,6 @@ export default function StaffAgenda() {
                                       <div className="flex items-center gap-1 font-medium">
                                         {format(aptDate, "HH:mm")}
                                       </div>
-                                      <div className="flex items-center gap-1 font-medium">{duration}</div>
                                     </div>
                                   </div>
                                 </Link>
@@ -349,7 +347,6 @@ export default function StaffAgenda() {
                                 {slotAppointments.map((apt) => {
                                   const isSubscriber = apt.client?.subscriptions?.[0]?.status === "active"
                                   const height = getAppointmentHeight(apt)
-                                  const duration = formatDuration(apt)
 
                                   return (
                                     <Link key={apt.id} href={`/staff/agenda/${apt.id}`}>
@@ -367,10 +364,7 @@ export default function StaffAgenda() {
                                             ? apt.sporadic_client_name
                                             : apt.client?.full_name}
                                         </div>
-                                        <div className="text-muted-foreground/80 text-[10px] mt-1 font-medium">
-                                          {duration}
-                                        </div>
-                                        <div className="text-muted-foreground/70 text-[10px]">
+                                        <div className="text-muted-foreground/70 text-[9px] sm:text-[10px]">
                                           {format(parseISO(apt.appointment_date), "HH:mm")}
                                         </div>
                                       </div>

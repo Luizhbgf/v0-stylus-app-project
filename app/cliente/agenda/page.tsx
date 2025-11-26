@@ -134,7 +134,6 @@ export default async function ClienteAgenda({ searchParams }: { searchParams: { 
                       {dayAppointments
                         .sort((a, b) => parseISO(a.appointment_date).getTime() - parseISO(b.appointment_date).getTime())
                         .map((apt) => {
-                          const duration = formatDuration(apt)
                           const aptDate = parseISO(apt.appointment_date)
 
                           return (
@@ -164,7 +163,6 @@ export default async function ClienteAgenda({ searchParams }: { searchParams: { 
                               <div className="flex items-center gap-4 text-sm text-muted-foreground">
                                 {/* Removed the emojis of clock */}
                                 <div className="flex items-center gap-1 font-medium">{format(aptDate, "HH:mm")}</div>
-                                <div className="flex items-center gap-1 font-medium">{duration}</div>
                               </div>
                             </div>
                           )
@@ -223,7 +221,6 @@ export default async function ClienteAgenda({ searchParams }: { searchParams: { 
                         >
                           {slotAppointments.map((apt) => {
                             const height = getAppointmentHeight(apt)
-                            const duration = formatDuration(apt)
 
                             return (
                               <div
@@ -237,7 +234,6 @@ export default async function ClienteAgenda({ searchParams }: { searchParams: { 
                                 </div>
                                 <div className="text-muted-foreground/80 text-[9px] sm:text-[10px] mt-0.5 font-medium">
                                   {/* Removed the emoji of clock */}
-                                  {duration}
                                 </div>
                                 <div className="text-muted-foreground/70 text-[9px] sm:text-[10px]">
                                   {format(parseISO(apt.appointment_date), "HH:mm")}

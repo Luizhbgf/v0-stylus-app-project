@@ -266,7 +266,6 @@ export default function AdminAgendaPage() {
                       {dayAppointments
                         .sort((a, b) => parseISO(a.appointment_date).getTime() - parseISO(b.appointment_date).getTime())
                         .map((apt) => {
-                          const duration = formatDuration(apt)
                           const aptDate = parseISO(apt.appointment_date)
 
                           return (
@@ -293,7 +292,6 @@ export default function AdminAgendaPage() {
                               </div>
                               <div className="flex items-center gap-4 text-sm text-muted-foreground">
                                 <div className="flex items-center gap-1 font-medium">{format(aptDate, "HH:mm")}</div>
-                                <div className="flex items-center gap-1 font-medium">{duration}</div>
                               </div>
                             </div>
                           )
@@ -356,7 +354,7 @@ export default function AdminAgendaPage() {
                         >
                           {slotAppointments.map((apt) => {
                             const height = getAppointmentHeight(apt)
-                            const duration = formatDuration(apt)
+                            const aptDate = parseISO(apt.appointment_date)
 
                             return (
                               <div
@@ -373,11 +371,8 @@ export default function AdminAgendaPage() {
                                     {apt.staff.full_name}
                                   </div>
                                 )}
-                                <div className="text-muted-foreground/80 text-[9px] sm:text-[10px] mt-0.5 font-medium">
-                                  {duration}
-                                </div>
                                 <div className="text-muted-foreground/70 text-[9px] sm:text-[10px]">
-                                  {format(parseISO(apt.appointment_date), "HH:mm")}
+                                  {format(aptDate, "HH:mm")}
                                 </div>
                                 <button
                                   onClick={() => deleteAppointment(apt.id)}
