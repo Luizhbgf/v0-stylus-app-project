@@ -110,7 +110,74 @@ export default async function ClienteAgenda({ searchParams }: { searchParams: { 
 
         <AgendaNavigation currentWeek={currentDate.toISOString()} />
 
-        <Card className="border-gold/20">
+        {/* Mobile View - Lista */}
+        <div className="md:hidden space-y-4">
+          {daysToDisplay.map((day) => {
+            const dayAppointments = (appointments || []).filter((apt) => isSameDay(parseISO(apt.appointment_date), day))
+
+            return (
+              <Card key={day.toISOString()} className="border-gold/20">
+                <CardContent className="p-4">
+                  <div className="mb-4 pb-3 border-b border-border">
+                    <div className="text-sm font-semibold text-muted-foreground">
+                      {format(day, "EEEE", { locale: ptBR })}
+                    </div>
+                    <div className={`text-2xl font-bold ${isSameDay(day, new Date()) ? "text-gold" : ""}`}>
+                      {format(day, "dd 'de' MMMM", { locale: ptBR })}
+                    </div>
+                  </div>
+
+                  {dayAppointments.length === 0 ? (
+                    <p className="text-muted-foreground text-center py-6">Nenhum agendamento</p>
+                  ) : (
+                    <div className="space-y-3">
+                      {dayAppointments
+                        .sort((a, b) => parseISO(a.appointment_date).getTime() - parseISO(b.appointment_date).getTime())
+                        .map((apt) => {
+                          const duration = formatDuration(apt)
+                          const aptDate = parseISO(apt.appointment_date)
+
+                          return (
+                            <div key={apt.id} className="p-4 rounded-lg border-2 bg-gold/10 border-gold/40">
+                              <div className="flex items-start justify-between mb-2">
+                                <div className="flex-1">
+                                  <div className="font-bold text-lg mb-1">{apt.service?.name}</div>
+                                  <div className="text-base text-muted-foreground">{apt.staff?.full_name}</div>
+                                </div>
+                                <Badge
+                                  variant="outline"
+                                  className={`text-xs px-2 py-1 ${
+                                    apt.status === "completed"
+                                      ? "bg-green-500/10 text-green-500"
+                                      : apt.status === "confirmed"
+                                        ? "bg-blue-500/10 text-blue-500"
+                                        : "bg-yellow-500/10 text-yellow-500"
+                                  }`}
+                                >
+                                  {apt.status === "completed"
+                                    ? "Concluído"
+                                    : apt.status === "confirmed"
+                                      ? "Confirmado"
+                                      : "Pendente"}
+                                </Badge>
+                              </div>
+                              <div className="flex items-center gap-4 text-sm text-muted-foreground">
+                                <div className="flex items-center gap-1 font-medium">🕐 {format(aptDate, "HH:mm")}</div>
+                                <div className="flex items-center gap-1 font-medium">⏱ {duration}</div>
+                              </div>
+                            </div>
+                          )
+                        })}
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            )
+          })}
+        </div>
+
+        {/* Desktop View - Grade de Calendário */}
+        <Card className="border-gold/20 hidden md:block">
           <CardContent className="p-0">
             <div className="overflow-x-auto">
               <div className="min-w-[600px] sm:min-w-[800px]">

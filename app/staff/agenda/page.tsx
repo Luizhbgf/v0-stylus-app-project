@@ -227,27 +227,96 @@ export default function StaffAgenda() {
           </div>
         ) : (
           <>
-            <Card className="border-gold/20">
+            {/* Mobile View - Lista */}
+            <div className="md:hidden space-y-4">
+              {daysToDisplay.map((day) => {
+                const dayAppointments = appointments.filter((apt) => isSameDay(parseISO(apt.appointment_date), day))
+
+                return (
+                  <Card key={day.toISOString()} className="border-gold/20">
+                    <CardContent className="p-4">
+                      <div className="mb-4 pb-3 border-b border-border">
+                        <div className="text-sm font-semibold text-muted-foreground">
+                          {format(day, "EEEE", { locale: ptBR })}
+                        </div>
+                        <div className={`text-2xl font-bold ${isSameDay(day, new Date()) ? "text-gold" : ""}`}>
+                          {format(day, "dd 'de' MMMM", { locale: ptBR })}
+                        </div>
+                      </div>
+
+                      {dayAppointments.length === 0 ? (
+                        <p className="text-muted-foreground text-center py-6">Nenhum agendamento</p>
+                      ) : (
+                        <div className="space-y-3">
+                          {dayAppointments
+                            .sort(
+                              (a, b) => parseISO(a.appointment_date).getTime() - parseISO(b.appointment_date).getTime(),
+                            )
+                            .map((apt) => {
+                              const isSubscriber = apt.client?.subscriptions?.[0]?.status === "active"
+                              const duration = formatDuration(apt)
+                              const aptDate = parseISO(apt.appointment_date)
+
+                              return (
+                                <Link key={apt.id} href={`/staff/agenda/${apt.id}`}>
+                                  <div
+                                    className={`p-4 rounded-lg border-2 ${
+                                      isSubscriber
+                                        ? "bg-green-500/10 border-green-500/40 hover:bg-green-500/20"
+                                        : "bg-gold/10 border-gold/40 hover:bg-gold/20"
+                                    } transition-colors`}
+                                  >
+                                    <div className="flex items-start justify-between mb-2">
+                                      <div className="flex-1">
+                                        <div className="font-bold text-lg mb-1">{apt.service?.name}</div>
+                                        <div className="text-base text-muted-foreground">
+                                          {apt.client_type === "sporadic"
+                                            ? apt.sporadic_client_name
+                                            : apt.client?.full_name}
+                                        </div>
+                                      </div>
+                                      {isSubscriber && (
+                                        <div className="px-2 py-1 bg-green-500/20 text-green-700 dark:text-green-300 rounded text-xs font-semibold">
+                                          Assinante
+                                        </div>
+                                      )}
+                                    </div>
+                                    <div className="flex items-center gap-4 text-sm text-muted-foreground">
+                                      <div className="flex items-center gap-1 font-medium">
+                                        🕐 {format(aptDate, "HH:mm")}
+                                      </div>
+                                      <div className="flex items-center gap-1 font-medium">⏱ {duration}</div>
+                                    </div>
+                                  </div>
+                                </Link>
+                              )
+                            })}
+                        </div>
+                      )}
+                    </CardContent>
+                  </Card>
+                )
+              })}
+            </div>
+
+            {/* Desktop View - Grade de Calendário */}
+            <Card className="border-gold/20 hidden md:block">
               <CardContent className="p-0">
                 <div className="overflow-x-auto">
-                  <div className="min-w-[600px] sm:min-w-[800px]">
+                  <div className="min-w-[800px]">
                     {/* Header with dates */}
                     <div
                       className="grid gap-px bg-border sticky top-0 z-10"
-                      style={{ gridTemplateColumns: `60px repeat(${daysToDisplay.length}, 1fr)` }}
+                      style={{ gridTemplateColumns: `80px repeat(${daysToDisplay.length}, 1fr)` }}
                     >
-                      <div className="bg-card p-2 sm:p-4 font-semibold text-xs sm:text-sm">Hora</div>
+                      <div className="bg-card p-4 font-semibold text-sm">Hora</div>
                       {daysToDisplay.map((day) => (
-                        <div key={day.toISOString()} className="bg-card p-2 sm:p-4 text-center">
-                          <div className="text-xs sm:text-sm font-semibold">{format(day, "EEE", { locale: ptBR })}</div>
-                          <div
-                            className={`text-lg sm:text-2xl font-bold ${isSameDay(day, new Date()) ? "text-gold" : ""}`}
-                          >
+                        <div key={day.toISOString()} className="bg-card p-4 text-center">
+                          <div className="text-sm font-semibold">{format(day, "EEE", { locale: ptBR })}</div>
+                          <div className={`text-2xl font-bold ${isSameDay(day, new Date()) ? "text-gold" : ""}`}>
                             {format(day, "dd")}
                           </div>
-                          <div className="text-[10px] sm:text-xs text-muted-foreground">
-                            {format(day, "MMM", { locale: ptBR })}
-                          </div>
+                          <div className="text-xs text-muted-foreground">{format(day, "MMM", { locale: ptBR })}</div>
                         </div>
                       ))}
                     </div>
@@ -259,11 +328,11 @@ export default function StaffAgenda() {
                           key={timeSlot}
                           className="grid gap-px bg-border relative"
                           style={{
-                            gridTemplateColumns: `60px repeat(${daysToDisplay.length}, 1fr)`,
+                            gridTemplateColumns: `80px repeat(${daysToDisplay.length}, 1fr)`,
                             minHeight: "80px",
                           }}
                         >
-                          <div className="bg-card p-2 text-xs sm:text-sm font-medium text-muted-foreground sticky left-0">
+                          <div className="bg-card p-3 text-sm font-medium text-muted-foreground sticky left-0">
                             {timeSlot}
                           </div>
                           {daysToDisplay.map((day) => {
@@ -273,7 +342,7 @@ export default function StaffAgenda() {
                             return (
                               <div
                                 key={`${day.toISOString()}-${timeSlot}`}
-                                className={`bg-card p-1 sm:p-2 transition-colors relative ${
+                                className={`bg-card p-2 transition-colors relative ${
                                   isAvailable ? "hover:bg-accent cursor-pointer" : ""
                                 }`}
                               >
@@ -285,25 +354,23 @@ export default function StaffAgenda() {
                                   return (
                                     <Link key={apt.id} href={`/staff/agenda/${apt.id}`}>
                                       <div
-                                        className={`group relative rounded p-1.5 sm:p-2 mb-1 text-[10px] sm:text-xs border overflow-hidden ${
+                                        className={`group relative rounded p-2 mb-1 text-xs border overflow-hidden ${
                                           isSubscriber
                                             ? "bg-green-500/20 border-green-500/40"
                                             : "bg-gold/20 border-gold/40"
                                         }`}
                                         style={{ minHeight: `${height}px` }}
                                       >
-                                        <div className="font-semibold truncate text-[10px] sm:text-xs">
-                                          {apt.service?.name}
-                                        </div>
-                                        <div className="text-muted-foreground truncate text-[9px] sm:text-[11px]">
+                                        <div className="font-semibold truncate">{apt.service?.name}</div>
+                                        <div className="text-muted-foreground truncate text-[11px]">
                                           {apt.client_type === "sporadic"
                                             ? apt.sporadic_client_name
                                             : apt.client?.full_name}
                                         </div>
-                                        <div className="text-muted-foreground/80 text-[9px] sm:text-[10px] mt-0.5 font-medium">
+                                        <div className="text-muted-foreground/80 text-[10px] mt-1 font-medium">
                                           ⏱ {duration}
                                         </div>
-                                        <div className="text-muted-foreground/70 text-[9px] sm:text-[10px]">
+                                        <div className="text-muted-foreground/70 text-[10px]">
                                           {format(parseISO(apt.appointment_date), "HH:mm")}
                                         </div>
                                       </div>
@@ -331,7 +398,7 @@ export default function StaffAgenda() {
                 <div className="w-4 h-4 bg-gold/20 border border-gold/40 rounded"></div>
                 <span>Cliente Regular</span>
               </div>
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 hidden md:flex">
                 <div className="w-4 h-4 bg-card border border-border rounded"></div>
                 <span>Horário Disponível</span>
               </div>
