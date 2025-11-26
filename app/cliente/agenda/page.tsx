@@ -110,101 +110,73 @@ export default async function ClienteAgenda({ searchParams }: { searchParams: { 
 
         <AgendaNavigation currentWeek={currentDate.toISOString()} />
 
-        {/* Mobile View - Grade responsiva */}
-        <Card className="border-gold/20 md:hidden">
-          <CardContent className="p-0">
-            <div className="overflow-x-auto">
-              <div className="min-w-full">
-                {/* Header mobile */}
-                <div
-                  className="grid gap-px bg-border sticky top-0 z-10"
-                  style={{ gridTemplateColumns: `70px repeat(${Math.min(daysToDisplay.length, 3)}, 1fr)` }}
-                >
-                  <div className="bg-card p-3 font-semibold text-sm">Hora</div>
-                  {daysToDisplay.slice(0, 3).map((day) => (
-                    <div key={day.toISOString()} className="bg-card p-3 text-center">
-                      <div className="text-xs font-semibold">{format(day, "EEE", { locale: ptBR })}</div>
-                      <div className={`text-xl font-bold ${isSameDay(day, new Date()) ? "text-gold" : ""}`}>
-                        {format(day, "dd")}
-                      </div>
-                      <div className="text-[10px] text-muted-foreground">{format(day, "MMM", { locale: ptBR })}</div>
+        {/* Mobile View - Lista */}
+        <div className="md:hidden space-y-4">
+          {daysToDisplay.map((day) => {
+            const dayAppointments = (appointments || []).filter((apt) => isSameDay(parseISO(apt.appointment_date), day))
+
+            return (
+              <Card key={day.toISOString()} className="border-gold/20">
+                <CardContent className="p-4">
+                  <div className="mb-4 pb-3 border-b border-border">
+                    <div className="text-sm font-semibold text-muted-foreground">
+                      {format(day, "EEEE", { locale: ptBR })}
                     </div>
-                  ))}
-                </div>
-
-                {/* Time slots mobile */}
-                {TIME_SLOTS.map((timeSlot) => (
-                  <div
-                    key={timeSlot}
-                    className="grid gap-px bg-border relative"
-                    style={{
-                      gridTemplateColumns: `70px repeat(${Math.min(daysToDisplay.length, 3)}, 1fr)`,
-                      minHeight: "100px",
-                    }}
-                  >
-                    <div className="bg-card p-3 text-sm font-semibold text-muted-foreground sticky left-0 flex items-start">
-                      {timeSlot}
+                    <div className={`text-2xl font-bold ${isSameDay(day, new Date()) ? "text-gold" : ""}`}>
+                      {format(day, "dd 'de' MMMM", { locale: ptBR })}
                     </div>
-                    {daysToDisplay.slice(0, 3).map((day) => {
-                      const slotAppointments = getAppointmentsForSlot(day, timeSlot)
+                  </div>
 
-                      return (
-                        <div
-                          key={`${day.toISOString()}-${timeSlot}`}
-                          className="bg-card p-2 transition-colors relative"
-                        >
-                          {slotAppointments.map((apt) => {
-                            const height = getAppointmentHeight(apt)
-                            const duration = formatDuration(apt)
+                  {dayAppointments.length === 0 ? (
+                    <p className="text-muted-foreground text-center py-6">Nenhum agendamento</p>
+                  ) : (
+                    <div className="space-y-3">
+                      {dayAppointments
+                        .sort((a, b) => parseISO(a.appointment_date).getTime() - parseISO(b.appointment_date).getTime())
+                        .map((apt) => {
+                          const duration = formatDuration(apt)
+                          const aptDate = parseISO(apt.appointment_date)
 
-                            return (
-                              <div
-                                key={apt.id}
-                                className="bg-gold/20 border-2 border-gold/50 rounded-lg p-2 mb-2 text-xs overflow-hidden"
-                                style={{ minHeight: `${Math.max(height, 80)}px` }}
-                              >
-                                <div className="font-bold text-sm mb-1 leading-tight line-clamp-2">
-                                  {apt.service?.name}
-                                </div>
-                                <div className="text-muted-foreground text-xs leading-tight line-clamp-1 mb-2">
-                                  {apt.staff?.full_name}
-                                </div>
-                                <div className="text-muted-foreground/90 text-xs font-semibold mt-auto">
-                                  ⏱️ {duration}
-                                </div>
-                                <div className="text-muted-foreground/80 text-xs font-medium">
-                                  🕐 {format(parseISO(apt.appointment_date), "HH:mm")}
+                          return (
+                            <div key={apt.id} className="p-4 rounded-lg border-2 bg-gold/10 border-gold/40">
+                              <div className="flex items-start justify-between mb-2">
+                                <div className="flex-1">
+                                  <div className="font-bold text-lg mb-1">{apt.service?.name}</div>
+                                  <div className="text-base text-muted-foreground">{apt.staff?.full_name}</div>
                                 </div>
                                 <Badge
                                   variant="outline"
-                                  className={`text-[10px] mt-1.5 px-1.5 py-0.5 ${
+                                  className={`text-xs px-2 py-1 ${
                                     apt.status === "completed"
-                                      ? "bg-green-500/10 text-green-500 border-green-500/50"
+                                      ? "bg-green-500/10 text-green-500"
                                       : apt.status === "confirmed"
-                                        ? "bg-blue-500/10 text-blue-500 border-blue-500/50"
-                                        : "bg-yellow-500/10 text-yellow-500 border-yellow-500/50"
+                                        ? "bg-blue-500/10 text-blue-500"
+                                        : "bg-yellow-500/10 text-yellow-500"
                                   }`}
                                 >
                                   {apt.status === "completed"
-                                    ? "✓ Concluído"
+                                    ? "Concluído"
                                     : apt.status === "confirmed"
-                                      ? "✓ Confirmado"
-                                      : "⏳ Pendente"}
+                                      ? "Confirmado"
+                                      : "Pendente"}
                                 </Badge>
                               </div>
-                            )
-                          })}
-                        </div>
-                      )
-                    })}
-                  </div>
-                ))}
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+                              <div className="flex items-center gap-4 text-sm text-muted-foreground">
+                                <div className="flex items-center gap-1 font-medium">🕐 {format(aptDate, "HH:mm")}</div>
+                                <div className="flex items-center gap-1 font-medium">⏱ {duration}</div>
+                              </div>
+                            </div>
+                          )
+                        })}
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            )
+          })}
+        </div>
 
-        {/* Desktop View - Grade completa */}
+        {/* Desktop View - Grade de Calendário */}
         <Card className="border-gold/20 hidden md:block">
           <CardContent className="p-0">
             <div className="overflow-x-auto">
