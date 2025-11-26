@@ -43,6 +43,8 @@ export default function AdicionarAgendamentoStaff() {
   const [recurrenceDays, setRecurrenceDays] = useState<number[]>([])
   const [recurrenceEndDate, setRecurrenceEndDate] = useState("")
 
+  const [timeConflict, setTimeConflict] = useState<string | null>(null)
+
   useEffect(() => {
     loadData()
   }, [])
@@ -99,8 +101,48 @@ export default function AdicionarAgendamentoStaff() {
     setServices(servicesData)
   }
 
+  const checkTimeConflict = async (date: string, time: string) => {
+    if (!date || !time || !profile) return
+
+    try {
+      const appointmentDateTime = new Date(`${date}T${time}`)
+
+      const { data: existingAppointments } = await supabase
+        .from("appointments")
+        .select("*")
+        .eq("staff_id", profile.id)
+        .eq("appointment_date", appointmentDateTime.toISOString())
+        .neq("status", "cancelled")
+
+      if (existingAppointments && existingAppointments.length > 0) {
+        const formattedTime = time.substring(0, 5)
+        setTimeConflict(`Você já tem um agendamento marcado para ${formattedTime}. Escolha outro horário.`)
+        return true
+      } else {
+        setTimeConflict(null)
+        return false
+      }
+    } catch (error) {
+      console.error("Erro ao verificar conflito:", error)
+      return false
+    }
+  }
+
+  useEffect(() => {
+    if (appointmentDate && appointmentTime) {
+      checkTimeConflict(appointmentDate, appointmentTime)
+    }
+  }, [appointmentDate, appointmentTime])
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+
+    const hasConflict = await checkTimeConflict(appointmentDate, appointmentTime)
+    if (hasConflict) {
+      toast.error("Já existe um agendamento seu neste horário. Escolha outro horário.")
+      return
+    }
+
     setIsLoading(true)
 
     try {
@@ -449,11 +491,17 @@ export default function AdicionarAgendamentoStaff() {
                   <Input
                     id="time"
                     type="time"
+                    step="60"
                     value={appointmentTime}
                     onChange={(e) => setAppointmentTime(e.target.value)}
                     className="border-gold/20"
                     required
                   />
+                  {timeConflict && (
+                    <p className="text-sm text-red-500 mt-1 flex items-center gap-1">
+                      <span className="font-semibold">⚠️</span> {timeConflict}
+                    </p>
+                  )}
                 </div>
               </div>
 

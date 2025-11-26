@@ -9,9 +9,9 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Navbar } from "@/components/navbar"
-import { useRouter } from 'next/navigation'
+import { useRouter } from "next/navigation"
 import { toast } from "sonner"
-import { ArrowLeft } from 'lucide-react'
+import { ArrowLeft } from "lucide-react"
 import Link from "next/link"
 import { Checkbox } from "@/components/ui/checkbox"
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
@@ -40,6 +40,7 @@ export default function AdicionarAgendamentoAdmin() {
   const [recurrenceEndDate, setRecurrenceEndDate] = useState("")
 
   const [isLoading, setIsLoading] = useState(false)
+  const [staffTimeConflict, setStaffTimeConflict] = useState<string | null>(null)
   const router = useRouter()
   const supabase = createClient()
 
@@ -52,6 +53,14 @@ export default function AdicionarAgendamentoAdmin() {
       loadStaffServices(selectedStaff)
     }
   }, [selectedStaff])
+
+  useEffect(() => {
+    if (selectedStaff && appointmentDate && appointmentTime) {
+      checkStaffTimeConflict(selectedStaff, appointmentDate, appointmentTime)
+    } else {
+      setStaffTimeConflict(null)
+    }
+  }, [selectedStaff, appointmentDate, appointmentTime])
 
   const loadData = async () => {
     const {
@@ -76,7 +85,7 @@ export default function AdicionarAgendamentoAdmin() {
       .neq("staff_status", "inactive")
       .neq("staff_status", "vacation")
       .order("full_name")
-    
+
     setStaffMembers(staffData || [])
   }
 
@@ -88,6 +97,36 @@ export default function AdicionarAgendamentoAdmin() {
 
     const servicesData = staffServicesData?.map((ss) => ss.services).filter(Boolean) || []
     setServices(servicesData)
+  }
+
+  const checkStaffTimeConflict = async (staffId: string, date: string, time: string) => {
+    if (!staffId || !date || !time) return
+
+    try {
+      const appointmentDateTime = new Date(`${date}T${time}`)
+
+      const { data: existingAppointments } = await supabase
+        .from("appointments")
+        .select("*, profiles!appointments_staff_id_fkey(full_name)")
+        .eq("staff_id", staffId)
+        .eq("appointment_date", appointmentDateTime.toISOString())
+        .neq("status", "cancelled")
+
+      if (existingAppointments && existingAppointments.length > 0) {
+        const staffName = existingAppointments[0].profiles?.full_name || "Este funcionário"
+        const formattedTime = time.substring(0, 5)
+        setStaffTimeConflict(
+          `${staffName} já tem um agendamento às ${formattedTime}. Escolha outro horário ou outro profissional.`,
+        )
+        return true
+      } else {
+        setStaffTimeConflict(null)
+        return false
+      }
+    } catch (error) {
+      console.error("Erro ao verificar conflito do staff:", error)
+      return false
+    }
   }
 
   const generateRecurringAppointments = (
@@ -155,6 +194,13 @@ export default function AdicionarAgendamentoAdmin() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+
+    const hasConflict = await checkStaffTimeConflict(selectedStaff, appointmentDate, appointmentTime)
+    if (hasConflict) {
+      toast.error("Este funcionário já tem um agendamento neste horário. Escolha outro horário ou funcionário.")
+      return
+    }
+
     setIsLoading(true)
 
     try {
@@ -405,11 +451,20 @@ export default function AdicionarAgendamentoAdmin() {
                   <Input
                     id="time"
                     type="time"
+                    step="60"
                     value={appointmentTime}
                     onChange={(e) => setAppointmentTime(e.target.value)}
                     className="border-gold/20"
                     required
                   />
+                  {staffTimeConflict && (
+                    <p className="text-sm text-amber-600 mt-1 flex items-center gap-1">
+                      <span className="font-semibold">⚠️</span> {staffTimeConflict}
+                    </p>
+                  )}
+                  <p className="text-xs text-muted-foreground mt-1">
+                    💡 Você pode agendar múltiplos funcionários no mesmo horário
+                  </p>
                 </div>
               </div>
 
