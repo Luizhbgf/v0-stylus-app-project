@@ -9,34 +9,31 @@ import { Label } from "@/components/ui/label"
 import { Navbar } from "@/components/navbar"
 import { useRouter, useParams } from "next/navigation"
 import { toast } from "sonner"
-import { ArrowLeft, Calendar, Clock, User, DollarSign, X, UserX, CheckCircle, Edit2, Save } from "lucide-react"
+import { ArrowLeft, Calendar, Clock, User, DollarSign, X, UserX, CheckCircle, Edit2, Save, Loader2 } from "lucide-react"
 import Link from "next/link"
 import { Badge } from "@/components/ui/badge"
 import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog"
 
-export default function GerenciarAgendamento() {
-  const [profile, setProfile] = useState<any>(null)
-  const [appointment, setAppointment] = useState<any>(null)
-  const [isLoading, setIsLoading] = useState(false)
-  const [isEditing, setIsEditing] = useState(false)
-  const [editData, setEditData] = useState({
-    appointment_date: "",
-    appointment_time: "",
-    service_id: "",
-    client_id: "",
-    client_type: "",
-    sporadic_client_name: "",
-    sporadic_client_phone: "",
-    event_title: "",
-    custom_price: "",
-    payment_status: "",
-    notes: "",
-  })
-  const [services, setServices] = useState<any[]>([])
-  const [clients, setClients] = useState<any[]>([])
-  const router = useRouter()
+export default function AppointmentDetailPage() {
   const params = useParams()
+  const router = useRouter()
+  const [appointment, setAppointment] = useState<any>(null)
+  const [profile, setProfile] = useState<any>(null)
+  const [loading, setLoading] = useState(true)
+  const [isLoading, setIsLoading] = useState(false)
+  const [showPaymentDialog, setShowPaymentDialog] = useState(false)
+  const [paymentChoice, setPaymentChoice] = useState<"paid" | "later" | null>(null)
+  const [showNoShowDialog, setShowNoShowDialog] = useState(false)
+  const [noShowReason, setNoShowReason] = useState("")
   const supabase = createClient()
 
   useEffect(() => {
@@ -146,19 +143,39 @@ export default function GerenciarAgendamento() {
   }
 
   const handleComplete = async () => {
+    setShowPaymentDialog(true)
+  }
+
+  const handleConfirmPayment = async () => {
+    if (!paymentChoice) {
+      toast.error("Selecione uma opção de pagamento")
+      return
+    }
+
     setIsLoading(true)
     try {
-      const { error } = await supabase
-        .from("appointments")
-        .update({
-          status: "completed",
-          payment_status: "paid",
-        })
-        .eq("id", appointment.id)
+      const updates: any = {
+        status: "completed",
+      }
+
+      if (paymentChoice === "paid") {
+        updates.payment_status = "paid"
+        updates.pay_later = false
+      } else {
+        updates.payment_status = "pending"
+        updates.pay_later = true
+      }
+
+      const { error } = await supabase.from("appointments").update(updates).eq("id", appointment.id)
 
       if (error) throw error
 
-      toast.success("Agendamento marcado como concluído!")
+      toast.success(
+        paymentChoice === "paid"
+          ? "Agendamento concluído e marcado como pago!"
+          : "Agendamento concluído. Pagamento pendente.",
+      )
+      setShowPaymentDialog(false)
       router.push("/staff/agenda")
     } catch (error) {
       console.error("[v0] Erro ao concluir agendamento:", error)
@@ -175,6 +192,7 @@ export default function GerenciarAgendamento() {
         .from("appointments")
         .update({
           status: "no_show",
+          notes: noShowReason,
         })
         .eq("id", appointment.id)
 
@@ -212,6 +230,23 @@ export default function GerenciarAgendamento() {
     }
   }
 
+  const [services, setServices] = useState<any[]>([])
+  const [clients, setClients] = useState<any[]>([])
+  const [isEditing, setIsEditing] = useState(false)
+  const [editData, setEditData] = useState({
+    appointment_date: "",
+    appointment_time: "",
+    service_id: "",
+    client_id: "",
+    client_type: "",
+    sporadic_client_name: "",
+    sporadic_client_phone: "",
+    event_title: "",
+    custom_price: "",
+    payment_status: "",
+    notes: "",
+  })
+
   if (!profile || !appointment) return null
 
   const appointmentDate = new Date(appointment.appointment_date)
@@ -232,7 +267,7 @@ export default function GerenciarAgendamento() {
           </Link>
           <div className="flex items-center justify-between">
             <div>
-              <h1 className="text-3xl font-bold text-foreground">Gerenciar Agendamento</h1>
+              <h1 className="text-3xl font-bold text-foreground">Detalhes do Agendamento</h1>
               <p className="text-muted-foreground">Visualize e gerencie os detalhes do agendamento</p>
             </div>
             {!isEditing ? (
@@ -594,7 +629,7 @@ export default function GerenciarAgendamento() {
                   <Button
                     variant="outline"
                     className="w-full border-orange-500/20 text-orange-500 hover:bg-orange-500/10 bg-transparent"
-                    onClick={handleNoShow}
+                    onClick={() => setShowNoShowDialog(true)}
                     disabled={isLoading}
                   >
                     <UserX className="mr-2 h-4 w-4" />
@@ -610,6 +645,79 @@ export default function GerenciarAgendamento() {
             )}
         </div>
       </div>
+
+      <Dialog open={showPaymentDialog} onOpenChange={setShowPaymentDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Finalizar Agendamento</DialogTitle>
+            <DialogDescription>Como foi realizado o pagamento deste serviço?</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <Button
+              variant={paymentChoice === "paid" ? "default" : "outline"}
+              className="w-full h-auto py-4 flex flex-col items-center gap-2"
+              onClick={() => setPaymentChoice("paid")}
+            >
+              <CheckCircle className="h-6 w-6" />
+              <div className="text-center">
+                <div className="font-semibold">Já foi pago</div>
+                <div className="text-xs text-muted-foreground">Cliente pagou no momento do atendimento</div>
+              </div>
+            </Button>
+            <Button
+              variant={paymentChoice === "later" ? "default" : "outline"}
+              className="w-full h-auto py-4 flex flex-col items-center gap-2"
+              onClick={() => setPaymentChoice("later")}
+            >
+              <Clock className="h-6 w-6" />
+              <div className="text-center">
+                <div className="font-semibold">Pagar depois</div>
+                <div className="text-xs text-muted-foreground">
+                  Aparecerá no financeiro como pendente até marcar como pago
+                </div>
+              </div>
+            </Button>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowPaymentDialog(false)} disabled={isLoading}>
+              Cancelar
+            </Button>
+            <Button onClick={handleConfirmPayment} disabled={!paymentChoice || isLoading}>
+              {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              Confirmar
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+      {/* </CHANGE> */}
+
+      {/* Added no show dialog */}
+      <Dialog open={showNoShowDialog} onOpenChange={setShowNoShowDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Marcar como Não Compareceu</DialogTitle>
+            <DialogDescription>Por favor, informe o motivo:</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <Textarea
+              value={noShowReason}
+              onChange={(e) => setNoShowReason(e.target.value)}
+              placeholder="Motivo do não comparecimento..."
+              rows={3}
+            />
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowNoShowDialog(false)} disabled={isLoading}>
+              Cancelar
+            </Button>
+            <Button onClick={handleNoShow} disabled={isLoading}>
+              {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              Confirmar
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+      {/* </CHANGE> */}
     </div>
   )
 }

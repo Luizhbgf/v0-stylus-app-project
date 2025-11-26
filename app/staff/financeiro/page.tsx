@@ -4,7 +4,7 @@ import { useState, useEffect } from "react"
 import { createClient } from "@/lib/supabase/client"
 import { Navbar } from "@/components/navbar"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { DollarSign, TrendingUp, Calendar, Filter, Trash2 } from "lucide-react"
+import { DollarSign, TrendingUp, Calendar, Filter, Trash2, CheckCircle } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -53,7 +53,8 @@ export default function StaffFinanceiro() {
         service:services(name, price),
         client:profiles!client_id(full_name),
         sporadic_client_name,
-        client_type
+        client_type,
+        pay_later
       `,
       )
       .eq("staff_id", user.id)
@@ -102,6 +103,27 @@ export default function StaffFinanceiro() {
     }
   }
 
+  const handleMarkAsPaid = async (appointmentId: string) => {
+    try {
+      const { error } = await supabase
+        .from("appointments")
+        .update({
+          payment_status: "paid",
+          pay_later: false,
+        })
+        .eq("id", appointmentId)
+
+      if (error) throw error
+
+      toast.success("Pagamento marcado como pago!")
+      loadData()
+    } catch (error) {
+      console.error("Erro ao marcar como pago:", error)
+      toast.error("Erro ao atualizar pagamento")
+    }
+  }
+  // </CHANGE>
+
   const paymentMap = new Map(payments?.map((p) => [p.appointment_id, p.payment_method]) || [])
 
   const earnings: any[] = []
@@ -109,7 +131,8 @@ export default function StaffFinanceiro() {
   appointments?.forEach((apt) => {
     if (apt.status === "cancelled") return
 
-    const isPaid = apt.payment_status === "paid" || apt.status === "completed"
+    const isPaid = apt.payment_status === "paid"
+    const isPayLater = apt.pay_later === true
 
     const clientName =
       apt.client_type === "sporadic" ? apt.sporadic_client_name : apt.client?.full_name || "Cliente não identificado"
@@ -123,11 +146,13 @@ export default function StaffFinanceiro() {
       payment_date: apt.appointment_date,
       payment_method: paymentMap.get(apt.id) || "Não informado",
       status: isPaid ? "paid" : "pending",
+      isPayLater: isPayLater,
       service_name: apt.service?.name || "Serviço não especificado",
       client_name: clientName,
       notes: `${apt.service?.name || "Serviço"} - ${clientName}`,
     })
   })
+  // </CHANGE>
 
   const filteredEarnings = earnings.filter((e) => {
     const earningDate = new Date(e.payment_date)
@@ -144,8 +169,9 @@ export default function StaffFinanceiro() {
 
   const totalPaid = filteredEarnings.filter((e) => e.status === "paid").reduce((sum, e) => sum + Number(e.amount), 0)
   const totalPending = filteredEarnings
-    .filter((e) => e.status === "pending")
+    .filter((e) => e.status === "pending" && !e.isPayLater)
     .reduce((sum, e) => sum + Number(e.amount), 0)
+  // </CHANGE>
 
   const today = new Date()
   const firstDayOfMonth = new Date(today.getFullYear(), today.getMonth(), 1)
@@ -251,6 +277,10 @@ export default function StaffFinanceiro() {
                         {earning.payment_method && (
                           <p className="text-sm text-muted-foreground">Método: {earning.payment_method}</p>
                         )}
+                        {earning.isPayLater && (
+                          <p className="text-xs text-yellow-500 mt-1 italic">⚠ Marcado como "pagar depois"</p>
+                        )}
+                        {/* </CHANGE> */}
                       </div>
                       <div className="flex flex-col items-end gap-2">
                         <span
@@ -262,6 +292,17 @@ export default function StaffFinanceiro() {
                         >
                           {earning.status === "paid" ? "Pago" : "Pendente"}
                         </span>
+                        {earning.status === "pending" && (
+                          <Button
+                            size="sm"
+                            onClick={() => handleMarkAsPaid(earning.id)}
+                            className="bg-green-600 hover:bg-green-700 text-white"
+                          >
+                            <CheckCircle className="h-4 w-4 mr-1" />
+                            Marcar como Pago
+                          </Button>
+                        )}
+                        {/* </CHANGE> */}
                         {profile.user_level >= 30 && earning.status === "paid" && (
                           <Button
                             variant="ghost"

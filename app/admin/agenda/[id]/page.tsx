@@ -224,6 +224,38 @@ export default function AdminGerenciarAgendamento() {
     }
   }
 
+  const handleRevert = async () => {
+    if (
+      !confirm(
+        "Tem certeza que deseja reverter este agendamento para pendente? Ele voltará a aparecer em aberto na agenda.",
+      )
+    ) {
+      return
+    }
+
+    setIsLoading(true)
+    try {
+      const { error } = await supabase
+        .from("appointments")
+        .update({
+          status: "pending",
+          payment_status: "pending",
+          pay_later: false,
+        })
+        .eq("id", appointment.id)
+
+      if (error) throw error
+
+      toast.success("Agendamento revertido para pendente com sucesso!")
+      loadData()
+    } catch (error) {
+      console.error("Erro ao reverter agendamento:", error)
+      toast.error("Erro ao reverter agendamento")
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
   if (!profile || !appointment) return null
 
   const appointmentDate = new Date(appointment.appointment_date)
@@ -615,46 +647,71 @@ export default function AdminGerenciarAgendamento() {
             </CardContent>
           </Card>
 
-          {!isEditing && (
+          {!isEditing && (appointment.status === "completed" || appointment.payment_status === "paid") && (
             <Card className="border-gold/20">
               <CardHeader>
-                <CardTitle>Ações</CardTitle>
+                <CardTitle>Ações Administrativas</CardTitle>
               </CardHeader>
               <CardContent className="space-y-3">
-                {appointment.status !== "completed" && (
-                  <Button
-                    onClick={handleComplete}
-                    disabled={isLoading}
-                    className="w-full bg-green-600 hover:bg-green-700 text-white"
-                  >
-                    Marcar como Concluído
-                  </Button>
-                )}
-
-                {appointment.status !== "no_show" && appointment.status !== "cancelled" && (
-                  <Button
-                    onClick={handleNoShow}
-                    disabled={isLoading}
-                    variant="outline"
-                    className="w-full bg-transparent"
-                  >
-                    Cliente Não Compareceu
-                  </Button>
-                )}
-
-                {appointment.status !== "cancelled" && (
-                  <Button
-                    onClick={handleCancel}
-                    disabled={isLoading}
-                    variant="destructive"
-                    className="w-full bg-red-600 hover:bg-red-700"
-                  >
-                    Cancelar Agendamento
-                  </Button>
-                )}
+                <Button
+                  variant="outline"
+                  className="w-full border-blue-500/20 text-blue-500 hover:bg-blue-500/10 bg-transparent"
+                  onClick={handleRevert}
+                  disabled={isLoading}
+                >
+                  <ArrowLeft className="mr-2 h-4 w-4" />
+                  Reverter para Pendente
+                </Button>
+                <p className="text-xs text-muted-foreground text-center">
+                  Reverte o agendamento para status pendente e não pago, permitindo que ele seja reaberto na agenda.
+                </p>
               </CardContent>
             </Card>
           )}
+
+          {!isEditing &&
+            appointment.status !== "completed" &&
+            appointment.status !== "cancelled" &&
+            appointment.status !== "no_show" && (
+              <Card className="border-gold/20">
+                <CardHeader>
+                  <CardTitle>Ações</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  {appointment.status !== "completed" && (
+                    <Button
+                      onClick={handleComplete}
+                      disabled={isLoading}
+                      className="w-full bg-green-600 hover:bg-green-700 text-white"
+                    >
+                      Marcar como Concluído
+                    </Button>
+                  )}
+
+                  {appointment.status !== "no_show" && appointment.status !== "cancelled" && (
+                    <Button
+                      onClick={handleNoShow}
+                      disabled={isLoading}
+                      variant="outline"
+                      className="w-full bg-transparent"
+                    >
+                      Cliente Não Compareceu
+                    </Button>
+                  )}
+
+                  {appointment.status !== "cancelled" && (
+                    <Button
+                      onClick={handleCancel}
+                      disabled={isLoading}
+                      variant="destructive"
+                      className="w-full bg-red-600 hover:bg-red-700"
+                    >
+                      Cancelar Agendamento
+                    </Button>
+                  )}
+                </CardContent>
+              </Card>
+            )}
         </div>
       </div>
     </div>
