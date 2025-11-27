@@ -91,14 +91,17 @@ export default function AdminConfiguracoes() {
   async function saveSettings() {
     setSaving(true)
 
-    const { error } = await supabase
-      .from("homepage_settings")
-      .update({
+    const { error } = await supabase.from("homepage_settings").upsert(
+      {
+        id: "00000000-0000-0000-0000-000000000001",
         ...settings,
         featured_testimonials: testimonials,
         updated_at: new Date().toISOString(),
-      })
-      .eq("id", "00000000-0000-0000-0000-000000000001")
+      },
+      {
+        onConflict: "id",
+      },
+    )
 
     if (error) {
       toast({

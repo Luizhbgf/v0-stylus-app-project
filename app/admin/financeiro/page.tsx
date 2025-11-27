@@ -8,7 +8,17 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Button } from "@/components/ui/button"
-import { DollarSign, TrendingUp, TrendingDown, Calendar, Filter, Award, Trash2 } from "lucide-react"
+import {
+  DollarSign,
+  TrendingUp,
+  TrendingDown,
+  Calendar,
+  Filter,
+  Award,
+  Trash2,
+  CheckCircle,
+  RotateCcw,
+} from "lucide-react"
 import { format, startOfMonth, endOfMonth, subMonths } from "date-fns"
 import { ptBR } from "date-fns/locale"
 import { useToast } from "@/hooks/use-toast"
@@ -87,8 +97,6 @@ export default function AdminFinanceiroPage() {
 
     const { data: appointmentsData } = await query
 
-    console.log("[v0] Appointments data:", appointmentsData)
-
     const paymentsData =
       appointmentsData?.map((apt) => ({
         id: apt.id,
@@ -97,6 +105,8 @@ export default function AdminFinanceiroPage() {
         custom_price: apt.custom_price,
         payment_date: apt.appointment_date,
         payment_method: apt.payment_method || "Não especificado",
+        payment_status: apt.payment_status,
+        pay_later: apt.pay_later,
         status: "completed",
         client: apt.client,
         sporadic_client_name: apt.sporadic_client_name,
@@ -107,9 +117,67 @@ export default function AdminFinanceiroPage() {
         },
       })) || []
 
-    console.log("[v0] Payments processed:", paymentsData.length)
     setPayments(paymentsData)
   }
+
+  async function handleMarkAsPaid(appointmentId: string) {
+    const { error } = await supabase
+      .from("appointments")
+      .update({
+        payment_status: "paid",
+        pay_later: false,
+      })
+      .eq("id", appointmentId)
+
+    if (error) {
+      toast({
+        title: "Erro",
+        description: "Não foi possível marcar como pago.",
+        variant: "destructive",
+      })
+      return
+    }
+
+    toast({
+      title: "Sucesso",
+      description: "Pagamento marcado como pago com sucesso.",
+    })
+
+    loadPayments()
+  }
+  // </CHANGE>
+
+  async function handleRevertToConfirmed(appointmentId: string) {
+    if (!confirm("Tem certeza que deseja reverter este agendamento para o status de confirmado?")) {
+      return
+    }
+
+    const { error } = await supabase
+      .from("appointments")
+      .update({
+        status: "confirmed",
+        payment_status: null,
+        pay_later: false,
+      })
+      .eq("id", appointmentId)
+
+    if (error) {
+      toast({
+        title: "Erro",
+        description: "Não foi possível reverter o agendamento.",
+        variant: "destructive",
+      })
+      return
+    }
+
+    toast({
+      title: "Sucesso",
+      description: "Agendamento revertido para confirmado com sucesso.",
+    })
+
+    loadPayments()
+  }
+  // </CHANGE>
 
   async function handleDelete(appointmentId: string) {
     if (!confirm("Tem certeza que deseja excluir este registro? Esta ação não pode ser desfeita.")) {
@@ -160,9 +228,14 @@ export default function AdminFinanceiroPage() {
 
   const revenueChange = lastMonthRevenue > 0 ? ((currentMonthRevenue - lastMonthRevenue) / lastMonthRevenue) * 100 : 0
 
-  const totalRevenue = payments?.reduce((sum, p) => sum + Number(p.amount), 0) || 0
+  const totalRevenue =
+    payments?.filter((p) => p.payment_status === "paid").reduce((sum, p) => sum + Number(p.amount), 0) || 0
+  // </CHANGE>
 
-  const pendingRevenue = 0
+  const pendingRevenue =
+    payments?.filter((p) => p.pay_later && p.payment_status !== "paid").reduce((sum, p) => sum + Number(p.amount), 0) ||
+    0
+  // </CHANGE>
 
   const serviceStats: Record<string, { count: number; revenue: number }> = {}
   payments.forEach((p) => {
@@ -399,8 +472,12 @@ export default function AdminFinanceiroPage() {
                       <p className="text-xs text-muted-foreground mt-1">
                         {format(new Date(payment.payment_date), "dd/MM/yyyy HH:mm")}
                       </p>
+                      {payment.pay_later && payment.payment_status !== "paid" && (
+                        <p className="text-xs text-yellow-500 mt-1 italic">⚠ Marcado como "pagar depois"</p>
+                      )}
+                      {/* </CHANGE> */}
                     </div>
-                    <div className="text-right flex items-center gap-4">
+                    <div className="text-right flex items-center gap-2">
                       <div>
                         <p className="text-lg font-bold text-gold">R$ {Number(payment.amount).toFixed(2)}</p>
                         {payment.custom_price &&
@@ -423,19 +500,48 @@ export default function AdminFinanceiroPage() {
                               </p>
                             </div>
                           )}
-                        <span className="inline-block px-3 py-1 rounded-full text-xs font-medium mt-1 bg-green-500/10 text-green-500">
-                          Concluído
+                        <span
+                          className={`inline-block px-3 py-1 rounded-full text-xs font-medium mt-1 ${
+                            payment.payment_status === "paid"
+                              ? "bg-green-500/10 text-green-500"
+                              : "bg-yellow-500/10 text-yellow-500"
+                          }`}
+                        >
+                          {payment.payment_status === "paid" ? "Pago" : "Concluído"}
                         </span>
                         <p className="text-xs text-muted-foreground mt-1">{payment.payment_method}</p>
                       </div>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => handleDelete(payment.id)}
-                        className="text-red-500 hover:text-red-700 hover:bg-red-50"
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
+                      <div className="flex flex-col gap-1">
+                        {payment.payment_status !== "paid" && (
+                          <Button
+                            size="sm"
+                            onClick={() => handleMarkAsPaid(payment.id)}
+                            className="bg-green-600 hover:bg-green-700 text-white h-8"
+                          >
+                            <CheckCircle className="h-3 w-3 mr-1" />
+                            Pago
+                          </Button>
+                        )}
+                        {/* </CHANGE> */}
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => handleRevertToConfirmed(payment.id)}
+                          className="border-blue-500 text-blue-500 hover:bg-blue-50 h-8"
+                        >
+                          <RotateCcw className="h-3 w-3 mr-1" />
+                          Reverter
+                        </Button>
+                        {/* </CHANGE> */}
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => handleDelete(payment.id)}
+                          className="text-red-500 hover:text-red-700 hover:bg-red-50 h-8"
+                        >
+                          <Trash2 className="h-3 w-3" />
+                        </Button>
+                      </div>
                     </div>
                   </div>
                 ))}
