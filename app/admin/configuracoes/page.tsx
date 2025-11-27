@@ -91,29 +91,50 @@ export default function AdminConfiguracoes() {
   async function saveSettings() {
     setSaving(true)
 
-    const { error } = await supabase.from("homepage_settings").upsert(
-      {
-        id: "00000000-0000-0000-0000-000000000001",
-        ...settings,
-        featured_testimonials: testimonials,
-        updated_at: new Date().toISOString(),
-      },
-      {
-        onConflict: "id",
-      },
-    )
+    console.log("[v0] Salvando chave PIX:", settings.business_pix_key)
+
+    const settingsToSave = {
+      id: "00000000-0000-0000-0000-000000000001",
+      hero_title: settings.hero_title,
+      hero_subtitle: settings.hero_subtitle,
+      cta_title: settings.cta_title,
+      cta_subtitle: settings.cta_subtitle,
+      business_name: settings.business_name,
+      business_phone: settings.business_phone,
+      business_email: settings.business_email,
+      business_hours: settings.business_hours,
+      business_pix_key: settings.business_pix_key || null, // Ensure null instead of empty string
+      show_testimonials: settings.show_testimonials,
+      show_services: settings.show_services,
+      show_courses: settings.show_courses,
+      show_plans: settings.show_plans,
+      show_employees: settings.show_employees,
+      featured_services: settings.featured_services,
+      featured_testimonials: testimonials,
+      featured_courses: settings.featured_courses,
+      featured_plans: settings.featured_plans,
+      updated_at: new Date().toISOString(),
+    }
+
+    const { data, error } = await supabase.from("homepage_settings").upsert(settingsToSave, {
+      onConflict: "id",
+    })
 
     if (error) {
+      console.error("[v0] Erro ao salvar:", error)
       toast({
         title: "Erro ao salvar",
         description: error.message,
         variant: "destructive",
       })
     } else {
+      console.log("[v0] Salvo com sucesso:", data)
       toast({
         title: "Configurações salvas!",
         description: "As alterações foram aplicadas na homepage.",
       })
+      // Force reload to verify save
+      await loadData()
     }
 
     setSaving(false)

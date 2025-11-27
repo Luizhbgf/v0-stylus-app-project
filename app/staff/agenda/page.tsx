@@ -304,15 +304,15 @@ export default function StaffAgenda() {
             {/* Desktop View - Grade de Calendário */}
             <Card className="border-gold/20 hidden md:block">
               <CardContent className="p-0">
-                <div className="overflow-x-auto">
+                <div className="overflow-x-auto overflow-y-auto max-h-[calc(100vh-300px)]">
                   <div className="min-w-[800px]">
                     <div
-                      className="grid gap-px bg-border sticky top-0 z-20 bg-card shadow-md"
+                      className="grid gap-px bg-border sticky top-0 z-30 shadow-lg"
                       style={{ gridTemplateColumns: `80px repeat(${daysToDisplay.length}, 1fr)` }}
                     >
-                      <div className="bg-card p-4 font-semibold text-sm">Hora</div>
+                      <div className="bg-card p-4 font-semibold text-sm border-b-2 border-gold/20">Hora</div>
                       {daysToDisplay.map((day) => (
-                        <div key={day.toISOString()} className="bg-card p-4 text-center">
+                        <div key={day.toISOString()} className="bg-card p-4 text-center border-b-2 border-gold/20">
                           <div className="text-sm font-semibold">{format(day, "EEE", { locale: ptBR })}</div>
                           <div className={`text-2xl font-bold ${isSameDay(day, new Date()) ? "text-gold" : ""}`}>
                             {format(day, "dd")}
@@ -333,9 +333,7 @@ export default function StaffAgenda() {
                             minHeight: "80px",
                           }}
                         >
-                          <div className="bg-card p-3 text-sm font-medium text-muted-foreground sticky left-0">
-                            {timeSlot}
-                          </div>
+                          <div className="bg-card p-3 text-sm font-medium text-muted-foreground">{timeSlot}</div>
                           {daysToDisplay.map((day) => {
                             const slotAppointments = getAppointmentsForSlot(day, timeSlot)
                             const isAvailable = slotAppointments.length === 0
@@ -354,7 +352,7 @@ export default function StaffAgenda() {
                                   return (
                                     <Link key={apt.id} href={`/staff/agenda/${apt.id}`}>
                                       <div
-                                        className={`group relative rounded p-2 mb-1 text-xs border overflow-hidden ${
+                                        className={`group relative rounded p-2 mb-1 text-xs border overflow-hidden hover:opacity-80 transition-opacity ${
                                           isSubscriber
                                             ? "bg-green-500/20 border-green-500/40"
                                             : "bg-gold/20 border-gold/40"

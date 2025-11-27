@@ -87,6 +87,8 @@ export default function PagarAssinatura({ params }: { params: { paymentId: strin
       .select("*")
       .eq("id", "00000000-0000-0000-0000-000000000001")
       .single()
+
+    console.log("[v0] Business settings loaded:", settingsData)
     setBusinessSettings(settingsData)
 
     const { data: paymentData } = await supabase
@@ -110,6 +112,7 @@ export default function PagarAssinatura({ params }: { params: { paymentId: strin
       return
     }
 
+    console.log("[v0] Payment data loaded:", paymentData)
     setPayment(paymentData)
     setSubscription(paymentData.subscription)
 
@@ -121,9 +124,16 @@ export default function PagarAssinatura({ params }: { params: { paymentId: strin
   }
 
   const generatePixCode = async (paymentData: any, settings: any) => {
-    const staffPixKey = paymentData.subscription?.staff?.pix_key || settings?.business_pix_key || ""
+    const staffPixKey = paymentData.subscription?.staff?.pix_key
+    const businessPixKey = settings?.business_pix_key
+    const pixKey = staffPixKey || businessPixKey
 
-    if (!staffPixKey) {
+    console.log("[v0] Staff PIX key:", staffPixKey)
+    console.log("[v0] Business PIX key:", businessPixKey)
+    console.log("[v0] Selected PIX key:", pixKey)
+
+    if (!pixKey) {
+      console.error("[v0] Nenhuma chave PIX configurada")
       toast.error("Chave PIX não configurada. Entre em contato com o estabelecimento.")
       return
     }
@@ -134,7 +144,7 @@ export default function PagarAssinatura({ params }: { params: { paymentId: strin
     const txid = `SUB${paymentData.subscription_id.slice(0, 8).toUpperCase()}`
 
     // Generate EMV-compliant PIX payload
-    const pixCopyPaste = generatePixPayload(staffPixKey, amount, merchantName, merchantCity, txid)
+    const pixCopyPaste = generatePixPayload(pixKey, amount, merchantName, merchantCity, txid)
 
     setPixCode(pixCopyPaste)
 
@@ -144,7 +154,7 @@ export default function PagarAssinatura({ params }: { params: { paymentId: strin
       .update({
         pix_copy_paste: pixCopyPaste,
         pix_txid: txid,
-        pix_key: staffPixKey,
+        pix_key: pixKey,
       })
       .eq("id", params.paymentId)
   }
