@@ -306,9 +306,8 @@ export default function StaffAgenda() {
               <CardContent className="p-0">
                 <div className="overflow-x-auto">
                   <div className="min-w-[800px]">
-                    {/* Header with dates */}
                     <div
-                      className="grid gap-px bg-border sticky top-0 z-10"
+                      className="grid gap-px bg-border sticky top-0 z-20 bg-card shadow-md"
                       style={{ gridTemplateColumns: `80px repeat(${daysToDisplay.length}, 1fr)` }}
                     >
                       <div className="bg-card p-4 font-semibold text-sm">Hora</div>

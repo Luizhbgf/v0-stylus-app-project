@@ -313,9 +313,8 @@ export default function AdminAgendaPage() {
           <CardContent className="p-0">
             <div className="overflow-x-auto">
               <div className="min-w-[600px] sm:min-w-[800px]">
-                {/* Header with dates */}
                 <div
-                  className="grid gap-px bg-border sticky top-0 z-10"
+                  className="grid gap-px bg-border sticky top-0 z-20 bg-card shadow-md"
                   style={{ gridTemplateColumns: `60px repeat(${daysToDisplay.length}, 1fr)` }}
                 >
                   <div className="bg-card p-2 sm:p-4 font-semibold text-xs sm:text-sm">Hora</div>
