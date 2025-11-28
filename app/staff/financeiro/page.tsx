@@ -4,12 +4,20 @@ import { useState, useEffect } from "react"
 import { createClient } from "@/lib/supabase/client"
 import { Navbar } from "@/components/navbar"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { DollarSign, TrendingUp, Calendar, Filter, Trash2, CheckCircle } from "lucide-react"
+import { DollarSign, TrendingUp, Calendar, Filter, Trash2, CheckCircle, CreditCard } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { useRouter } from "next/navigation"
 import { toast } from "sonner"
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog"
 
 export default function StaffFinanceiro() {
   const [profile, setProfile] = useState<any>(null)
@@ -17,6 +25,9 @@ export default function StaffFinanceiro() {
   const [payments, setPayments] = useState<any[]>([])
   const [startDate, setStartDate] = useState("")
   const [endDate, setEndDate] = useState("")
+  const [showPaymentMethodDialog, setShowPaymentMethodDialog] = useState(false)
+  const [selectedAppointmentId, setSelectedAppointmentId] = useState<string | null>(null)
+  const [selectedPaymentMethod, setSelectedPaymentMethod] = useState<string>("")
   const router = useRouter()
   const supabase = createClient()
 
@@ -104,9 +115,20 @@ export default function StaffFinanceiro() {
     }
   }
 
+  const openPaymentMethodDialog = (appointmentId: string) => {
+    setSelectedAppointmentId(appointmentId)
+    setSelectedPaymentMethod("")
+    setShowPaymentMethodDialog(true)
+  }
+
   const handleMarkAsPaid = async (appointmentId: string) => {
+    if (!selectedPaymentMethod) {
+      toast.error("Selecione uma forma de pagamento")
+      return
+    }
+
     try {
-      const { error } = await supabase
+      const { error: aptError } = await supabase
         .from("appointments")
         .update({
           payment_status: "paid",
@@ -114,9 +136,41 @@ export default function StaffFinanceiro() {
         })
         .eq("id", appointmentId)
 
-      if (error) throw error
+      if (aptError) throw aptError
+
+      const { data: existingPayment } = await supabase
+        .from("payments")
+        .select("*")
+        .eq("appointment_id", appointmentId)
+        .single()
+
+      if (existingPayment) {
+        await supabase
+          .from("payments")
+          .update({
+            payment_method: selectedPaymentMethod,
+            status: "paid",
+            paid_at: new Date().toISOString(),
+          })
+          .eq("id", existingPayment.id)
+      } else {
+        const appointment = appointments.find((apt) => apt.id === appointmentId)
+        if (appointment) {
+          await supabase.from("payments").insert({
+            appointment_id: appointmentId,
+            client_id: appointment.client_id,
+            amount: appointment.custom_price || appointment.service?.price || 0,
+            payment_method: selectedPaymentMethod,
+            status: "paid",
+            paid_at: new Date().toISOString(),
+          })
+        }
+      }
 
       toast.success("Pagamento marcado como pago!")
+      setShowPaymentMethodDialog(false)
+      setSelectedAppointmentId(null)
+      setSelectedPaymentMethod("")
       loadData()
     } catch (error) {
       console.error("Erro ao marcar como pago:", error)
@@ -295,8 +349,10 @@ export default function StaffFinanceiro() {
                         </p>
                         <p className="text-sm text-muted-foreground mb-1">Cliente: {earning.client_name}</p>
                         <p className="text-sm text-muted-foreground mb-1">Serviço: {earning.service_name}</p>
-                        {earning.payment_method && (
-                          <p className="text-sm text-muted-foreground">Método: {earning.payment_method}</p>
+                        {earning.payment_method && earning.payment_method !== "Não informado" && (
+                          <p className="text-sm text-muted-foreground">
+                            Método: {earning.payment_method.replace("_", " ").replace(/\b\w/g, (l) => l.toUpperCase())}
+                          </p>
                         )}
                         {earning.isPayLater && (
                           <p className="text-xs text-yellow-500 mt-1 italic">⚠ Marcado como "pagar depois"</p>
@@ -315,7 +371,7 @@ export default function StaffFinanceiro() {
                         {earning.status === "pending" && (
                           <Button
                             size="sm"
-                            onClick={() => handleMarkAsPaid(earning.id)}
+                            onClick={() => openPaymentMethodDialog(earning.id)}
                             className="bg-green-600 hover:bg-green-700 text-white"
                           >
                             <CheckCircle className="h-4 w-4 mr-1" />
@@ -352,6 +408,71 @@ export default function StaffFinanceiro() {
           </div>
         </div>
       </div>
+
+      <Dialog open={showPaymentMethodDialog} onOpenChange={setShowPaymentMethodDialog}>
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle>Forma de Pagamento</DialogTitle>
+            <DialogDescription>Selecione como o cliente realizou o pagamento</DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            <div className="grid grid-cols-2 gap-3">
+              <button
+                onClick={() => setSelectedPaymentMethod("pix")}
+                className={`p-4 rounded-lg border-2 transition-all flex flex-col items-center gap-2 ${
+                  selectedPaymentMethod === "pix" ? "border-gold bg-gold/10" : "border-border hover:border-gold/50"
+                }`}
+              >
+                <CreditCard className="h-6 w-6" />
+                <span className="font-medium">PIX</span>
+              </button>
+              <button
+                onClick={() => setSelectedPaymentMethod("dinheiro")}
+                className={`p-4 rounded-lg border-2 transition-all flex flex-col items-center gap-2 ${
+                  selectedPaymentMethod === "dinheiro" ? "border-gold bg-gold/10" : "border-border hover:border-gold/50"
+                }`}
+              >
+                <DollarSign className="h-6 w-6" />
+                <span className="font-medium">Dinheiro</span>
+              </button>
+              <button
+                onClick={() => setSelectedPaymentMethod("cartao_credito")}
+                className={`p-4 rounded-lg border-2 transition-all flex flex-col items-center gap-2 ${
+                  selectedPaymentMethod === "cartao_credito"
+                    ? "border-gold bg-gold/10"
+                    : "border-border hover:border-gold/50"
+                }`}
+              >
+                <CreditCard className="h-6 w-6" />
+                <span className="font-medium">Cartão Crédito</span>
+              </button>
+              <button
+                onClick={() => setSelectedPaymentMethod("cartao_debito")}
+                className={`p-4 rounded-lg border-2 transition-all flex flex-col items-center gap-2 ${
+                  selectedPaymentMethod === "cartao_debito"
+                    ? "border-gold bg-gold/10"
+                    : "border-border hover:border-gold/50"
+                }`}
+              >
+                <CreditCard className="h-6 w-6" />
+                <span className="font-medium">Cartão Débito</span>
+              </button>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowPaymentMethodDialog(false)}>
+              Cancelar
+            </Button>
+            <Button
+              onClick={() => selectedAppointmentId && handleMarkAsPaid(selectedAppointmentId)}
+              disabled={!selectedPaymentMethod}
+              className="bg-gold hover:bg-gold/90"
+            >
+              Confirmar
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

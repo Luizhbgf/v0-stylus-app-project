@@ -18,10 +18,19 @@ import {
   Trash2,
   CheckCircle,
   RotateCcw,
+  CreditCard,
 } from "lucide-react"
 import { format, startOfMonth, endOfMonth, subMonths } from "date-fns"
 import { ptBR } from "date-fns/locale"
 import { useToast } from "@/hooks/use-toast"
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog"
 
 type Profile = {
   id: string
@@ -34,11 +43,15 @@ export default function AdminFinanceiroPage() {
   const supabase = createClient()
   const [profile, setProfile] = useState<Profile | null>(null)
   const [loading, setLoading] = useState(true)
+  const [appointments, setAppointments] = useState<any[]>([])
   const [payments, setPayments] = useState<any[]>([])
   const [staff, setStaff] = useState<Profile[]>([])
   const [selectedStaff, setSelectedStaff] = useState<string>("all")
   const [startDate, setStartDate] = useState(format(startOfMonth(new Date()), "yyyy-MM-dd"))
   const [endDate, setEndDate] = useState(format(endOfMonth(new Date()), "yyyy-MM-dd"))
+  const [showPaymentMethodDialog, setShowPaymentMethodDialog] = useState(false)
+  const [selectedAppointmentId, setSelectedAppointmentId] = useState<string | null>(null)
+  const [selectedPaymentMethod, setSelectedPaymentMethod] = useState<string>("")
   const { toast } = useToast()
 
   useEffect(() => {
@@ -118,10 +131,26 @@ export default function AdminFinanceiroPage() {
       })) || []
 
     setPayments(paymentsData)
+    setAppointments(appointmentsData || [])
+  }
+
+  function openPaymentMethodDialog(appointmentId: string) {
+    setSelectedAppointmentId(appointmentId)
+    setSelectedPaymentMethod("")
+    setShowPaymentMethodDialog(true)
   }
 
   async function handleMarkAsPaid(appointmentId: string) {
-    const { error } = await supabase
+    if (!selectedPaymentMethod) {
+      toast({
+        title: "Erro",
+        description: "Selecione uma forma de pagamento.",
+        variant: "destructive",
+      })
+      return
+    }
+
+    const { error: aptError } = await supabase
       .from("appointments")
       .update({
         payment_status: "paid",
@@ -129,7 +158,7 @@ export default function AdminFinanceiroPage() {
       })
       .eq("id", appointmentId)
 
-    if (error) {
+    if (aptError) {
       toast({
         title: "Erro",
         description: "Não foi possível marcar como pago.",
@@ -138,14 +167,45 @@ export default function AdminFinanceiroPage() {
       return
     }
 
+    const { data: existingPayment } = await supabase
+      .from("payments")
+      .select("*")
+      .eq("appointment_id", appointmentId)
+      .single()
+
+    if (existingPayment) {
+      await supabase
+        .from("payments")
+        .update({
+          payment_method: selectedPaymentMethod,
+          status: "paid",
+          paid_at: new Date().toISOString(),
+        })
+        .eq("id", existingPayment.id)
+    } else {
+      const appointment = appointments.find((apt) => apt.id === appointmentId)
+      if (appointment) {
+        await supabase.from("payments").insert({
+          appointment_id: appointmentId,
+          client_id: appointment.client_id,
+          amount: appointment.custom_price || appointment.service?.price || 0,
+          payment_method: selectedPaymentMethod,
+          status: "paid",
+          paid_at: new Date().toISOString(),
+        })
+      }
+    }
+
     toast({
       title: "Sucesso",
       description: "Pagamento marcado como pago com sucesso.",
     })
 
+    setShowPaymentMethodDialog(false)
+    setSelectedAppointmentId(null)
+    setSelectedPaymentMethod("")
     loadPayments()
   }
-  // </CHANGE>
 
   async function handleRevertToConfirmed(appointmentId: string) {
     if (!confirm("Tem certeza que deseja reverter este agendamento para o status de confirmado?")) {
@@ -177,7 +237,6 @@ export default function AdminFinanceiroPage() {
 
     loadPayments()
   }
-  // </CHANGE>
 
   async function handleDelete(appointmentId: string) {
     if (!confirm("Tem certeza que deseja excluir este registro? Esta ação não pode ser desfeita.")) {
@@ -230,12 +289,10 @@ export default function AdminFinanceiroPage() {
 
   const totalRevenue =
     payments?.filter((p) => p.payment_status === "paid").reduce((sum, p) => sum + Number(p.amount), 0) || 0
-  // </CHANGE>
 
   const pendingRevenue =
     payments?.filter((p) => p.pay_later && p.payment_status !== "paid").reduce((sum, p) => sum + Number(p.amount), 0) ||
     0
-  // </CHANGE>
 
   const serviceStats: Record<string, { count: number; revenue: number }> = {}
   payments.forEach((p) => {
@@ -267,6 +324,8 @@ export default function AdminFinanceiroPage() {
   const topStaff = Object.values(staffRevenue)
     .sort((a, b) => b.revenue - a.revenue)
     .slice(0, 5)
+
+  const filteredPayments = payments
 
   return (
     <div className="min-h-screen bg-background">
@@ -445,113 +504,172 @@ export default function AdminFinanceiroPage() {
           </Card>
         </div>
 
-        <Card className="border-gold/20">
-          <CardHeader>
-            <CardTitle className="text-foreground">Histórico de Serviços Concluídos</CardTitle>
-          </CardHeader>
-          <CardContent>
-            {payments && payments.length > 0 ? (
-              <div className="space-y-3">
-                {payments.map((payment) => (
-                  <div
-                    key={payment.id}
-                    className="flex items-center justify-between p-4 bg-card/50 rounded-lg border border-gold/10"
-                  >
-                    <div className="flex-1">
-                      <h3 className="font-semibold text-foreground">
-                        {payment.client_type === "sporadic"
-                          ? payment.sporadic_client_name
-                          : payment.client?.full_name || "Cliente não identificado"}
-                      </h3>
-                      <p className="text-sm text-muted-foreground">
-                        Profissional: {payment.appointment?.staff?.full_name || "N/A"}
-                      </p>
-                      <p className="text-sm text-muted-foreground">
-                        Serviço: {payment.appointment?.service?.name || "N/A"}
-                      </p>
-                      <p className="text-xs text-muted-foreground mt-1">
-                        {format(new Date(payment.payment_date), "dd/MM/yyyy HH:mm")}
-                      </p>
-                      {payment.pay_later && payment.payment_status !== "paid" && (
-                        <p className="text-xs text-yellow-500 mt-1 italic">⚠ Marcado como "pagar depois"</p>
-                      )}
-                      {/* </CHANGE> */}
-                    </div>
-                    <div className="text-right flex items-center gap-2">
-                      <div>
-                        <p className="text-lg font-bold text-gold">R$ {Number(payment.amount).toFixed(2)}</p>
-                        {payment.custom_price &&
-                          payment.original_price &&
-                          Number(payment.custom_price) !== Number(payment.original_price) && (
-                            <div className="text-xs mt-1 space-y-0.5">
-                              <p className="text-muted-foreground">
-                                Original:{" "}
-                                <span className="line-through">R$ {Number(payment.original_price).toFixed(2)}</span>
-                              </p>
-                              <p
-                                className={
-                                  Number(payment.custom_price) > Number(payment.original_price)
-                                    ? "text-green-500"
-                                    : "text-red-500"
-                                }
-                              >
-                                {Number(payment.custom_price) > Number(payment.original_price) ? "↑" : "↓"} R${" "}
-                                {Math.abs(Number(payment.custom_price) - Number(payment.original_price)).toFixed(2)}
-                              </p>
-                            </div>
-                          )}
-                        <span
-                          className={`inline-block px-3 py-1 rounded-full text-xs font-medium mt-1 ${
-                            payment.payment_status === "paid"
-                              ? "bg-green-500/10 text-green-500"
-                              : "bg-yellow-500/10 text-yellow-500"
-                          }`}
-                        >
-                          {payment.payment_status === "paid" ? "Pago" : "Concluído"}
-                        </span>
-                        <p className="text-xs text-muted-foreground mt-1">{payment.payment_method}</p>
+        <div>
+          <h2 className="text-2xl font-bold text-foreground mb-4">Histórico de Serviços Concluídos</h2>
+          <div className="grid gap-4">
+            {filteredPayments && filteredPayments.length > 0 ? (
+              filteredPayments.map((payment) => (
+                <Card key={payment.id} className="border-gold/20">
+                  <CardContent className="p-6">
+                    <div className="flex justify-between items-start">
+                      <div className="flex-1">
+                        <h3 className="font-semibold text-foreground">
+                          {payment.client_type === "sporadic"
+                            ? payment.sporadic_client_name
+                            : payment.client?.full_name || "Cliente não identificado"}
+                        </h3>
+                        <p className="text-sm text-muted-foreground">
+                          Profissional: {payment.appointment?.staff?.full_name || "N/A"}
+                        </p>
+                        <p className="text-sm text-muted-foreground">
+                          Serviço: {payment.appointment?.service?.name || "N/A"}
+                        </p>
+                        <p className="text-xs text-muted-foreground mt-1">
+                          {format(new Date(payment.payment_date), "dd/MM/yyyy HH:mm")}
+                        </p>
+                        {payment.pay_later && payment.payment_status !== "paid" && (
+                          <p className="text-xs text-yellow-500 mt-1 italic">⚠ Marcado como "pagar depois"</p>
+                        )}
                       </div>
-                      <div className="flex flex-col gap-1">
-                        {payment.payment_status !== "paid" && (
+                      <div className="text-right flex items-center gap-2">
+                        <div>
+                          <p className="text-lg font-bold text-gold">R$ {Number(payment.amount).toFixed(2)}</p>
+                          {payment.custom_price &&
+                            payment.original_price &&
+                            Number(payment.custom_price) !== Number(payment.original_price) && (
+                              <div className="text-xs mt-1 space-y-0.5">
+                                <p className="text-muted-foreground">
+                                  Original:{" "}
+                                  <span className="line-through">R$ {Number(payment.original_price).toFixed(2)}</span>
+                                </p>
+                                <p
+                                  className={
+                                    Number(payment.custom_price) > Number(payment.original_price)
+                                      ? "text-green-500"
+                                      : "text-red-500"
+                                  }
+                                >
+                                  {Number(payment.custom_price) > Number(payment.original_price) ? "↑" : "↓"} R${" "}
+                                  {Math.abs(Number(payment.custom_price) - Number(payment.original_price)).toFixed(2)}
+                                </p>
+                              </div>
+                            )}
+                          <span
+                            className={`inline-block px-3 py-1 rounded-full text-xs font-medium mt-1 ${
+                              payment.payment_status === "paid"
+                                ? "bg-green-500/10 text-green-500"
+                                : "bg-yellow-500/10 text-yellow-500"
+                            }`}
+                          >
+                            {payment.payment_status === "paid" ? "Pago" : "Concluído"}
+                          </span>
+                          <p className="text-xs text-muted-foreground mt-1">{payment.payment_method}</p>
+                        </div>
+                        <div className="flex flex-col gap-1">
+                          {payment.payment_status !== "paid" && (
+                            <Button
+                              size="sm"
+                              onClick={() => openPaymentMethodDialog(payment.id)}
+                              className="bg-green-600 hover:bg-green-700 text-white h-8"
+                            >
+                              <CheckCircle className="h-3 w-3 mr-1" />
+                              Marcar como Pago
+                            </Button>
+                          )}
                           <Button
                             size="sm"
-                            onClick={() => handleMarkAsPaid(payment.id)}
-                            className="bg-green-600 hover:bg-green-700 text-white h-8"
+                            variant="outline"
+                            onClick={() => handleRevertToConfirmed(payment.id)}
+                            className="border-blue-500 text-blue-500 hover:bg-blue-50 h-8"
                           >
-                            <CheckCircle className="h-3 w-3 mr-1" />
-                            Pago
+                            <RotateCcw className="h-3 w-3 mr-1" />
+                            Reverter
                           </Button>
-                        )}
-                        {/* </CHANGE> */}
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => handleRevertToConfirmed(payment.id)}
-                          className="border-blue-500 text-blue-500 hover:bg-blue-50 h-8"
-                        >
-                          <RotateCcw className="h-3 w-3 mr-1" />
-                          Reverter
-                        </Button>
-                        {/* </CHANGE> */}
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => handleDelete(payment.id)}
-                          className="text-red-500 hover:text-red-700 hover:bg-red-50 h-8"
-                        >
-                          <Trash2 className="h-3 w-3" />
-                        </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleDelete(payment.id)}
+                            className="text-red-500 hover:text-red-700 hover:bg-red-50 h-8"
+                          >
+                            <Trash2 className="h-3 w-3" />
+                          </Button>
+                        </div>
                       </div>
                     </div>
-                  </div>
-                ))}
-              </div>
+                  </CardContent>
+                </Card>
+              ))
             ) : (
               <p className="text-center text-muted-foreground py-4">Nenhum serviço concluído no período selecionado</p>
             )}
-          </CardContent>
-        </Card>
+          </div>
+        </div>
       </div>
+
+      <Dialog open={showPaymentMethodDialog} onOpenChange={setShowPaymentMethodDialog}>
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle>Forma de Pagamento</DialogTitle>
+            <DialogDescription>Selecione como o cliente realizou o pagamento</DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            <div className="grid grid-cols-2 gap-3">
+              <button
+                onClick={() => setSelectedPaymentMethod("pix")}
+                className={`p-4 rounded-lg border-2 transition-all flex flex-col items-center gap-2 ${
+                  selectedPaymentMethod === "pix" ? "border-gold bg-gold/10" : "border-border hover:border-gold/50"
+                }`}
+              >
+                <CreditCard className="h-6 w-6" />
+                <span className="font-medium">PIX</span>
+              </button>
+              <button
+                onClick={() => setSelectedPaymentMethod("dinheiro")}
+                className={`p-4 rounded-lg border-2 transition-all flex flex-col items-center gap-2 ${
+                  selectedPaymentMethod === "dinheiro" ? "border-gold bg-gold/10" : "border-border hover:border-gold/50"
+                }`}
+              >
+                <DollarSign className="h-6 w-6" />
+                <span className="font-medium">Dinheiro</span>
+              </button>
+              <button
+                onClick={() => setSelectedPaymentMethod("cartao_credito")}
+                className={`p-4 rounded-lg border-2 transition-all flex flex-col items-center gap-2 ${
+                  selectedPaymentMethod === "cartao_credito"
+                    ? "border-gold bg-gold/10"
+                    : "border-border hover:border-gold/50"
+                }`}
+              >
+                <CreditCard className="h-6 w-6" />
+                <span className="font-medium">Cartão Crédito</span>
+              </button>
+              <button
+                onClick={() => setSelectedPaymentMethod("cartao_debito")}
+                className={`p-4 rounded-lg border-2 transition-all flex flex-col items-center gap-2 ${
+                  selectedPaymentMethod === "cartao_debito"
+                    ? "border-gold bg-gold/10"
+                    : "border-border hover:border-gold/50"
+                }`}
+              >
+                <CreditCard className="h-6 w-6" />
+                <span className="font-medium">Cartão Débito</span>
+              </button>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowPaymentMethodDialog(false)}>
+              Cancelar
+            </Button>
+            <Button
+              onClick={() => selectedAppointmentId && handleMarkAsPaid(selectedAppointmentId)}
+              disabled={!selectedPaymentMethod}
+              className="bg-gold hover:bg-gold/90"
+            >
+              Confirmar
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }
