@@ -647,51 +647,62 @@ export default function AppointmentDetailPage() {
       </div>
 
       <Dialog open={showPaymentDialog} onOpenChange={setShowPaymentDialog}>
-        <DialogContent>
+        <DialogContent className="max-w-[95vw] sm:max-w-lg mx-4 max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>Finalizar Agendamento</DialogTitle>
-            <DialogDescription>Como foi realizado o pagamento deste serviço?</DialogDescription>
+            <DialogTitle className="text-lg sm:text-xl">Finalizar Agendamento</DialogTitle>
+            <DialogDescription className="text-sm sm:text-base">
+              Como foi realizado o pagamento deste serviço?
+            </DialogDescription>
           </DialogHeader>
-          <div className="space-y-4 py-4">
+          <div className="space-y-3 sm:space-y-4 py-4">
             <Button
               variant={paymentChoice === "paid" ? "default" : "outline"}
-              className="w-full h-auto py-4 flex flex-col items-center gap-2"
+              className="w-full h-auto py-6 sm:py-4 flex flex-col items-center gap-3 sm:gap-2 text-base sm:text-sm"
               onClick={() => setPaymentChoice("paid")}
             >
-              <CheckCircle className="h-6 w-6" />
+              <CheckCircle className="h-8 w-8 sm:h-6 sm:w-6" />
               <div className="text-center">
-                <div className="font-semibold">Já foi pago</div>
-                <div className="text-xs text-muted-foreground">Cliente pagou no momento do atendimento</div>
+                <div className="font-semibold text-base sm:text-sm">Já foi pago</div>
+                <div className="text-sm sm:text-xs text-muted-foreground mt-1">
+                  Cliente pagou no momento do atendimento
+                </div>
               </div>
             </Button>
             <Button
               variant={paymentChoice === "later" ? "default" : "outline"}
-              className="w-full h-auto py-4 flex flex-col items-center gap-2"
+              className="w-full h-auto py-6 sm:py-4 flex flex-col items-center gap-3 sm:gap-2 text-base sm:text-sm"
               onClick={() => setPaymentChoice("later")}
             >
-              <Clock className="h-6 w-6" />
+              <Clock className="h-8 w-8 sm:h-6 sm:w-6" />
               <div className="text-center">
-                <div className="font-semibold">Pagar depois</div>
-                <div className="text-xs text-muted-foreground">
+                <div className="font-semibold text-base sm:text-sm">Pagar depois</div>
+                <div className="text-sm sm:text-xs text-muted-foreground mt-1">
                   Aparecerá no financeiro como pendente até marcar como pago
                 </div>
               </div>
             </Button>
           </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setShowPaymentDialog(false)} disabled={isLoading}>
+          <DialogFooter className="gap-2 sm:gap-0 flex-col sm:flex-row">
+            <Button
+              variant="outline"
+              onClick={() => setShowPaymentDialog(false)}
+              disabled={isLoading}
+              className="w-full sm:w-auto h-12 sm:h-10 text-base sm:text-sm"
+            >
               Cancelar
             </Button>
-            <Button onClick={handleConfirmPayment} disabled={!paymentChoice || isLoading}>
+            <Button
+              onClick={handleConfirmPayment}
+              disabled={!paymentChoice || isLoading}
+              className="w-full sm:w-auto h-12 sm:h-10 text-base sm:text-sm"
+            >
               {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               Confirmar
             </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
-      {/* </CHANGE> */}
 
-      {/* Added no show dialog */}
       <Dialog open={showNoShowDialog} onOpenChange={setShowNoShowDialog}>
         <DialogContent>
           <DialogHeader>
@@ -717,7 +728,6 @@ export default function AppointmentDetailPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-      {/* </CHANGE> */}
     </div>
   )
 }
