@@ -139,11 +139,7 @@ export default function AdminAppointmentDetailsPage({ params }: { params: { id: 
 
   const handleConfirmPayment = async () => {
     if (!paymentChoice) {
-      toast({
-        title: "Erro",
-        description: "Selecione uma opção de pagamento",
-        variant: "destructive",
-      })
+      toast.error("Selecione uma opção de pagamento")
       return
     }
 
@@ -173,22 +169,16 @@ export default function AdminAppointmentDetailsPage({ params }: { params: { id: 
 
       if (error) throw error
 
-      toast({
-        title: "Sucesso",
-        description:
-          paymentStatus === "paid"
-            ? "Agendamento concluído e marcado como pago!"
-            : "Agendamento concluído. Pagamento pendente.",
-      })
+      toast.success(
+        paymentStatus === "paid"
+          ? "Agendamento concluído e marcado como pago!"
+          : "Agendamento concluído. Pagamento pendente.",
+      )
       setShowPaymentMethodDialog(false)
       router.push("/admin/agenda")
     } catch (error) {
       console.error("Erro ao concluir agendamento:", error)
-      toast({
-        title: "Erro",
-        description: "Erro ao concluir agendamento",
-        variant: "destructive",
-      })
+      toast.error("Erro ao concluir agendamento")
     } finally {
       setIsLoading(false)
     }
@@ -196,11 +186,7 @@ export default function AdminAppointmentDetailsPage({ params }: { params: { id: 
 
   const handleConfirmPaymentMethod = async () => {
     if (!paymentMethod) {
-      toast({
-        title: "Erro",
-        description: "Selecione uma forma de pagamento",
-        variant: "destructive",
-      })
+      toast.error("Selecione uma forma de pagamento")
       return
     }
     await completeAppointment("paid", paymentMethod)
