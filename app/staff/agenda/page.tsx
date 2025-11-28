@@ -5,7 +5,7 @@ import { createClient as createClientClient } from "@/lib/supabase/client"
 import { useRouter } from "next/navigation"
 import { Navbar } from "@/components/navbar"
 import { Card, CardContent } from "@/components/ui/card"
-import { Plus, ChevronLeft, ChevronRight } from "lucide-react"
+import { Plus, ChevronLeft, ChevronRight, CalendarOff } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import Link from "next/link"
 import {
@@ -187,12 +187,24 @@ export default function StaffAgenda() {
               Visualize seus agendamentos em formato de calendário
             </p>
           </div>
-          <Link href="/staff/agenda/adicionar" className="w-full sm:w-auto">
-            <Button className="bg-gold hover:bg-gold/90 text-black w-full h-12 sm:h-10 text-base sm:text-sm">
-              <Plus className="mr-2 h-5 w-5 sm:h-4 sm:w-4" />
-              Adicionar Agendamento
-            </Button>
-          </Link>
+          <div className="flex flex-col sm:flex-row gap-3">
+            <Link href="/staff/agenda/adicionar" className="w-full sm:w-auto">
+              <Button className="bg-gold hover:bg-gold/90 text-black w-full h-12 sm:h-10 text-base sm:text-sm">
+                <Plus className="mr-2 h-5 w-5 sm:h-4 sm:w-4" />
+                Adicionar Agendamento
+              </Button>
+            </Link>
+            <Link href="/staff/agenda/bloquear" className="w-full sm:w-auto">
+              <Button
+                variant="outline"
+                className="border-gold/40 hover:bg-gold/10 w-full h-12 sm:h-10 text-base sm:text-sm bg-transparent"
+              >
+                <CalendarOff className="mr-2 h-5 w-5 sm:h-4 sm:w-4" />
+                Bloquear Agenda
+              </Button>
+            </Link>
+          </div>
+          {/* </CHANGE> */}
         </div>
 
         <div className="flex flex-col sm:flex-row flex-wrap items-stretch sm:items-center gap-3 sm:gap-4 mb-4 sm:mb-6">

@@ -7,7 +7,7 @@ import { Navbar } from "@/components/navbar"
 import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Trash2, ChevronLeft, ChevronRight, Plus } from "lucide-react"
+import { Trash2, ChevronLeft, ChevronRight, Plus, CalendarOff } from "lucide-react"
 import {
   format,
   addDays,
@@ -202,6 +202,16 @@ export default function AdminAgendaPage() {
               <Plus className="h-5 w-5 sm:h-4 sm:w-4 mr-2" />
               Adicionar Agendamento
             </Button>
+
+            <Button
+              onClick={() => router.push("/admin/agenda/bloquear")}
+              variant="outline"
+              className="border-gold/40 hover:bg-gold/10 h-12 sm:h-10 text-base sm:text-sm w-full sm:w-auto"
+            >
+              <CalendarOff className="h-5 w-5 sm:h-4 sm:w-4 mr-2" />
+              Bloquear Agenda
+            </Button>
+            {/* </CHANGE> */}
 
             <div className="flex items-center gap-2 sm:gap-2">
               <Button
