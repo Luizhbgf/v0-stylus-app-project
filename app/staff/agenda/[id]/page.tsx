@@ -7,9 +7,22 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Navbar } from "@/components/navbar"
-import { useRouter, useParams } from "next/navigation"
+import { useRouter } from "next/navigation"
 import { toast } from "sonner"
-import { ArrowLeft, Calendar, Clock, User, DollarSign, X, UserX, CheckCircle, Edit2, Save, Loader2 } from "lucide-react"
+import {
+  ArrowLeft,
+  Calendar,
+  Clock,
+  User,
+  DollarSign,
+  X,
+  UserX,
+  CheckCircle,
+  Edit2,
+  Save,
+  Loader2,
+  CreditCard,
+} from "lucide-react"
 import Link from "next/link"
 import { Badge } from "@/components/ui/badge"
 import { Textarea } from "@/components/ui/textarea"
@@ -23,8 +36,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog"
 
-export default function AppointmentDetailPage() {
-  const params = useParams()
+export default function StaffAppointmentDetailsPage({ params }: { params: { id: string } }) {
   const router = useRouter()
   const [appointment, setAppointment] = useState<any>(null)
   const [profile, setProfile] = useState<any>(null)
@@ -32,6 +44,8 @@ export default function AppointmentDetailPage() {
   const [isLoading, setIsLoading] = useState(false)
   const [showPaymentDialog, setShowPaymentDialog] = useState(false)
   const [paymentChoice, setPaymentChoice] = useState<"paid" | "later" | null>(null)
+  const [paymentMethod, setPaymentMethod] = useState<string>("")
+  const [showPaymentMethodDialog, setShowPaymentMethodDialog] = useState(false)
   const [showNoShowDialog, setShowNoShowDialog] = useState(false)
   const [noShowReason, setNoShowReason] = useState("")
   const supabase = createClient()
@@ -152,18 +166,26 @@ export default function AppointmentDetailPage() {
       return
     }
 
+    if (paymentChoice === "paid") {
+      setShowPaymentDialog(false)
+      setShowPaymentMethodDialog(true)
+      return
+    }
+
+    await completeAppointment("pending", null)
+  }
+
+  const completeAppointment = async (paymentStatus: string, method: string | null) => {
     setIsLoading(true)
     try {
       const updates: any = {
         status: "completed",
+        payment_status: paymentStatus,
+        pay_later: paymentStatus === "pending",
       }
 
-      if (paymentChoice === "paid") {
-        updates.payment_status = "paid"
-        updates.pay_later = false
-      } else {
-        updates.payment_status = "pending"
-        updates.pay_later = true
+      if (method) {
+        updates.payment_method = method
       }
 
       const { error } = await supabase.from("appointments").update(updates).eq("id", appointment.id)
@@ -171,11 +193,11 @@ export default function AppointmentDetailPage() {
       if (error) throw error
 
       toast.success(
-        paymentChoice === "paid"
+        paymentStatus === "paid"
           ? "Agendamento concluído e marcado como pago!"
           : "Agendamento concluído. Pagamento pendente.",
       )
-      setShowPaymentDialog(false)
+      setShowPaymentMethodDialog(false)
       router.push("/staff/agenda")
     } catch (error) {
       console.error("[v0] Erro ao concluir agendamento:", error)
@@ -183,6 +205,14 @@ export default function AppointmentDetailPage() {
     } finally {
       setIsLoading(false)
     }
+  }
+
+  const handleConfirmPaymentMethod = async () => {
+    if (!paymentMethod) {
+      toast.error("Selecione uma forma de pagamento")
+      return
+    }
+    await completeAppointment("paid", paymentMethod)
   }
 
   const handleNoShow = async () => {
@@ -694,6 +724,72 @@ export default function AppointmentDetailPage() {
             <Button
               onClick={handleConfirmPayment}
               disabled={!paymentChoice || isLoading}
+              className="w-full sm:w-auto h-12 sm:h-10 text-base sm:text-sm"
+            >
+              {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              Confirmar
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={showPaymentMethodDialog} onOpenChange={setShowPaymentMethodDialog}>
+        <DialogContent className="max-w-[95vw] sm:max-w-lg mx-4">
+          <DialogHeader>
+            <DialogTitle className="text-lg sm:text-xl">Forma de Pagamento</DialogTitle>
+            <DialogDescription className="text-sm sm:text-base">
+              Selecione como o cliente realizou o pagamento
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid grid-cols-2 gap-3 sm:gap-4 py-4">
+            <Button
+              variant={paymentMethod === "pix" ? "default" : "outline"}
+              className="h-auto py-6 sm:py-4 flex flex-col items-center gap-2"
+              onClick={() => setPaymentMethod("pix")}
+            >
+              <CreditCard className="h-8 w-8 sm:h-6 sm:w-6" />
+              <span className="text-base sm:text-sm font-semibold">PIX</span>
+            </Button>
+            <Button
+              variant={paymentMethod === "dinheiro" ? "default" : "outline"}
+              className="h-auto py-6 sm:py-4 flex flex-col items-center gap-2"
+              onClick={() => setPaymentMethod("dinheiro")}
+            >
+              <DollarSign className="h-8 w-8 sm:h-6 sm:w-6" />
+              <span className="text-base sm:text-sm font-semibold">Dinheiro</span>
+            </Button>
+            <Button
+              variant={paymentMethod === "credito" ? "default" : "outline"}
+              className="h-auto py-6 sm:py-4 flex flex-col items-center gap-2"
+              onClick={() => setPaymentMethod("credito")}
+            >
+              <CreditCard className="h-8 w-8 sm:h-6 sm:w-6" />
+              <span className="text-base sm:text-sm font-semibold">Cartão Crédito</span>
+            </Button>
+            <Button
+              variant={paymentMethod === "debito" ? "default" : "outline"}
+              className="h-auto py-6 sm:py-4 flex flex-col items-center gap-2"
+              onClick={() => setPaymentMethod("debito")}
+            >
+              <CreditCard className="h-8 w-8 sm:h-6 sm:w-6" />
+              <span className="text-base sm:text-sm font-semibold">Cartão Débito</span>
+            </Button>
+          </div>
+          <DialogFooter className="gap-2 sm:gap-0 flex-col sm:flex-row">
+            <Button
+              variant="outline"
+              onClick={() => {
+                setShowPaymentMethodDialog(false)
+                setShowPaymentDialog(true)
+              }}
+              disabled={isLoading}
+              className="w-full sm:w-auto h-12 sm:h-10 text-base sm:text-sm"
+            >
+              Voltar
+            </Button>
+            <Button
+              onClick={handleConfirmPaymentMethod}
+              disabled={!paymentMethod || isLoading}
               className="w-full sm:w-auto h-12 sm:h-10 text-base sm:text-sm"
             >
               {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}

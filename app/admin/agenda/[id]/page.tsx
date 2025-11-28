@@ -7,15 +7,34 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Navbar } from "@/components/navbar"
-import { useRouter, useParams } from "next/navigation"
+import { useRouter } from "next/navigation"
 import { toast } from "sonner"
-import { ArrowLeft, Calendar, Clock, User, DollarSign, Edit2, Save } from "lucide-react"
+import {
+  ArrowLeft,
+  Calendar,
+  Clock,
+  User,
+  DollarSign,
+  Edit2,
+  Save,
+  CheckCircle,
+  CreditCard,
+  Loader2,
+} from "lucide-react"
 import Link from "next/link"
 import { Badge } from "@/components/ui/badge"
 import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog"
 
-export default function AdminGerenciarAgendamento() {
+export default function AdminAppointmentDetailsPage({ params }: { params: { id: string } }) {
   const [profile, setProfile] = useState<any>(null)
   const [appointment, setAppointment] = useState<any>(null)
   const [isLoading, setIsLoading] = useState(false)
@@ -38,8 +57,12 @@ export default function AdminGerenciarAgendamento() {
   const [clients, setClients] = useState<any[]>([])
   const [staffMembers, setStaffMembers] = useState<any[]>([])
   const router = useRouter()
-  const params = useParams()
   const supabase = createClient()
+
+  const [showPaymentDialog, setShowPaymentDialog] = useState(false)
+  const [showPaymentMethodDialog, setShowPaymentMethodDialog] = useState(false)
+  const [paymentChoice, setPaymentChoice] = useState<"paid" | "later" | null>(null)
+  const [paymentMethod, setPaymentMethod] = useState<string>("")
 
   useEffect(() => {
     loadData()
@@ -110,74 +133,77 @@ export default function AdminGerenciarAgendamento() {
     }
   }
 
-  const handleSaveEdit = async () => {
+  const handleComplete = () => {
+    setShowPaymentDialog(true)
+  }
+
+  const handleConfirmPayment = async () => {
+    if (!paymentChoice) {
+      toast({
+        title: "Erro",
+        description: "Selecione uma opção de pagamento",
+        variant: "destructive",
+      })
+      return
+    }
+
+    if (paymentChoice === "paid") {
+      setShowPaymentDialog(false)
+      setShowPaymentMethodDialog(true)
+      return
+    }
+
+    await completeAppointment("pending", null)
+  }
+
+  const completeAppointment = async (paymentStatus: string, method: string | null) => {
     setIsLoading(true)
     try {
-      const appointmentDateTime = new Date(`${editData.appointment_date}T${editData.appointment_time}`)
-
-      const updateData: any = {
-        appointment_date: appointmentDateTime.toISOString(),
-        service_id: editData.service_id || null,
-        staff_id: editData.staff_id || null,
-        client_type: editData.client_type,
-        payment_status: editData.payment_status,
-        notes: editData.notes || null,
-        custom_price: editData.custom_price ? Number.parseFloat(editData.custom_price) : null,
+      const updates: any = {
+        status: "completed",
+        payment_status: paymentStatus,
+        pay_later: paymentStatus === "pending",
       }
 
-      if (editData.client_type === "registered") {
-        updateData.client_id = editData.client_id || null
-        updateData.sporadic_client_name = null
-        updateData.sporadic_client_phone = null
-        updateData.event_title = null
-      } else if (editData.client_type === "sporadic") {
-        updateData.client_id = null
-        updateData.sporadic_client_name = editData.sporadic_client_name
-        updateData.sporadic_client_phone = editData.sporadic_client_phone
-        updateData.event_title = null
-      } else if (editData.client_type === "event") {
-        updateData.client_id = null
-        updateData.sporadic_client_name = null
-        updateData.sporadic_client_phone = null
-        updateData.event_title = editData.event_title
+      if (method) {
+        updates.payment_method = method
       }
 
-      const { error } = await supabase.from("appointments").update(updateData).eq("id", appointment.id)
+      const { error } = await supabase.from("appointments").update(updates).eq("id", appointment.id)
 
       if (error) throw error
 
-      toast.success("Agendamento atualizado com sucesso!")
-      setIsEditing(false)
-      loadData()
+      toast({
+        title: "Sucesso",
+        description:
+          paymentStatus === "paid"
+            ? "Agendamento concluído e marcado como pago!"
+            : "Agendamento concluído. Pagamento pendente.",
+      })
+      setShowPaymentMethodDialog(false)
+      router.push("/admin/agenda")
     } catch (error) {
-      console.error("Erro ao atualizar agendamento:", error)
-      toast.error("Erro ao atualizar agendamento")
+      console.error("Erro ao concluir agendamento:", error)
+      toast({
+        title: "Erro",
+        description: "Erro ao concluir agendamento",
+        variant: "destructive",
+      })
     } finally {
       setIsLoading(false)
     }
   }
 
-  const handleComplete = async () => {
-    setIsLoading(true)
-    try {
-      const { error } = await supabase
-        .from("appointments")
-        .update({
-          status: "completed",
-          payment_status: "paid",
-        })
-        .eq("id", appointment.id)
-
-      if (error) throw error
-
-      toast.success("Agendamento marcado como concluído!")
-      router.push("/admin/agenda")
-    } catch (error) {
-      console.error("Erro ao concluir agendamento:", error)
-      toast.error("Erro ao concluir agendamento")
-    } finally {
-      setIsLoading(false)
+  const handleConfirmPaymentMethod = async () => {
+    if (!paymentMethod) {
+      toast({
+        title: "Erro",
+        description: "Selecione uma forma de pagamento",
+        variant: "destructive",
+      })
+      return
     }
+    await completeAppointment("paid", paymentMethod)
   }
 
   const handleNoShow = async () => {
@@ -251,6 +277,53 @@ export default function AdminGerenciarAgendamento() {
     } catch (error) {
       console.error("Erro ao reverter agendamento:", error)
       toast.error("Erro ao reverter agendamento")
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  const handleSaveEdit = async () => {
+    setIsLoading(true)
+    try {
+      const appointmentDateTime = new Date(`${editData.appointment_date}T${editData.appointment_time}`)
+
+      const updateData: any = {
+        appointment_date: appointmentDateTime.toISOString(),
+        service_id: editData.service_id || null,
+        staff_id: editData.staff_id || null,
+        client_type: editData.client_type,
+        payment_status: editData.payment_status,
+        notes: editData.notes || null,
+        custom_price: editData.custom_price ? Number.parseFloat(editData.custom_price) : null,
+      }
+
+      if (editData.client_type === "registered") {
+        updateData.client_id = editData.client_id || null
+        updateData.sporadic_client_name = null
+        updateData.sporadic_client_phone = null
+        updateData.event_title = null
+      } else if (editData.client_type === "sporadic") {
+        updateData.client_id = null
+        updateData.sporadic_client_name = editData.sporadic_client_name
+        updateData.sporadic_client_phone = editData.sporadic_client_phone
+        updateData.event_title = null
+      } else if (editData.client_type === "event") {
+        updateData.client_id = null
+        updateData.sporadic_client_name = null
+        updateData.sporadic_client_phone = null
+        updateData.event_title = editData.event_title
+      }
+
+      const { error } = await supabase.from("appointments").update(updateData).eq("id", appointment.id)
+
+      if (error) throw error
+
+      toast.success("Agendamento atualizado com sucesso!")
+      setIsEditing(false)
+      loadData()
+    } catch (error) {
+      console.error("Erro ao atualizar agendamento:", error)
+      toast.error("Erro ao atualizar agendamento")
     } finally {
       setIsLoading(false)
     }
@@ -714,6 +787,129 @@ export default function AdminGerenciarAgendamento() {
             )}
         </div>
       </div>
+
+      <Dialog open={showPaymentDialog} onOpenChange={setShowPaymentDialog}>
+        <DialogContent className="max-w-[95vw] sm:max-w-lg mx-4 max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="text-lg sm:text-xl">Finalizar Agendamento</DialogTitle>
+            <DialogDescription className="text-sm sm:text-base">
+              Como foi realizado o pagamento deste serviço?
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3 sm:space-y-4 py-4">
+            <Button
+              variant={paymentChoice === "paid" ? "default" : "outline"}
+              className="w-full h-auto py-6 sm:py-4 flex flex-col items-center gap-3 sm:gap-2 text-base sm:text-sm"
+              onClick={() => setPaymentChoice("paid")}
+            >
+              <CheckCircle className="h-8 w-8 sm:h-6 sm:w-6" />
+              <div className="text-center">
+                <div className="font-semibold text-base sm:text-sm">Já foi pago</div>
+                <div className="text-sm sm:text-xs text-muted-foreground mt-1">
+                  Cliente pagou no momento do atendimento
+                </div>
+              </div>
+            </Button>
+            <Button
+              variant={paymentChoice === "later" ? "default" : "outline"}
+              className="w-full h-auto py-6 sm:py-4 flex flex-col items-center gap-3 sm:gap-2 text-base sm:text-sm"
+              onClick={() => setPaymentChoice("later")}
+            >
+              <Clock className="h-8 w-8 sm:h-6 sm:w-6" />
+              <div className="text-center">
+                <div className="font-semibold text-base sm:text-sm">Pagar depois</div>
+                <div className="text-sm sm:text-xs text-muted-foreground mt-1">
+                  Aparecerá no financeiro como pendente até marcar como pago
+                </div>
+              </div>
+            </Button>
+          </div>
+          <DialogFooter className="gap-2 sm:gap-0 flex-col sm:flex-row">
+            <Button
+              variant="outline"
+              onClick={() => setShowPaymentDialog(false)}
+              disabled={isLoading}
+              className="w-full sm:w-auto h-12 sm:h-10 text-base sm:text-sm"
+            >
+              Cancelar
+            </Button>
+            <Button
+              onClick={handleConfirmPayment}
+              disabled={!paymentChoice || isLoading}
+              className="w-full sm:w-auto h-12 sm:h-10 text-base sm:text-sm"
+            >
+              {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              Confirmar
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={showPaymentMethodDialog} onOpenChange={setShowPaymentMethodDialog}>
+        <DialogContent className="max-w-[95vw] sm:max-w-lg mx-4">
+          <DialogHeader>
+            <DialogTitle className="text-lg sm:text-xl">Forma de Pagamento</DialogTitle>
+            <DialogDescription className="text-sm sm:text-base">
+              Selecione como o cliente realizou o pagamento
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid grid-cols-2 gap-3 sm:gap-4 py-4">
+            <Button
+              variant={paymentMethod === "pix" ? "default" : "outline"}
+              className="h-auto py-6 sm:py-4 flex flex-col items-center gap-2"
+              onClick={() => setPaymentMethod("pix")}
+            >
+              <CreditCard className="h-8 w-8 sm:h-6 sm:w-6" />
+              <span className="text-base sm:text-sm font-semibold">PIX</span>
+            </Button>
+            <Button
+              variant={paymentMethod === "dinheiro" ? "default" : "outline"}
+              className="h-auto py-6 sm:py-4 flex flex-col items-center gap-2"
+              onClick={() => setPaymentMethod("dinheiro")}
+            >
+              <DollarSign className="h-8 w-8 sm:h-6 sm:w-6" />
+              <span className="text-base sm:text-sm font-semibold">Dinheiro</span>
+            </Button>
+            <Button
+              variant={paymentMethod === "credito" ? "default" : "outline"}
+              className="h-auto py-6 sm:py-4 flex flex-col items-center gap-2"
+              onClick={() => setPaymentMethod("credito")}
+            >
+              <CreditCard className="h-8 w-8 sm:h-6 sm:w-6" />
+              <span className="text-base sm:text-sm font-semibold">Cartão Crédito</span>
+            </Button>
+            <Button
+              variant={paymentMethod === "debito" ? "default" : "outline"}
+              className="h-auto py-6 sm:py-4 flex flex-col items-center gap-2"
+              onClick={() => setPaymentMethod("debito")}
+            >
+              <CreditCard className="h-8 w-8 sm:h-6 sm:w-6" />
+              <span className="text-base sm:text-sm font-semibold">Cartão Débito</span>
+            </Button>
+          </div>
+          <DialogFooter className="gap-2 sm:gap-0 flex-col sm:flex-row">
+            <Button
+              variant="outline"
+              onClick={() => {
+                setShowPaymentMethodDialog(false)
+                setShowPaymentDialog(true)
+              }}
+              disabled={isLoading}
+              className="w-full sm:w-auto h-12 sm:h-10 text-base sm:text-sm"
+            >
+              Voltar
+            </Button>
+            <Button
+              onClick={handleConfirmPaymentMethod}
+              disabled={!paymentMethod || isLoading}
+              className="w-full sm:w-auto h-12 sm:h-10 text-base sm:text-sm"
+            >
+              {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              Confirmar
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }
