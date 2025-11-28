@@ -1,8 +1,8 @@
-import { redirect } from 'next/navigation'
+import { redirect } from "next/navigation"
 import { createClient } from "@/lib/supabase/server"
 import { Navbar } from "@/components/navbar"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Calendar, Clock, Users, CheckCircle, DollarSign, TrendingUp, BookOpen, Briefcase } from 'lucide-react'
+import { Calendar, Users, CheckCircle, DollarSign, TrendingUp, BookOpen, Briefcase } from "lucide-react"
 import Link from "next/link"
 
 export default async function StaffDashboard() {

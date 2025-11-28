@@ -95,6 +95,14 @@ export function MobileNav({ user }: MobileNavProps) {
           </DropdownMenuItem>
         )}
 
+        {user.user_level && user.user_level >= 30 && (
+          <DropdownMenuItem asChild>
+            <Link href="/admin/dashboard" className="cursor-pointer">
+              Dashboard Admin
+            </Link>
+          </DropdownMenuItem>
+        )}
+
         <DropdownMenuSeparator />
 
         <DropdownMenuItem onClick={handleLogout} className="cursor-pointer text-destructive">

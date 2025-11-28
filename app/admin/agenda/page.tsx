@@ -185,31 +185,47 @@ export default function AdminAgendaPage() {
     <div className="min-h-screen bg-background">
       <Navbar user={profile} />
 
-      <div className="container mx-auto px-4 py-8">
-        <div className="mb-8">
-          <h1 className="text-4xl font-bold text-foreground mb-2">Agenda Geral</h1>
-          <p className="text-muted-foreground">Visualize todos os agendamentos em formato de calendário</p>
+      <div className="container mx-auto px-3 sm:px-4 py-4 sm:py-8">
+        <div className="mb-6 sm:mb-8">
+          <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold text-foreground mb-2">Agenda Geral</h1>
+          <p className="text-sm sm:text-base text-muted-foreground">
+            Visualize todos os agendamentos em formato de calendário
+          </p>
         </div>
 
-        <div className="flex flex-col gap-4 mb-6">
-          <div className="flex flex-wrap items-center gap-4">
+        <div className="flex flex-col gap-3 sm:gap-4 mb-4 sm:mb-6">
+          <div className="flex flex-col sm:flex-row flex-wrap items-stretch sm:items-center gap-3 sm:gap-4">
             <Button
               onClick={() => router.push("/admin/agenda/adicionar")}
-              className="bg-gold hover:bg-gold/90 text-white"
+              className="bg-gold hover:bg-gold/90 text-white h-12 sm:h-10 text-base sm:text-sm w-full sm:w-auto"
             >
-              <Plus className="h-4 w-4 mr-2" />
-              Adicionar
+              <Plus className="h-5 w-5 sm:h-4 sm:w-4 mr-2" />
+              Adicionar Agendamento
             </Button>
 
-            <div className="flex items-center gap-2">
-              <Button variant="outline" size="icon" onClick={goToPrevious}>
-                <ChevronLeft className="h-4 w-4" />
+            <div className="flex items-center gap-2 sm:gap-2">
+              <Button
+                variant="outline"
+                size="icon"
+                onClick={goToPrevious}
+                className="h-12 w-12 sm:h-10 sm:w-10 bg-transparent"
+              >
+                <ChevronLeft className="h-5 w-5 sm:h-4 sm:w-4" />
               </Button>
-              <Button variant="outline" onClick={goToToday}>
+              <Button
+                variant="outline"
+                onClick={goToToday}
+                className="h-12 flex-1 sm:flex-none sm:h-10 text-base sm:text-sm bg-transparent"
+              >
                 Hoje
               </Button>
-              <Button variant="outline" size="icon" onClick={goToNext}>
-                <ChevronRight className="h-4 w-4" />
+              <Button
+                variant="outline"
+                size="icon"
+                onClick={goToNext}
+                className="h-12 w-12 sm:h-10 sm:w-10 bg-transparent"
+              >
+                <ChevronRight className="h-5 w-5 sm:h-4 sm:w-4" />
               </Button>
             </div>
 
@@ -217,25 +233,25 @@ export default function AdminAgendaPage() {
               <Button
                 variant={viewMode === "day" ? "default" : "outline"}
                 onClick={() => setViewMode("day")}
-                className={viewMode === "day" ? "bg-gold hover:bg-gold/90" : ""}
+                className={`h-12 sm:h-10 flex-1 text-base sm:text-sm ${viewMode === "day" ? "bg-gold hover:bg-gold/90" : ""}`}
               >
                 Dia
               </Button>
               <Button
                 variant={viewMode === "week" ? "default" : "outline"}
                 onClick={() => setViewMode("week")}
-                className={viewMode === "week" ? "bg-gold hover:bg-gold/90" : ""}
+                className={`h-12 sm:h-10 flex-1 text-base sm:text-sm ${viewMode === "week" ? "bg-gold hover:bg-gold/90" : ""}`}
               >
                 Semana
               </Button>
             </div>
 
             <Select value={selectedStaff} onValueChange={setSelectedStaff}>
-              <SelectTrigger className="w-[200px] border-gold/20">
+              <SelectTrigger className="w-full sm:w-[200px] border-gold/20 h-12 sm:h-10 text-base sm:text-sm">
                 <SelectValue placeholder="Profissional" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">Todos</SelectItem>
+                <SelectItem value="all">Todos os Profissionais</SelectItem>
                 {staff.map((s) => (
                   <SelectItem key={s.id} value={s.id}>
                     {s.full_name}
@@ -246,27 +262,29 @@ export default function AdminAgendaPage() {
           </div>
         </div>
 
-        {/* Mobile View - Lista */}
         <div className="md:hidden space-y-4">
           {daysToDisplay.map((day) => {
             const dayAppointments = appointments.filter((apt) => isSameDay(parseISO(apt.appointment_date), day))
 
             return (
-              <Card key={day.toISOString()} className="border-gold/20">
-                <CardContent className="p-4">
-                  <div className="mb-4 pb-3 border-b border-border">
-                    <div className="text-sm font-semibold text-muted-foreground">
+              <Card key={day.toISOString()} className="border-gold/20 shadow-md">
+                <CardContent className="p-5">
+                  <div className="mb-5 pb-4 border-b-2 border-border">
+                    <div className="text-sm font-semibold text-muted-foreground uppercase tracking-wide mb-1">
                       {format(day, "EEEE", { locale: ptBR })}
                     </div>
-                    <div className={`text-2xl font-bold ${isSameDay(day, new Date()) ? "text-gold" : ""}`}>
+                    <div className={`text-3xl font-bold ${isSameDay(day, new Date()) ? "text-gold" : ""}`}>
                       {format(day, "dd 'de' MMMM", { locale: ptBR })}
                     </div>
                   </div>
 
                   {dayAppointments.length === 0 ? (
-                    <p className="text-muted-foreground text-center py-6">Nenhum agendamento</p>
+                    <div className="text-center py-12">
+                      <div className="text-muted-foreground/50 mb-2">📅</div>
+                      <p className="text-muted-foreground">Nenhum agendamento</p>
+                    </div>
                   ) : (
-                    <div className="space-y-3">
+                    <div className="space-y-4">
                       {dayAppointments
                         .sort((a, b) => parseISO(a.appointment_date).getTime() - parseISO(b.appointment_date).getTime())
                         .map((apt) => {
@@ -275,27 +293,35 @@ export default function AdminAgendaPage() {
                           return (
                             <div
                               key={apt.id}
-                              className="relative p-4 rounded-lg border-2 bg-gold/10 border-gold/40 hover:bg-gold/20 transition-colors"
+                              onClick={() => router.push(`/admin/agenda/${apt.id}`)}
+                              className="relative p-5 rounded-xl border-2 bg-gold/10 border-gold/40 hover:bg-gold/20 active:bg-gold/30 transition-colors cursor-pointer"
                             >
-                              <div className="flex items-start justify-between mb-2">
-                                <div className="flex-1">
-                                  <div className="font-bold text-lg mb-1">{apt.service?.name}</div>
-                                  <div className="text-base text-muted-foreground">{apt.client?.full_name}</div>
+                              <div className="flex items-start justify-between mb-3">
+                                <div className="flex-1 min-w-0 pr-3">
+                                  <div className="font-bold text-lg sm:text-xl mb-2 text-foreground">
+                                    {apt.service?.name}
+                                  </div>
+                                  <div className="text-base text-muted-foreground mb-1">{apt.client?.full_name}</div>
                                   {apt.staff && (
-                                    <div className="text-sm text-muted-foreground mt-1">
-                                      Staff: {apt.staff.full_name}
+                                    <div className="text-sm text-muted-foreground/80">
+                                      Profissional: {apt.staff.full_name}
                                     </div>
                                   )}
                                 </div>
                                 <button
-                                  onClick={() => deleteAppointment(apt.id)}
-                                  className="p-2 bg-red-500 text-white rounded hover:bg-red-600 transition-colors"
+                                  onClick={(e) => {
+                                    e.stopPropagation()
+                                    deleteAppointment(apt.id)
+                                  }}
+                                  className="p-3 bg-red-500 text-white rounded-lg hover:bg-red-600 active:bg-red-700 transition-colors shrink-0"
                                 >
-                                  <Trash2 className="h-4 w-4" />
+                                  <Trash2 className="h-5 w-5" />
                                 </button>
                               </div>
-                              <div className="flex items-center gap-4 text-sm text-muted-foreground">
-                                <div className="flex items-center gap-1 font-medium">{format(aptDate, "HH:mm")}</div>
+                              <div className="flex items-center gap-2 pt-3 border-t border-border">
+                                <div className="flex items-center gap-2 text-base font-semibold text-gold">
+                                  🕐 {format(aptDate, "HH:mm")}
+                                </div>
                               </div>
                             </div>
                           )
@@ -400,14 +426,13 @@ export default function AdminAgendaPage() {
           </CardContent>
         </Card>
 
-        {/* Legend */}
-        <div className="mt-4 flex flex-wrap gap-4 text-sm">
-          <div className="flex items-center gap-2">
-            <div className="w-4 h-4 bg-gold/20 border border-gold/40 rounded"></div>
+        <div className="mt-6 flex flex-col sm:flex-row flex-wrap gap-3 sm:gap-4 text-sm sm:text-base">
+          <div className="flex items-center gap-3 p-3 sm:p-0 bg-card sm:bg-transparent rounded-lg sm:rounded-none border sm:border-0 border-border">
+            <div className="w-5 h-5 sm:w-4 sm:h-4 bg-gold/20 border-2 border-gold/40 rounded shrink-0"></div>
             <span>Horário Ocupado</span>
           </div>
-          <div className="flex items-center gap-2">
-            <div className="w-4 h-4 bg-card border border-border rounded"></div>
+          <div className="flex items-center gap-3 p-3 sm:p-0 bg-card sm:bg-transparent rounded-lg sm:rounded-none border sm:border-0 border-border">
+            <div className="w-5 h-5 sm:w-4 sm:h-4 bg-card border-2 border-border rounded shrink-0"></div>
             <span>Horário Disponível</span>
           </div>
         </div>
