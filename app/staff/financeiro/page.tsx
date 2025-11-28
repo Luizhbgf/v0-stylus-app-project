@@ -50,6 +50,7 @@ export default function StaffFinanceiro() {
         payment_status,
         staff_id,
         custom_price,
+        original_price,
         service:services(name, price),
         client:profiles!client_id(full_name),
         sporadic_client_name,
@@ -122,7 +123,6 @@ export default function StaffFinanceiro() {
       toast.error("Erro ao atualizar pagamento")
     }
   }
-  // </CHANGE>
 
   const paymentMap = new Map(payments?.map((p) => [p.appointment_id, p.payment_method]) || [])
 
@@ -138,11 +138,14 @@ export default function StaffFinanceiro() {
       apt.client_type === "sporadic" ? apt.sporadic_client_name : apt.client?.full_name || "Cliente não identificado"
 
     const amount = apt.custom_price || apt.service?.price || 0
+    const originalPrice = apt.original_price || apt.service?.price || 0
 
     earnings.push({
       id: apt.id,
       type: "appointment",
       amount: amount,
+      original_price: originalPrice,
+      custom_price: apt.custom_price,
       payment_date: apt.appointment_date,
       payment_method: paymentMap.get(apt.id) || "Não informado",
       status: isPaid ? "paid" : "pending",
@@ -152,7 +155,6 @@ export default function StaffFinanceiro() {
       notes: `${apt.service?.name || "Serviço"} - ${clientName}`,
     })
   })
-  // </CHANGE>
 
   const filteredEarnings = earnings.filter((e) => {
     const earningDate = new Date(e.payment_date)
@@ -171,7 +173,6 @@ export default function StaffFinanceiro() {
   const totalPending = filteredEarnings
     .filter((e) => e.status === "pending" && !e.isPayLater)
     .reduce((sum, e) => sum + Number(e.amount), 0)
-  // </CHANGE>
 
   const today = new Date()
   const firstDayOfMonth = new Date(today.getFullYear(), today.getMonth(), 1)
@@ -269,6 +270,26 @@ export default function StaffFinanceiro() {
                         <p className="text-lg font-semibold text-foreground mb-1">
                           R$ {Number(earning.amount).toFixed(2)}
                         </p>
+                        {earning.custom_price &&
+                          earning.original_price &&
+                          Number(earning.custom_price) !== Number(earning.original_price) && (
+                            <div className="text-xs mt-1 space-y-0.5">
+                              <p className="text-muted-foreground">
+                                Original:{" "}
+                                <span className="line-through">R$ {Number(earning.original_price).toFixed(2)}</span>
+                              </p>
+                              <p
+                                className={
+                                  Number(earning.custom_price) > Number(earning.original_price)
+                                    ? "text-green-500"
+                                    : "text-red-500"
+                                }
+                              >
+                                {Number(earning.custom_price) > Number(earning.original_price) ? "↑" : "↓"} R${" "}
+                                {Math.abs(Number(earning.custom_price) - Number(earning.original_price)).toFixed(2)}
+                              </p>
+                            </div>
+                          )}
                         <p className="text-sm text-muted-foreground mb-1">
                           Data: {new Date(earning.payment_date).toLocaleDateString("pt-BR")}
                         </p>
@@ -280,7 +301,6 @@ export default function StaffFinanceiro() {
                         {earning.isPayLater && (
                           <p className="text-xs text-yellow-500 mt-1 italic">⚠ Marcado como "pagar depois"</p>
                         )}
-                        {/* </CHANGE> */}
                       </div>
                       <div className="flex flex-col items-end gap-2">
                         <span
@@ -302,7 +322,6 @@ export default function StaffFinanceiro() {
                             Marcar como Pago
                           </Button>
                         )}
-                        {/* </CHANGE> */}
                         {profile.user_level >= 30 && earning.status === "paid" && (
                           <Button
                             variant="ghost"

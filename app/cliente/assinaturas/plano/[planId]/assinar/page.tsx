@@ -105,7 +105,7 @@ export default function AssinarPlano({ params }: { params: { planId: string } })
           plan_id: params.planId,
           client_id: user.id,
           staff_id: plan.staff_id,
-          status: "pending", // Changed from "active" to "pending"
+          status: "pending",
           start_date: startDate.toISOString(),
           next_billing_date: nextBilling.toISOString(),
           price: plan.price,
@@ -119,23 +119,8 @@ export default function AssinarPlano({ params }: { params: { planId: string } })
 
       if (subscriptionError) throw subscriptionError
 
-      // Create first payment
-      const { data: payment, error: paymentError } = await supabase
-        .from("subscription_payments")
-        .insert({
-          subscription_id: subscription.id,
-          amount: plan.price,
-          payment_method: "pix",
-          payment_status: "pending",
-          due_date: startDate.toISOString(),
-        })
-        .select()
-        .single()
-
-      if (paymentError) throw paymentError
-
-      toast.success("Assinatura criada! Complete o pagamento para ativar.")
-      router.push(`/cliente/assinaturas/pagamento/${payment.id}`)
+      toast.success("Assinatura solicitada! Aguarde validação do estabelecimento.")
+      router.push("/cliente/assinaturas")
     } catch (error: any) {
       toast.error(error.message || "Erro ao criar assinatura")
     } finally {
@@ -252,7 +237,7 @@ export default function AssinarPlano({ params }: { params: { planId: string } })
             disabled={isLoading || !agreedToTerms}
             className="flex-1 bg-primary hover:bg-primary/90 text-black"
           >
-            {isLoading ? "Processando..." : "Assinar e Pagar"}
+            {isLoading ? "Processando..." : "Solicitar Assinatura"}
           </Button>
           <Button
             type="button"
