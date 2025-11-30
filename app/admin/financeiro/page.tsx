@@ -95,7 +95,7 @@ export default function AdminFinanceiroPage() {
         `
         *,
         client:client_id(full_name),
-        service:service_id(name, price),
+        service:service_id(name, price, category),
         staff:staff_id(id, full_name)
       `,
       )
@@ -110,14 +110,22 @@ export default function AdminFinanceiroPage() {
 
     const { data: appointmentsData } = await query
 
-    const paymentsData =
+    const appointmentIds = appointmentsData?.map((a) => a.id) || []
+    const { data: paymentsData } = await supabase
+      .from("payments")
+      .select("appointment_id, payment_method")
+      .in("appointment_id", appointmentIds)
+
+    const paymentMethodMap = new Map(paymentsData?.map((p) => [p.appointment_id, p.payment_method]) || [])
+
+    const paymentsDataMapped =
       appointmentsData?.map((apt) => ({
         id: apt.id,
         amount: apt.custom_price || apt.service?.price || 0,
         original_price: apt.original_price || apt.service?.price || 0,
         custom_price: apt.custom_price,
         payment_date: apt.appointment_date,
-        payment_method: apt.payment_method || "Não especificado",
+        payment_method: paymentMethodMap.get(apt.id) || "Não especificado",
         payment_status: apt.payment_status,
         pay_later: apt.pay_later,
         status: "completed",
@@ -130,7 +138,7 @@ export default function AdminFinanceiroPage() {
         },
       })) || []
 
-    setPayments(paymentsData)
+    setPayments(paymentsDataMapped)
     setAppointments(appointmentsData || [])
   }
 
@@ -327,6 +335,52 @@ export default function AdminFinanceiroPage() {
 
   const filteredPayments = payments
 
+  const paymentMethodStats: Record<string, { count: number; revenue: number }> = {}
+  payments.forEach((p) => {
+    const method = p.payment_method || "Não especificado"
+    if (!paymentMethodStats[method]) {
+      paymentMethodStats[method] = { count: 0, revenue: 0 }
+    }
+    if (p.payment_status === "paid") {
+      paymentMethodStats[method].count++
+      paymentMethodStats[method].revenue += Number(p.amount)
+    }
+  })
+
+  const serviceGroups = {
+    "Cortes e Estética": ["corte", "barba", "sobrancelha"],
+    Químicas: ["quimica", "coloração", "descoloração", "tintura", "mechas", "luzes"],
+    "Unhas e Massagem": ["unha", "manicure", "pedicure", "massagem"],
+  }
+
+  const groupedServiceStats: Record<string, Record<string, { count: number; revenue: number }>> = {
+    "Cortes e Estética": {},
+    Químicas: {},
+    "Unhas e Massagem": {},
+    Outros: {},
+  }
+
+  payments.forEach((p) => {
+    const serviceName = p.appointment?.service?.name || "Desconhecido"
+    const serviceCategory = p.appointment?.service?.category?.toLowerCase() || ""
+
+    let group = "Outros"
+    for (const [groupName, keywords] of Object.entries(serviceGroups)) {
+      if (
+        keywords.some((keyword) => serviceName.toLowerCase().includes(keyword) || serviceCategory.includes(keyword))
+      ) {
+        group = groupName
+        break
+      }
+    }
+
+    if (!groupedServiceStats[group][serviceName]) {
+      groupedServiceStats[group][serviceName] = { count: 0, revenue: 0 }
+    }
+    groupedServiceStats[group][serviceName].count++
+    groupedServiceStats[group][serviceName].revenue += Number(p.amount)
+  })
+
   return (
     <div className="min-h-screen bg-background">
       <Navbar user={profile} />
@@ -442,7 +496,74 @@ export default function AdminFinanceiroPage() {
           </Card>
         </div>
 
-        <div className="grid md:grid-cols-2 gap-6 mb-8">
+        <Card className="border-gold/20 mb-8">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-foreground">
+              <CreditCard className="h-5 w-5 text-gold" />
+              Métodos de Pagamento
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="grid md:grid-cols-4 gap-4">
+              {Object.entries(paymentMethodStats).map(([method, stats]) => (
+                <div key={method} className="p-4 bg-card/50 rounded-lg">
+                  <p className="text-sm text-muted-foreground mb-1">
+                    {method === "pix"
+                      ? "PIX"
+                      : method === "dinheiro"
+                        ? "Dinheiro"
+                        : method === "cartao_credito"
+                          ? "Cartão Crédito"
+                          : method === "cartao_debito"
+                            ? "Cartão Débito"
+                            : method}
+                  </p>
+                  <p className="text-2xl font-bold text-gold">R$ {stats.revenue.toFixed(2)}</p>
+                  <p className="text-xs text-muted-foreground mt-1">{stats.count} transações</p>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+
+        <div className="grid md:grid-cols-3 gap-6 mb-8">
+          {Object.entries(groupedServiceStats).map(([groupName, services]) => {
+            const groupRevenue = Object.values(services).reduce((sum, s) => sum + s.revenue, 0)
+            const groupCount = Object.values(services).reduce((sum, s) => sum + s.count, 0)
+
+            if (groupCount === 0) return null
+
+            return (
+              <Card key={groupName} className="border-gold/20">
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2 text-foreground">
+                    <Award className="h-5 w-5 text-gold" />
+                    {groupName}
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="mb-4">
+                    <p className="text-3xl font-bold text-gold">R$ {groupRevenue.toFixed(2)}</p>
+                    <p className="text-sm text-muted-foreground">{groupCount} serviços</p>
+                  </div>
+                  <div className="space-y-2">
+                    {Object.entries(services)
+                      .sort((a, b) => b[1].revenue - a[1].revenue)
+                      .slice(0, 3)
+                      .map(([serviceName, stats]) => (
+                        <div key={serviceName} className="flex justify-between text-sm">
+                          <span className="text-muted-foreground truncate">{serviceName}</span>
+                          <span className="text-foreground font-medium">R$ {stats.revenue.toFixed(2)}</span>
+                        </div>
+                      ))}
+                  </div>
+                </CardContent>
+              </Card>
+            )
+          })}
+        </div>
+
+        <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
           <Card className="border-gold/20">
             <CardHeader>
               <CardTitle className="flex items-center gap-2 text-foreground">

@@ -62,7 +62,7 @@ export default function StaffFinanceiro() {
         staff_id,
         custom_price,
         original_price,
-        service:services(name, price),
+        service:services(name, price, category),
         client:profiles!client_id(full_name),
         sporadic_client_name,
         client_type,
@@ -234,6 +234,18 @@ export default function StaffFinanceiro() {
     .filter((e) => new Date(e.payment_date) >= firstDayOfMonth && e.status === "paid")
     .reduce((sum, e) => sum + Number(e.amount), 0)
 
+  const paymentMethodStats: Record<string, { count: number; revenue: number }> = {}
+  filteredEarnings.forEach((e) => {
+    if (e.status === "paid" && e.payment_method && e.payment_method !== "Não informado") {
+      const method = e.payment_method
+      if (!paymentMethodStats[method]) {
+        paymentMethodStats[method] = { count: 0, revenue: 0 }
+      }
+      paymentMethodStats[method].count++
+      paymentMethodStats[method].revenue += Number(e.amount)
+    }
+  })
+
   if (!profile) return null
 
   return (
@@ -311,6 +323,38 @@ export default function StaffFinanceiro() {
             </CardContent>
           </Card>
         </div>
+
+        {Object.keys(paymentMethodStats).length > 0 && (
+          <Card className="border-gold/20 mb-8">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <CreditCard className="h-5 w-5 text-gold" />
+                Seus Recebimentos por Método
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                {Object.entries(paymentMethodStats).map(([method, stats]) => (
+                  <div key={method} className="p-4 bg-card/50 rounded-lg">
+                    <p className="text-sm text-muted-foreground mb-1">
+                      {method === "pix"
+                        ? "PIX"
+                        : method === "dinheiro"
+                          ? "Dinheiro"
+                          : method === "cartao_credito"
+                            ? "Cartão Crédito"
+                            : method === "cartao_debito"
+                              ? "Cartão Débito"
+                              : method}
+                    </p>
+                    <p className="text-xl font-bold text-gold">R$ {stats.revenue.toFixed(2)}</p>
+                    <p className="text-xs text-muted-foreground mt-1">{stats.count} pagamentos</p>
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        )}
 
         <div>
           <h2 className="text-2xl font-bold text-foreground mb-4">Histórico de Pagamentos</h2>
