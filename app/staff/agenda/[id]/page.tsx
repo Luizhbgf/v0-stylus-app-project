@@ -184,13 +184,27 @@ export default function StaffAppointmentDetailsPage({ params }: { params: { id: 
         pay_later: paymentStatus === "pending",
       }
 
-      if (method) {
-        updates.payment_method = method
+      const { error: appointmentError } = await supabase.from("appointments").update(updates).eq("id", appointment.id)
+
+      if (appointmentError) throw appointmentError
+
+      // Create payment record if paid
+      if (paymentStatus === "paid" && method) {
+        const { error: paymentError } = await supabase.from("payments").insert({
+          appointment_id: appointment.id,
+          client_id: appointment.client_id,
+          amount: displayPrice,
+          payment_method: method,
+          status: "completed",
+          paid_at: new Date().toISOString(),
+        })
+
+        if (paymentError) {
+          console.error("[v0] Error creating payment record:", paymentError)
+          toast.error("Agendamento concluído, mas erro ao registrar pagamento")
+          return
+        }
       }
-
-      const { error } = await supabase.from("appointments").update(updates).eq("id", appointment.id)
-
-      if (error) throw error
 
       toast.success(
         paymentStatus === "paid"

@@ -128,6 +128,41 @@ export default function AdicionarAgendamentoStaff() {
     }
   }
 
+  const checkAgendaBlocks = async (date: string, time: string, serviceId: string | null) => {
+    if (!date || !time || !profile) return false
+
+    try {
+      const appointmentDateTime = new Date(`${date}T${time}`)
+
+      // Get service duration to calculate end time
+      let duration = 60 // default 60 minutes
+      if (serviceId) {
+        const { data: service } = await supabase.from("services").select("duration").eq("id", serviceId).single()
+        if (service) duration = service.duration
+      }
+
+      const appointmentEndTime = new Date(appointmentDateTime.getTime() + duration * 60000)
+
+      const { data: blocks } = await supabase
+        .from("agenda_blocks")
+        .select("*")
+        .eq("staff_id", profile.id)
+        .lte("start_time", appointmentEndTime.toISOString())
+        .gte("end_time", appointmentDateTime.toISOString())
+
+      if (blocks && blocks.length > 0) {
+        const block = blocks[0]
+        toast.error(`Este horário está bloqueado: ${block.title}`)
+        return true
+      }
+
+      return false
+    } catch (error) {
+      console.error("Erro ao verificar bloqueios:", error)
+      return false
+    }
+  }
+
   useEffect(() => {
     if (appointmentDate && appointmentTime) {
       checkTimeConflict(appointmentDate, appointmentTime)
@@ -140,6 +175,11 @@ export default function AdicionarAgendamentoStaff() {
     const hasConflict = await checkTimeConflict(appointmentDate, appointmentTime)
     if (hasConflict) {
       toast.error("Já existe um agendamento seu neste horário. Escolha outro horário.")
+      return
+    }
+
+    const hasBlock = await checkAgendaBlocks(appointmentDate, appointmentTime, selectedService)
+    if (hasBlock) {
       return
     }
 
