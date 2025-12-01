@@ -9,6 +9,7 @@ import { MobileNav } from "@/components/mobile-nav"
 import { createClient } from "@/lib/supabase/client"
 import { useRouter } from "next/navigation"
 import { LogOut, User, LayoutDashboard } from "lucide-react"
+import { useEffect, useState } from "react"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -29,6 +30,17 @@ interface NavbarProps {
 export function Navbar({ user }: NavbarProps) {
   const router = useRouter()
   const supabase = createClient()
+  const [logoUrl, setLogoUrl] = useState<string>("/logo.png")
+
+  useEffect(() => {
+    async function loadLogoUrl() {
+      const { data } = await supabase.from("homepage_settings").select("logo_url").single()
+      if (data?.logo_url) {
+        setLogoUrl(data.logo_url)
+      }
+    }
+    loadLogoUrl()
+  }, [supabase])
 
   const handleLogout = async () => {
     await supabase.auth.signOut()
@@ -54,9 +66,14 @@ export function Navbar({ user }: NavbarProps) {
     <nav className="border-b border-primary/10 bg-background/80 backdrop-blur-xl sticky top-0 z-50 transition-all duration-300">
       <div className="container mx-auto px-4">
         <div className="flex items-center justify-between h-16 md:h-20">
-          {/* Logo */}
           <Link href="/" className="flex items-center hover:opacity-80 transition-all duration-300 hover:scale-105">
-            <Image src="/logo.png" alt="Styllus" width={160} height={60} className="object-contain w-32 md:w-44" />
+            <Image
+              src={logoUrl || "/placeholder.svg"}
+              alt="Logo"
+              width={160}
+              height={60}
+              className="object-contain w-32 md:w-44"
+            />
           </Link>
 
           {/* Desktop actions */}

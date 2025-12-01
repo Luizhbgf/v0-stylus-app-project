@@ -6,6 +6,7 @@ import Link from "next/link"
 import { Navbar } from "@/components/navbar"
 import { createClient } from "@/lib/supabase/server"
 import { PREDEFINED_SERVICES } from "@/lib/constants/services"
+import { DynamicThemeStyles } from "@/components/dynamic-theme-styles"
 
 const defaultTestimonials = [
   {
@@ -60,7 +61,6 @@ export default async function HomePage() {
       const { data } = await supabase.from("courses").select("*").in("id", homepageSettings.featured_courses)
       featuredCourses = data || []
     } else {
-      // If no featured courses, show all active courses
       const { data } = await supabase.from("courses").select("*").eq("is_active", true).limit(6)
       featuredCourses = data || []
     }
@@ -71,7 +71,6 @@ export default async function HomePage() {
       const { data } = await supabase.from("subscription_plans").select("*").in("id", homepageSettings.featured_plans)
       featuredPlans = data || []
     } else {
-      // If no featured plans, show all active plans
       const { data } = await supabase.from("subscription_plans").select("*").eq("is_active", true).limit(6)
       featuredPlans = data || []
     }
@@ -92,6 +91,8 @@ export default async function HomePage() {
   const settings = homepageSettings || {
     hero_title: "Sua Beleza, Nossa Paixão",
     hero_subtitle: "Agende seus serviços de estética e beleza de forma rápida e prática",
+    hero_image_url: "",
+    logo_url: "",
     cta_title: "Pronta Para Se Sentir Incrível?",
     cta_subtitle: "Entre em contato com nossos profissionais",
     business_name: "Styllus Estética e Beleza",
@@ -104,23 +105,43 @@ export default async function HomePage() {
     show_plans: false,
     show_employees: true,
     featured_testimonials: [],
+    social_facebook: "",
+    social_instagram: "",
+    social_whatsapp: "",
   }
 
   const testimonials = settings.featured_testimonials?.length ? settings.featured_testimonials : defaultTestimonials
 
   return (
     <div className="min-h-screen bg-background">
+      <DynamicThemeStyles settings={settings} />
+
       <Navbar user={profile} />
 
       <section className="relative min-h-[85vh] md:min-h-[90vh] flex items-center justify-center overflow-hidden">
-        <div className="absolute inset-0 bg-gradient-to-br from-background via-background to-primary/5" />
-        <div
-          className="absolute inset-0 opacity-[0.02]"
-          style={{
-            backgroundImage: `radial-gradient(circle at 1px 1px, currentColor 1px, transparent 0)`,
-            backgroundSize: "40px 40px",
-          }}
-        />
+        {settings.hero_image_url ? (
+          <div className="absolute inset-0">
+            <Image
+              src={settings.hero_image_url || "/placeholder.svg"}
+              alt="Hero background"
+              fill
+              className="object-cover"
+              priority
+            />
+            <div className="absolute inset-0 bg-gradient-to-br from-background/80 via-background/60 to-background/80" />
+          </div>
+        ) : (
+          <>
+            <div className="absolute inset-0 bg-gradient-to-br from-background via-background to-primary/5" />
+            <div
+              className="absolute inset-0 opacity-[0.02]"
+              style={{
+                backgroundImage: `radial-gradient(circle at 1px 1px, currentColor 1px, transparent 0)`,
+                backgroundSize: "40px 40px",
+              }}
+            />
+          </>
+        )}
 
         <div className="container mx-auto px-4 relative z-10">
           <div className="max-w-4xl mx-auto text-center">
@@ -543,7 +564,17 @@ export default async function HomePage() {
         <div className="container mx-auto px-4">
           <div className="grid md:grid-cols-4 gap-12 mb-12">
             <div>
-              <Image src="/logo.png" alt="Styllus Logo" width={150} height={50} className="h-12 w-auto mb-6" />
+              {settings.logo_url ? (
+                <Image
+                  src={settings.logo_url || "/placeholder.svg"}
+                  alt={settings.business_name}
+                  width={150}
+                  height={50}
+                  className="h-12 w-auto mb-6"
+                />
+              ) : (
+                <Image src="/logo.png" alt="Styllus Logo" width={150} height={50} className="h-12 w-auto mb-6" />
+              )}
               <p className="text-muted-foreground leading-relaxed">{settings.business_name}</p>
             </div>
             <div>
@@ -603,6 +634,40 @@ export default async function HomePage() {
                 <li>{settings.business_phone}</li>
                 <li>{settings.business_hours}</li>
               </ul>
+              {(settings.social_facebook || settings.social_instagram || settings.social_whatsapp) && (
+                <div className="flex gap-3 mt-6">
+                  {settings.social_facebook && (
+                    <a
+                      href={settings.social_facebook}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-muted-foreground hover:text-primary transition-colors"
+                    >
+                      Facebook
+                    </a>
+                  )}
+                  {settings.social_instagram && (
+                    <a
+                      href={settings.social_instagram}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-muted-foreground hover:text-primary transition-colors"
+                    >
+                      Instagram
+                    </a>
+                  )}
+                  {settings.social_whatsapp && (
+                    <a
+                      href={`https://wa.me/${settings.social_whatsapp}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-muted-foreground hover:text-primary transition-colors"
+                    >
+                      WhatsApp
+                    </a>
+                  )}
+                </div>
+              )}
             </div>
           </div>
           <div className="border-t border-primary/10 pt-8 text-center text-muted-foreground">
