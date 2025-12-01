@@ -156,7 +156,12 @@ export default function AdminConfiguracoes() {
   }
 
   async function saveSettings() {
+    console.log("[v0] ========== SAVE BUTTON CLICKED ==========")
+    console.log("[v0] User level:", userLevel)
+    console.log("[v0] Can edit:", userLevel >= 40)
+
     if (userLevel < 40) {
+      console.log("[v0] Permission denied - user level too low")
       toast({
         title: "Permissão insuficiente",
         description:
@@ -168,9 +173,8 @@ export default function AdminConfiguracoes() {
     }
 
     setSaving(true)
+    console.log("[v0] Starting save process...")
 
-    console.log("[v0] Salvando configurações...")
-    console.log("[v0] User level:", userLevel)
     console.log("[v0] Settings to save:", {
       show_services: settings.show_services,
       show_employees: settings.show_employees,
@@ -179,6 +183,24 @@ export default function AdminConfiguracoes() {
       show_plans: settings.show_plans,
     })
 
+    const {
+      data: { user },
+    } = await supabase.auth.getUser()
+
+    console.log("[v0] Current user ID:", user?.id)
+    console.log("[v0] User email:", user?.email)
+
+    if (!user) {
+      console.error("[v0] No authenticated user!")
+      toast({
+        title: "Erro de autenticação",
+        description: "Você precisa estar logado para salvar as configurações",
+        variant: "destructive",
+      })
+      setSaving(false)
+      return
+    }
+
     const settingsToSave = {
       id: "00000000-0000-0000-0000-000000000001",
       ...settings,
@@ -186,33 +208,49 @@ export default function AdminConfiguracoes() {
       updated_at: new Date().toISOString(),
     }
 
+    console.log("[v0] Full settings object to save:", JSON.stringify(settingsToSave, null, 2))
+
     const { data, error } = await supabase.from("homepage_settings").upsert(settingsToSave, {
       onConflict: "id",
     })
 
+    console.log("[v0] Upsert result - data:", data)
+    console.log("[v0] Upsert result - error:", error)
+
     if (error) {
-      console.error("[v0] Erro ao salvar:", error)
+      console.error("[v0] ERROR DETAILS:")
+      console.error("[v0] Error message:", error.message)
+      console.error("[v0] Error code:", error.code)
+      console.error("[v0] Error details:", error.details)
+      console.error("[v0] Error hint:", error.hint)
+
       toast({
         title: "Erro ao salvar",
-        description: error.message + " - Verifique suas permissões no banco de dados (RLS)",
+        description: `${error.message} - Código: ${error.code || "unknown"}`,
         variant: "destructive",
       })
     } else {
-      console.log("[v0] Salvo com sucesso!")
+      console.log("[v0] SUCCESS! Settings saved successfully")
       toast({
         title: "Configurações salvas!",
         description: "As alterações foram aplicadas na homepage.",
       })
+
+      console.log("[v0] Reloading data to verify...")
       await loadData()
+
       // Force refresh the homepage cache
       try {
-        await fetch("/api/revalidate?path=/", { method: "POST" })
+        console.log("[v0] Attempting to revalidate homepage cache...")
+        const response = await fetch("/api/revalidate?path=/", { method: "POST" })
+        console.log("[v0] Revalidate response status:", response.status)
       } catch (e) {
-        console.log("[v0] Cache revalidation not available")
+        console.log("[v0] Cache revalidation error:", e)
       }
     }
 
     setSaving(false)
+    console.log("[v0] ========== SAVE COMPLETE ==========")
   }
 
   const toggleService = (serviceId: string) => {
