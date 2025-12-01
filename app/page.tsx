@@ -4,7 +4,7 @@ import { Calendar, Sparkles, Star, ArrowRight, Shield, Award, MessageCircle } fr
 import Image from "next/image"
 import Link from "next/link"
 import { Navbar } from "@/components/navbar"
-import { createClient } from "@/lib/supabase/server"
+import { createClient as createServerClient } from "@/lib/supabase/server"
 import { PREDEFINED_SERVICES } from "@/lib/constants/services"
 import { DynamicThemeStyles } from "@/components/dynamic-theme-styles"
 
@@ -26,36 +26,32 @@ const defaultTestimonials = [
   },
 ]
 
-export default async function HomePage() {
-  const supabase = await createClient()
+export default async function Home() {
+  const supabase = await createServerClient()
 
-  let homepageSettings = null
-  try {
-    const { data } = await supabase.from("homepage_settings").select("*").single()
-    homepageSettings = data
-  } catch (error) {
-    console.log("[v0] homepage_settings table not found, using defaults")
-  }
+  console.log("[v0] Loading homepage settings...")
 
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
+  const { data: homepageSettings } = await supabase
+    .from("homepage_settings")
+    .select("*")
+    .eq("id", "00000000-0000-0000-0000-000000000001")
+    .single()
 
-  let profile = null
-  if (user) {
-    const { data } = await supabase.from("profiles").select("*").eq("id", user.id).single()
-    profile = data
-  }
+  console.log("[v0] Homepage settings loaded:", {
+    show_plans: homepageSettings?.show_plans,
+    show_courses: homepageSettings?.show_courses,
+    show_employees: homepageSettings?.show_employees,
+    show_services: homepageSettings?.show_services,
+    show_testimonials: homepageSettings?.show_testimonials,
+  })
 
   let featuredServices = []
-  let featuredCourses = []
-  let featuredPlans = []
-
-  if (homepageSettings?.show_services && homepageSettings?.featured_services?.length) {
+  if (homepageSettings?.show_services) {
     const { data } = await supabase.from("services").select("*").in("id", homepageSettings.featured_services)
     featuredServices = data || []
   }
 
+  let featuredCourses = []
   if (homepageSettings?.show_courses) {
     if (homepageSettings?.featured_courses?.length) {
       const { data } = await supabase.from("courses").select("*").in("id", homepageSettings.featured_courses)
@@ -66,7 +62,9 @@ export default async function HomePage() {
     }
   }
 
-  if (homepageSettings?.show_plans) {
+  let featuredPlans: any[] = []
+  if (homepageSettings?.show_plans === true) {
+    console.log("[v0] Loading plans...")
     if (homepageSettings?.featured_plans?.length) {
       const { data } = await supabase.from("subscription_plans").select("*").in("id", homepageSettings.featured_plans)
       featuredPlans = data || []
@@ -74,6 +72,9 @@ export default async function HomePage() {
       const { data } = await supabase.from("subscription_plans").select("*").eq("is_active", true).limit(6)
       featuredPlans = data || []
     }
+    console.log("[v0] Plans loaded:", featuredPlans.length)
+  } else {
+    console.log("[v0] Plans section is disabled")
   }
 
   let staffMembers = []
@@ -116,7 +117,7 @@ export default async function HomePage() {
     <div className="min-h-screen bg-background">
       <DynamicThemeStyles settings={settings} />
 
-      <Navbar user={profile} />
+      <Navbar user={null} />
 
       <section className="relative min-h-[85vh] md:min-h-[90vh] flex items-center justify-center overflow-hidden">
         {settings.hero_image_url ? (
@@ -501,7 +502,7 @@ export default async function HomePage() {
               <div className="inline-block px-4 py-2 rounded-full bg-primary/10 text-primary text-sm font-semibold mb-4">
                 DEPOIMENTOS
               </div>
-              <h2 className="font-serif text-5xl md:text-6xl font-bold text-foreground mb-6">
+              <h2 className="font-serif text-5xl md:text-7xl font-bold text-foreground mb-6">
                 O Que Dizem Nossos Clientes
               </h2>
             </div>

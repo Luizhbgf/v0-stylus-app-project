@@ -137,6 +137,13 @@ export default function AdminConfiguracoes() {
     setSaving(true)
 
     console.log("[v0] Salvando configurações...")
+    console.log("[v0] Settings to save:", {
+      show_services: settings.show_services,
+      show_employees: settings.show_employees,
+      show_testimonials: settings.show_testimonials,
+      show_courses: settings.show_courses,
+      show_plans: settings.show_plans,
+    })
 
     const settingsToSave = {
       id: "00000000-0000-0000-0000-000000000001",
@@ -157,12 +164,18 @@ export default function AdminConfiguracoes() {
         variant: "destructive",
       })
     } else {
-      console.log("[v0] Salvo com sucesso:", data)
+      console.log("[v0] Salvo com sucesso!")
       toast({
         title: "Configurações salvas!",
         description: "As alterações foram aplicadas na homepage.",
       })
       await loadData()
+      // Force refresh the homepage cache
+      try {
+        await fetch("/api/revalidate?path=/", { method: "POST" })
+      } catch (e) {
+        console.log("[v0] Cache revalidation not available")
+      }
     }
 
     setSaving(false)
