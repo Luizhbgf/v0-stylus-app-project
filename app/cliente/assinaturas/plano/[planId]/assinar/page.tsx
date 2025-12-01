@@ -7,7 +7,6 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Navbar } from "@/components/navbar"
 import { useRouter } from "next/navigation"
-import { toast } from "sonner"
 import { ArrowLeft, Check, X } from "lucide-react"
 import Link from "next/link"
 
@@ -17,6 +16,7 @@ export default function AssinarPlano({ params }: { params: { planId: string } })
   const [features, setFeatures] = useState<any[]>([])
   const [agreedToTerms, setAgreedToTerms] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
+  const [businessSettings, setBusinessSettings] = useState<any>(null)
   const router = useRouter()
   const supabase = createClient()
 
@@ -41,7 +41,7 @@ export default function AssinarPlano({ params }: { params: { planId: string } })
       .select(
         `
         *,
-        staff:staff_id(full_name, avatar_url)
+        staff:staff_id(full_name, avatar_url, phone)
       `,
       )
       .eq("id", params.planId)
@@ -56,76 +56,22 @@ export default function AssinarPlano({ params }: { params: { planId: string } })
       .order("display_order")
 
     setFeatures(featuresData || [])
+
+    const { data: settings } = await supabase.from("homepage_settings").select("business_phone").single()
+    setBusinessSettings(settings)
   }
 
   const handleSubscribe = async () => {
-    if (!agreedToTerms) {
-      toast.error("Você deve concordar com os termos para continuar")
-      return
-    }
+    if (!plan) return
 
-    setIsLoading(true)
+    const staffPhone = plan.staff?.phone || businessSettings?.business_phone || ""
+    const cleanPhone = staffPhone.replace(/\D/g, "")
+    const message = encodeURIComponent(
+      `Olá! Gostaria de contratar o plano "${plan.name}" de R$ ${plan.price}/mês. Poderia me fornecer mais informações?`,
+    )
+    const whatsappLink = `https://wa.me/55${cleanPhone}?text=${message}`
 
-    try {
-      const {
-        data: { user },
-      } = await supabase.auth.getUser()
-      if (!user) throw new Error("Usuário não autenticado")
-
-      // Check if already has active subscription
-      const { data: existing } = await supabase
-        .from("subscriptions")
-        .select("*")
-        .eq("plan_id", params.planId)
-        .eq("client_id", user.id)
-        .in("status", ["active", "pending"])
-        .single()
-
-      if (existing) {
-        toast.error("Você já possui uma assinatura ativa ou pendente para este plano")
-        router.push("/cliente/assinaturas")
-        return
-      }
-
-      // Calculate next billing date
-      const startDate = new Date()
-      const nextBilling = new Date(startDate)
-
-      if (plan.billing_frequency === "weekly") {
-        nextBilling.setDate(nextBilling.getDate() + 7)
-      } else if (plan.billing_frequency === "biweekly") {
-        nextBilling.setDate(nextBilling.getDate() + 14)
-      } else {
-        nextBilling.setMonth(nextBilling.getMonth() + 1)
-      }
-
-      const { data: subscription, error: subscriptionError } = await supabase
-        .from("subscriptions")
-        .insert({
-          plan_id: params.planId,
-          client_id: user.id,
-          staff_id: plan.staff_id,
-          status: "pending",
-          start_date: startDate.toISOString(),
-          next_billing_date: nextBilling.toISOString(),
-          price: plan.price,
-          plan_name: plan.name,
-          description: plan.description,
-          billing_cycle: plan.billing_frequency,
-          auto_renew: true,
-        })
-        .select()
-        .single()
-
-      if (subscriptionError) throw subscriptionError
-
-      toast.success("Assinatura solicitada! Aguarde validação do estabelecimento.")
-      router.push("/cliente/assinaturas")
-    } catch (error: any) {
-      toast.error(error.message || "Erro ao criar assinatura")
-    } finally {
-      setIsLoading(false)
-    }
+    window.open(whatsappLink, "_blank")
   }
 
   if (!profile || !plan) return null
@@ -237,7 +183,7 @@ export default function AssinarPlano({ params }: { params: { planId: string } })
             disabled={isLoading || !agreedToTerms}
             className="flex-1 bg-primary hover:bg-primary/90 text-black"
           >
-            {isLoading ? "Processando..." : "Solicitar Assinatura"}
+            Falar no WhatsApp
           </Button>
           <Button
             type="button"

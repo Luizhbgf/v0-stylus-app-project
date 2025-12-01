@@ -1,11 +1,11 @@
-import { redirect } from 'next/navigation'
+import { redirect } from "next/navigation"
 import { createClient } from "@/lib/supabase/server"
 import { Navbar } from "@/components/navbar"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import Link from "next/link"
-import { ArrowLeft, Edit, Users, DollarSign, Calendar, Check } from 'lucide-react'
+import { ArrowLeft, Edit, Users, DollarSign, Calendar, Check, UserPlus } from "lucide-react"
 
 export default async function ViewSubscriptionPlanPage({ params }: { params: { id: string } }) {
   const supabase = await createClient()
@@ -55,17 +55,25 @@ export default async function ViewSubscriptionPlanPage({ params }: { params: { i
             <ArrowLeft className="mr-2 h-4 w-4" />
             Voltar para Assinaturas
           </Link>
-          <div className="flex items-start justify-between">
+          <div className="flex items-start justify-between flex-wrap gap-4">
             <div>
               <h1 className="text-2xl md:text-4xl font-bold text-foreground mb-2">{plan.name}</h1>
               <p className="text-sm md:text-base text-muted-foreground">{plan.description}</p>
             </div>
-            <Button asChild className="bg-primary hover:bg-primary/90 text-black">
-              <Link href={`/staff/assinaturas/${params.id}/editar`}>
-                <Edit className="h-4 w-4 mr-2" />
-                Editar Plano
-              </Link>
-            </Button>
+            <div className="flex gap-2">
+              <Button asChild variant="outline" className="bg-transparent">
+                <Link href={`/staff/assinaturas/${params.id}/adicionar-cliente`}>
+                  <UserPlus className="h-4 w-4 mr-2" />
+                  Adicionar Cliente
+                </Link>
+              </Button>
+              <Button asChild className="bg-primary hover:bg-primary/90 text-black">
+                <Link href={`/staff/assinaturas/${params.id}/editar`}>
+                  <Edit className="h-4 w-4 mr-2" />
+                  Editar Plano
+                </Link>
+              </Button>
+            </div>
           </div>
         </div>
 
@@ -186,7 +194,10 @@ export default async function ViewSubscriptionPlanPage({ params }: { params: { i
               {subscriptions && subscriptions.length > 0 ? (
                 <div className="space-y-3">
                   {subscriptions.slice(0, 5).map((subscription: any) => (
-                    <div key={subscription.id} className="flex items-center justify-between py-2 border-b border-primary/10">
+                    <div
+                      key={subscription.id}
+                      className="flex items-center justify-between py-2 border-b border-primary/10"
+                    >
                       <div>
                         <p className="font-medium text-sm">{subscription.profiles?.full_name || "Cliente"}</p>
                         <p className="text-xs text-muted-foreground">{subscription.profiles?.email}</p>

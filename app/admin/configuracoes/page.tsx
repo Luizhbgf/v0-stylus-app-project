@@ -26,7 +26,6 @@ export default function AdminConfiguracoes() {
     business_phone: "",
     business_email: "",
     business_hours: "",
-    business_pix_key: "",
     show_testimonials: true,
     show_services: true,
     show_courses: false,
@@ -66,7 +65,6 @@ export default function AdminConfiguracoes() {
         business_phone: settingsRes.data.business_phone || "",
         business_email: settingsRes.data.business_email || "",
         business_hours: settingsRes.data.business_hours || "",
-        business_pix_key: settingsRes.data.business_pix_key || "",
         show_testimonials: settingsRes.data.show_testimonials ?? true,
         show_services: settingsRes.data.show_services ?? true,
         show_courses: settingsRes.data.show_courses ?? false,
@@ -214,7 +212,7 @@ export default function AdminConfiguracoes() {
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-lg sm:text-xl">
-              <Home className="h-5 w-5 text-primary" />
+              <Home className="h-5 w-5 sm:h-8 sm:h-10 md:h-10 md:w-10 text-primary" />
               Seção Hero (Topo)
             </CardTitle>
             <CardDescription className="text-sm">Configure o banner principal da homepage</CardDescription>
@@ -306,22 +304,6 @@ export default function AdminConfiguracoes() {
                   className="text-sm sm:text-base"
                 />
               </div>
-            </div>
-            <div className="grid gap-2">
-              <Label htmlFor="business-pix-key" className="text-sm sm:text-base">
-                Chave PIX do Estabelecimento
-              </Label>
-              <Input
-                id="business-pix-key"
-                value={settings.business_pix_key}
-                onChange={(e) => setSettings({ ...settings, business_pix_key: e.target.value })}
-                placeholder="Digite sua chave PIX (email, telefone, CPF/CNPJ ou chave aleatória)"
-                className="text-sm sm:text-base"
-              />
-              <p className="text-xs text-muted-foreground">
-                Esta chave PIX será usada nos pagamentos de assinatura quando o profissional não tiver uma chave
-                cadastrada
-              </p>
             </div>
           </CardContent>
         </Card>

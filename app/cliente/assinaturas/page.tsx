@@ -27,7 +27,7 @@ export default async function AssinaturasPage() {
     .from("subscription_plans")
     .select(`
       *,
-      staff:staff_id(full_name, avatar_url),
+      staff:staff_id(full_name, avatar_url, phone),
       features:subscription_plan_features(*)
     `)
     .eq("is_active", true)
@@ -38,6 +38,8 @@ export default async function AssinaturasPage() {
     .select("*")
     .eq("client_id", user.id)
     .eq("status", "active")
+
+  const { data: settings } = await supabase.from("homepage_settings").select("business_phone").single()
 
   return (
     <div className="min-h-screen bg-background">
@@ -151,6 +153,13 @@ export default async function AssinaturasPage() {
                 const features = plan.features || []
                 features.sort((a: any, b: any) => a.display_order - b.display_order)
 
+                const staffPhone = plan.staff?.phone || settings?.business_phone || ""
+                const cleanPhone = staffPhone.replace(/\D/g, "")
+                const message = encodeURIComponent(
+                  `Olá! Gostaria de saber mais informações sobre o plano "${plan.name}" de R$ ${plan.price}/mês.`,
+                )
+                const whatsappLink = `https://wa.me/55${cleanPhone}?text=${message}`
+
                 return (
                   <Card
                     key={plan.id}
@@ -202,7 +211,9 @@ export default async function AssinaturasPage() {
                         {hasSubscription ? (
                           <span>Plano Ativo</span>
                         ) : (
-                          <Link href={`/cliente/assinaturas/plano/${plan.id}/assinar`}>Clique aqui</Link>
+                          <a href={whatsappLink} target="_blank" rel="noopener noreferrer">
+                            Falar no WhatsApp
+                          </a>
                         )}
                       </Button>
                     </CardContent>
