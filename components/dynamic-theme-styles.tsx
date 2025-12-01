@@ -19,9 +19,13 @@ interface DynamicThemeStylesProps {
   }
 }
 
+/**
+ * DynamicThemeStyles - Injects custom theme colors and CSS dynamically
+ * Uses DOM manipulation instead of styled-jsx to avoid nested tag errors
+ */
 export function DynamicThemeStyles({ settings }: DynamicThemeStylesProps) {
   useEffect(() => {
-    // Apply theme colors dynamically
+    // Set CSS custom properties on root element
     const root = document.documentElement
 
     if (settings.primary_color_light) {
@@ -57,35 +61,55 @@ export function DynamicThemeStyles({ settings }: DynamicThemeStylesProps) {
     if (settings.border_radius) {
       root.style.setProperty("--radius", settings.border_radius)
     }
+
+    const themeStyleId = "dynamic-theme-styles"
+    let themeStyleElement = document.getElementById(themeStyleId) as HTMLStyleElement
+
+    if (!themeStyleElement) {
+      themeStyleElement = document.createElement("style")
+      themeStyleElement.id = themeStyleId
+      document.head.appendChild(themeStyleElement)
+    }
+
+    themeStyleElement.textContent = `
+      :root {
+        --primary: var(--color-primary-light, oklch(0.55 0.15 75));
+        --background: var(--color-background-light, oklch(0.97 0.01 85));
+        --card: var(--color-card-light, oklch(0.98 0.01 85));
+        --foreground: var(--color-text-light, oklch(0.2 0 0));
+        --accent: var(--color-accent-light, oklch(0.55 0.15 75));
+      }
+
+      .dark {
+        --primary: var(--color-primary-dark, oklch(0.55 0.15 75));
+        --background: var(--color-background-dark, oklch(0.24 0.04 175));
+        --card: var(--color-card-dark, oklch(0.26 0.04 175));
+        --foreground: var(--color-text-dark, oklch(0.95 0 0));
+        --accent: var(--color-accent-dark, oklch(0.55 0.15 75));
+      }
+    `
+
+    if (settings.custom_css) {
+      const customStyleId = "custom-theme-styles"
+      let customStyleElement = document.getElementById(customStyleId) as HTMLStyleElement
+
+      if (!customStyleElement) {
+        customStyleElement = document.createElement("style")
+        customStyleElement.id = customStyleId
+        document.head.appendChild(customStyleElement)
+      }
+
+      customStyleElement.textContent = settings.custom_css
+    }
+
+    // Cleanup function
+    return () => {
+      const themeStyle = document.getElementById(themeStyleId)
+      const customStyle = document.getElementById("custom-theme-styles")
+      if (themeStyle) themeStyle.remove()
+      if (customStyle) customStyle.remove()
+    }
   }, [settings])
 
-  return (
-    <>
-      {/* Dynamic CSS variables */}
-      <style jsx global>{`
-        :root {
-          --primary: var(--color-primary-light, oklch(0.55 0.15 75));
-          --background: var(--color-background-light, oklch(0.97 0.01 85));
-          --card: var(--color-card-light, oklch(0.98 0.01 85));
-          --foreground: var(--color-text-light, oklch(0.2 0 0));
-          --accent: var(--color-accent-light, oklch(0.55 0.15 75));
-        }
-
-        .dark {
-          --primary: var(--color-primary-dark, oklch(0.55 0.15 75));
-          --background: var(--color-background-dark, oklch(0.24 0.04 175));
-          --card: var(--color-card-dark, oklch(0.26 0.04 175));
-          --foreground: var(--color-text-dark, oklch(0.95 0 0));
-          --accent: var(--color-accent-dark, oklch(0.55 0.15 75));
-        }
-      `}</style>
-
-      {/* Custom CSS from settings */}
-      {settings.custom_css && (
-        <style jsx global>
-          {settings.custom_css}
-        </style>
-      )}
-    </>
-  )
+  return null
 }
