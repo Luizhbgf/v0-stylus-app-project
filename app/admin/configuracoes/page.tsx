@@ -17,6 +17,7 @@ export default function AdminConfiguracoes() {
   const { toast } = useToast()
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
+  const [userLevel, setUserLevel] = useState<number>(0)
 
   const [settings, setSettings] = useState({
     hero_title: "",
@@ -72,6 +73,27 @@ export default function AdminConfiguracoes() {
 
   async function loadData() {
     setLoading(true)
+
+    const {
+      data: { user },
+    } = await supabase.auth.getUser()
+
+    if (!user) {
+      toast({
+        title: "Erro de autenticação",
+        description: "Você precisa estar logado para acessar esta página",
+        variant: "destructive",
+      })
+      setLoading(false)
+      return
+    }
+
+    const { data: profile } = await supabase.from("profiles").select("user_level").eq("id", user.id).single()
+
+    if (profile) {
+      setUserLevel(profile.user_level)
+      console.log("[v0] User level:", profile.user_level)
+    }
 
     const [settingsRes, servicesRes, coursesRes, plansRes] = await Promise.all([
       supabase.from("homepage_settings").select("*").single(),
@@ -134,9 +156,21 @@ export default function AdminConfiguracoes() {
   }
 
   async function saveSettings() {
+    if (userLevel < 40) {
+      toast({
+        title: "Permissão insuficiente",
+        description:
+          "Apenas super administradores (nível 40+) podem alterar as configurações da homepage. Seu nível atual é " +
+          userLevel,
+        variant: "destructive",
+      })
+      return
+    }
+
     setSaving(true)
 
     console.log("[v0] Salvando configurações...")
+    console.log("[v0] User level:", userLevel)
     console.log("[v0] Settings to save:", {
       show_services: settings.show_services,
       show_employees: settings.show_employees,
@@ -160,7 +194,7 @@ export default function AdminConfiguracoes() {
       console.error("[v0] Erro ao salvar:", error)
       toast({
         title: "Erro ao salvar",
-        description: error.message,
+        description: error.message + " - Verifique suas permissões no banco de dados (RLS)",
         variant: "destructive",
       })
     } else {
@@ -224,14 +258,16 @@ export default function AdminConfiguracoes() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin text-gold" />
       </div>
     )
   }
 
+  const canEdit = userLevel >= 40
+
   return (
-    <div className="container mx-auto p-4 sm:p-6 max-w-7xl">
+    <div className="min-h-screen bg-background">
       <div className="sticky top-0 z-10 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 border-b mb-6 -mx-4 sm:-mx-6 px-4 sm:px-6 py-4">
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
           <div>
@@ -248,7 +284,7 @@ export default function AdminConfiguracoes() {
                 Visualizar
               </a>
             </Button>
-            <Button onClick={saveSettings} disabled={saving} className="w-full sm:w-auto">
+            <Button onClick={saveSettings} disabled={saving || !canEdit} className="w-full sm:w-auto">
               {saving ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Save className="h-4 w-4 mr-2" />}
               Salvar Alterações
             </Button>
@@ -256,633 +292,678 @@ export default function AdminConfiguracoes() {
         </div>
       </div>
 
-      <Tabs defaultValue="content" className="w-full">
-        <TabsList className="grid w-full grid-cols-2 lg:grid-cols-6 mb-6">
-          <TabsTrigger value="content">Conteúdo</TabsTrigger>
-          <TabsTrigger value="sections">Seções</TabsTrigger>
-          <TabsTrigger value="theme">Tema</TabsTrigger>
-          <TabsTrigger value="images">Imagens</TabsTrigger>
-          <TabsTrigger value="seo">SEO</TabsTrigger>
-          <TabsTrigger value="social">Social</TabsTrigger>
-        </TabsList>
-
-        {/* Content Tab */}
-        <TabsContent value="content" className="space-y-6">
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Home className="h-5 w-5 text-primary" />
-                Seção Hero (Topo)
-              </CardTitle>
-              <CardDescription>Configure o banner principal da homepage</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="grid gap-2">
-                <Label htmlFor="hero-title">Título Principal</Label>
-                <Input
-                  id="hero-title"
-                  value={settings.hero_title}
-                  onChange={(e) => setSettings({ ...settings, hero_title: e.target.value })}
-                  placeholder="Sua Beleza, Nossa Paixão"
-                />
-              </div>
-              <div className="grid gap-2">
-                <Label htmlFor="hero-subtitle">Subtítulo</Label>
-                <Textarea
-                  id="hero-subtitle"
-                  value={settings.hero_subtitle}
-                  onChange={(e) => setSettings({ ...settings, hero_subtitle: e.target.value })}
-                  placeholder="Agende seus serviços..."
-                  rows={3}
-                />
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Briefcase className="h-5 w-5 text-primary" />
-                Informações do Negócio
-              </CardTitle>
-              <CardDescription>Dados exibidos no rodapé e contato</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="grid gap-2">
-                  <Label htmlFor="business-name">Nome do Estabelecimento</Label>
-                  <Input
-                    id="business-name"
-                    value={settings.business_name}
-                    onChange={(e) => setSettings({ ...settings, business_name: e.target.value })}
-                  />
-                </div>
-                <div className="grid gap-2">
-                  <Label htmlFor="business-phone">Telefone</Label>
-                  <Input
-                    id="business-phone"
-                    value={settings.business_phone}
-                    onChange={(e) => setSettings({ ...settings, business_phone: e.target.value })}
-                  />
-                </div>
-              </div>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="grid gap-2">
-                  <Label htmlFor="business-email">Email</Label>
-                  <Input
-                    id="business-email"
-                    type="email"
-                    value={settings.business_email}
-                    onChange={(e) => setSettings({ ...settings, business_email: e.target.value })}
-                  />
-                </div>
-                <div className="grid gap-2">
-                  <Label htmlFor="business-hours">Horário de Funcionamento</Label>
-                  <Input
-                    id="business-hours"
-                    value={settings.business_hours}
-                    onChange={(e) => setSettings({ ...settings, business_hours: e.target.value })}
-                  />
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader>
-              <CardTitle>Call-to-Action Final</CardTitle>
-              <CardDescription>Configure a seção de chamada para ação</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="grid gap-2">
-                <Label htmlFor="cta-title">Título da CTA</Label>
-                <Input
-                  id="cta-title"
-                  value={settings.cta_title}
-                  onChange={(e) => setSettings({ ...settings, cta_title: e.target.value })}
-                />
-              </div>
-              <div className="grid gap-2">
-                <Label htmlFor="cta-subtitle">Subtítulo da CTA</Label>
-                <Textarea
-                  id="cta-subtitle"
-                  value={settings.cta_subtitle}
-                  onChange={(e) => setSettings({ ...settings, cta_subtitle: e.target.value })}
-                  rows={2}
-                />
-              </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        {/* Sections Tab */}
-        <TabsContent value="sections" className="space-y-6">
-          <Card>
-            <CardHeader>
-              <CardTitle>Seções Visíveis</CardTitle>
-              <CardDescription>Escolha quais seções exibir na homepage</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="flex items-center justify-between gap-4">
-                <div className="flex-1">
-                  <Label htmlFor="show-services">Mostrar Serviços</Label>
-                  <p className="text-sm text-muted-foreground">Exibir seção de serviços</p>
-                </div>
-                <Switch
-                  id="show-services"
-                  checked={settings.show_services}
-                  onCheckedChange={(checked) => setSettings({ ...settings, show_services: checked })}
-                />
-              </div>
-              <div className="flex items-center justify-between gap-4">
-                <div className="flex-1">
-                  <Label htmlFor="show-employees">Mostrar Funcionários</Label>
-                  <p className="text-sm text-muted-foreground">Exibir equipe de profissionais</p>
-                </div>
-                <Switch
-                  id="show-employees"
-                  checked={settings.show_employees}
-                  onCheckedChange={(checked) => setSettings({ ...settings, show_employees: checked })}
-                />
-              </div>
-              <div className="flex items-center justify-between gap-4">
-                <div className="flex-1">
-                  <Label htmlFor="show-testimonials">Mostrar Depoimentos</Label>
-                  <p className="text-sm text-muted-foreground">Exibir depoimentos de clientes</p>
-                </div>
-                <Switch
-                  id="show-testimonials"
-                  checked={settings.show_testimonials}
-                  onCheckedChange={(checked) => setSettings({ ...settings, show_testimonials: checked })}
-                />
-              </div>
-              <div className="flex items-center justify-between gap-4">
-                <div className="flex-1">
-                  <Label htmlFor="show-courses">Mostrar Cursos</Label>
-                  <p className="text-sm text-muted-foreground">Exibir cursos disponíveis</p>
-                </div>
-                <Switch
-                  id="show-courses"
-                  checked={settings.show_courses}
-                  onCheckedChange={(checked) => setSettings({ ...settings, show_courses: checked })}
-                />
-              </div>
-              <div className="flex items-center justify-between gap-4">
-                <div className="flex-1">
-                  <Label htmlFor="show-plans">Mostrar Planos</Label>
-                  <p className="text-sm text-muted-foreground">Exibir planos de assinatura</p>
-                </div>
-                <Switch
-                  id="show-plans"
-                  checked={settings.show_plans}
-                  onCheckedChange={(checked) => setSettings({ ...settings, show_plans: checked })}
-                />
-              </div>
-            </CardContent>
-          </Card>
-
-          {settings.show_services && (
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Star className="h-5 w-5 text-primary" />
-                  Serviços em Destaque
-                </CardTitle>
-                <CardDescription>Selecione os serviços para exibir na homepage (máximo 8)</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="grid grid-cols-1 xs:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
-                  {services.map((service) => (
-                    <Button
-                      key={service.id}
-                      variant={settings.featured_services.includes(service.id) ? "default" : "outline"}
-                      className="h-auto py-4 flex-col items-start justify-start text-left"
-                      onClick={() => toggleService(service.id)}
-                      disabled={
-                        !settings.featured_services.includes(service.id) && settings.featured_services.length >= 8
-                      }
-                    >
-                      <span className="font-semibold">{service.name}</span>
-                      <span className="text-xs opacity-80">R$ {service.price}</span>
-                    </Button>
-                  ))}
-                </div>
-                <p className="text-sm text-muted-foreground mt-4">
-                  Selecionados: {settings.featured_services.length}/8
+      <div className="container mx-auto p-4 sm:p-6 max-w-7xl">
+        <div className="flex items-center justify-between mb-8">
+          <div>
+            <h1 className="text-4xl font-bold text-foreground mb-2 flex items-center gap-3">
+              <Settings className="h-10 w-10 text-gold" />
+              Configurações da Homepage
+            </h1>
+            <p className="text-muted-foreground">Configure todos os aspectos da página inicial</p>
+            {!canEdit && (
+              <div className="mt-4 p-4 bg-destructive/10 border border-destructive/20 rounded-lg">
+                <p className="text-destructive text-sm font-medium">
+                  ⚠️ Você está no modo somente leitura. Apenas super administradores (nível 40+) podem editar estas
+                  configurações. Seu nível atual é {userLevel}.
                 </p>
-              </CardContent>
-            </Card>
-          )}
+              </div>
+            )}
+          </div>
+          <div className="flex gap-2">
+            <Button variant="outline" size="lg" asChild>
+              <a href="/" target="_blank" rel="noopener noreferrer">
+                <Eye className="mr-2 h-4 w-4" />
+                Visualizar
+              </a>
+            </Button>
+            <Button onClick={saveSettings} disabled={saving || !canEdit} size="lg" className="bg-gold hover:bg-gold/90">
+              {saving ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Salvando...
+                </>
+              ) : (
+                <>
+                  <Save className="mr-2 h-4 w-4" />
+                  Salvar Alterações
+                </>
+              )}
+            </Button>
+          </div>
+        </div>
 
-          {settings.show_testimonials && (
+        <Tabs defaultValue="content" className="w-full">
+          <TabsList className="grid w-full grid-cols-2 lg:grid-cols-6 mb-6">
+            <TabsTrigger value="content">Conteúdo</TabsTrigger>
+            <TabsTrigger value="sections">Seções</TabsTrigger>
+            <TabsTrigger value="theme">Tema</TabsTrigger>
+            <TabsTrigger value="images">Imagens</TabsTrigger>
+            <TabsTrigger value="seo">SEO</TabsTrigger>
+            <TabsTrigger value="social">Social</TabsTrigger>
+          </TabsList>
+
+          {/* Content Tab */}
+          <TabsContent value="content" className="space-y-6">
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
-                  <Star className="h-5 w-5 text-primary" />
-                  Depoimentos
+                  <Home className="h-5 w-5 text-primary" />
+                  Seção Hero (Topo)
                 </CardTitle>
-                <CardDescription>Gerencie os depoimentos exibidos na homepage</CardDescription>
+                <CardDescription>Configure o banner principal da homepage</CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
-                {testimonials.map((testimonial, index) => (
-                  <Card key={index} className="p-4">
-                    <div className="space-y-3">
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                        <Input
-                          placeholder="Nome do cliente"
-                          value={testimonial.name}
-                          onChange={(e) => updateTestimonial(index, "name", e.target.value)}
-                        />
-                        <Input
-                          placeholder="Serviço realizado"
-                          value={testimonial.service}
-                          onChange={(e) => updateTestimonial(index, "service", e.target.value)}
-                        />
-                      </div>
-                      <Textarea
-                        placeholder="Depoimento..."
-                        value={testimonial.text}
-                        onChange={(e) => updateTestimonial(index, "text", e.target.value)}
-                        rows={3}
-                      />
-                      <Button variant="destructive" size="sm" onClick={() => removeTestimonial(index)}>
-                        Remover
+                <div className="grid gap-2">
+                  <Label htmlFor="hero-title">Título Principal</Label>
+                  <Input
+                    id="hero-title"
+                    value={settings.hero_title}
+                    onChange={(e) => setSettings({ ...settings, hero_title: e.target.value })}
+                    placeholder="Sua Beleza, Nossa Paixão"
+                  />
+                </div>
+                <div className="grid gap-2">
+                  <Label htmlFor="hero-subtitle">Subtítulo</Label>
+                  <Textarea
+                    id="hero-subtitle"
+                    value={settings.hero_subtitle}
+                    onChange={(e) => setSettings({ ...settings, hero_subtitle: e.target.value })}
+                    placeholder="Agende seus serviços..."
+                    rows={3}
+                  />
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Briefcase className="h-5 w-5 text-primary" />
+                  Informações do Negócio
+                </CardTitle>
+                <CardDescription>Dados exibidos no rodapé e contato</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="grid gap-2">
+                    <Label htmlFor="business-name">Nome do Estabelecimento</Label>
+                    <Input
+                      id="business-name"
+                      value={settings.business_name}
+                      onChange={(e) => setSettings({ ...settings, business_name: e.target.value })}
+                    />
+                  </div>
+                  <div className="grid gap-2">
+                    <Label htmlFor="business-phone">Telefone</Label>
+                    <Input
+                      id="business-phone"
+                      value={settings.business_phone}
+                      onChange={(e) => setSettings({ ...settings, business_phone: e.target.value })}
+                    />
+                  </div>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="grid gap-2">
+                    <Label htmlFor="business-email">Email</Label>
+                    <Input
+                      id="business-email"
+                      type="email"
+                      value={settings.business_email}
+                      onChange={(e) => setSettings({ ...settings, business_email: e.target.value })}
+                    />
+                  </div>
+                  <div className="grid gap-2">
+                    <Label htmlFor="business-hours">Horário de Funcionamento</Label>
+                    <Input
+                      id="business-hours"
+                      value={settings.business_hours}
+                      onChange={(e) => setSettings({ ...settings, business_hours: e.target.value })}
+                    />
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle>Call-to-Action Final</CardTitle>
+                <CardDescription>Configure a seção de chamada para ação</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="grid gap-2">
+                  <Label htmlFor="cta-title">Título da CTA</Label>
+                  <Input
+                    id="cta-title"
+                    value={settings.cta_title}
+                    onChange={(e) => setSettings({ ...settings, cta_title: e.target.value })}
+                  />
+                </div>
+                <div className="grid gap-2">
+                  <Label htmlFor="cta-subtitle">Subtítulo da CTA</Label>
+                  <Textarea
+                    id="cta-subtitle"
+                    value={settings.cta_subtitle}
+                    onChange={(e) => setSettings({ ...settings, cta_subtitle: e.target.value })}
+                    rows={2}
+                  />
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          {/* Sections Tab */}
+          <TabsContent value="sections" className="space-y-6">
+            <Card>
+              <CardHeader>
+                <CardTitle>Seções Visíveis</CardTitle>
+                <CardDescription>Escolha quais seções exibir na homepage</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="flex items-center justify-between gap-4">
+                  <div className="flex-1">
+                    <Label htmlFor="show-services">Mostrar Serviços</Label>
+                    <p className="text-sm text-muted-foreground">Exibir seção de serviços</p>
+                  </div>
+                  <Switch
+                    id="show-services"
+                    checked={settings.show_services}
+                    onCheckedChange={(checked) => setSettings({ ...settings, show_services: checked })}
+                  />
+                </div>
+                <div className="flex items-center justify-between gap-4">
+                  <div className="flex-1">
+                    <Label htmlFor="show-employees">Mostrar Funcionários</Label>
+                    <p className="text-sm text-muted-foreground">Exibir equipe de profissionais</p>
+                  </div>
+                  <Switch
+                    id="show-employees"
+                    checked={settings.show_employees}
+                    onCheckedChange={(checked) => setSettings({ ...settings, show_employees: checked })}
+                  />
+                </div>
+                <div className="flex items-center justify-between gap-4">
+                  <div className="flex-1">
+                    <Label htmlFor="show-testimonials">Mostrar Depoimentos</Label>
+                    <p className="text-sm text-muted-foreground">Exibir depoimentos de clientes</p>
+                  </div>
+                  <Switch
+                    id="show-testimonials"
+                    checked={settings.show_testimonials}
+                    onCheckedChange={(checked) => setSettings({ ...settings, show_testimonials: checked })}
+                  />
+                </div>
+                <div className="flex items-center justify-between gap-4">
+                  <div className="flex-1">
+                    <Label htmlFor="show-courses">Mostrar Cursos</Label>
+                    <p className="text-sm text-muted-foreground">Exibir cursos disponíveis</p>
+                  </div>
+                  <Switch
+                    id="show-courses"
+                    checked={settings.show_courses}
+                    onCheckedChange={(checked) => setSettings({ ...settings, show_courses: checked })}
+                  />
+                </div>
+                <div className="flex items-center justify-between gap-4">
+                  <div className="flex-1">
+                    <Label htmlFor="show-plans">Mostrar Planos</Label>
+                    <p className="text-sm text-muted-foreground">Exibir planos de assinatura</p>
+                  </div>
+                  <Switch
+                    id="show-plans"
+                    checked={settings.show_plans}
+                    onCheckedChange={(checked) => setSettings({ ...settings, show_plans: checked })}
+                  />
+                </div>
+              </CardContent>
+            </Card>
+
+            {settings.show_services && (
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Star className="h-5 w-5 text-primary" />
+                    Serviços em Destaque
+                  </CardTitle>
+                  <CardDescription>Selecione os serviços para exibir na homepage (máximo 8)</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="grid grid-cols-1 xs:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
+                    {services.map((service) => (
+                      <Button
+                        key={service.id}
+                        variant={settings.featured_services.includes(service.id) ? "default" : "outline"}
+                        className="h-auto py-4 flex-col items-start justify-start text-left"
+                        onClick={() => toggleService(service.id)}
+                        disabled={
+                          !settings.featured_services.includes(service.id) && settings.featured_services.length >= 8
+                        }
+                      >
+                        <span className="font-semibold">{service.name}</span>
+                        <span className="text-xs opacity-80">R$ {service.price}</span>
                       </Button>
-                    </div>
-                  </Card>
-                ))}
-                <Button variant="outline" onClick={addTestimonial} className="w-full bg-transparent">
-                  + Adicionar Depoimento
-                </Button>
-              </CardContent>
-            </Card>
-          )}
+                    ))}
+                  </div>
+                  <p className="text-sm text-muted-foreground mt-4">
+                    Selecionados: {settings.featured_services.length}/8
+                  </p>
+                </CardContent>
+              </Card>
+            )}
 
-          {settings.show_courses && (
+            {settings.show_testimonials && (
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Star className="h-5 w-5 text-primary" />
+                    Depoimentos
+                  </CardTitle>
+                  <CardDescription>Gerencie os depoimentos exibidos na homepage</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  {testimonials.map((testimonial, index) => (
+                    <Card key={index} className="p-4">
+                      <div className="space-y-3">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                          <Input
+                            placeholder="Nome do cliente"
+                            value={testimonial.name}
+                            onChange={(e) => updateTestimonial(index, "name", e.target.value)}
+                          />
+                          <Input
+                            placeholder="Serviço realizado"
+                            value={testimonial.service}
+                            onChange={(e) => updateTestimonial(index, "service", e.target.value)}
+                          />
+                        </div>
+                        <Textarea
+                          placeholder="Depoimento..."
+                          value={testimonial.text}
+                          onChange={(e) => updateTestimonial(index, "text", e.target.value)}
+                          rows={3}
+                        />
+                        <Button variant="destructive" size="sm" onClick={() => removeTestimonial(index)}>
+                          Remover
+                        </Button>
+                      </div>
+                    </Card>
+                  ))}
+                  <Button variant="outline" onClick={addTestimonial} className="w-full bg-transparent">
+                    + Adicionar Depoimento
+                  </Button>
+                </CardContent>
+              </Card>
+            )}
+
+            {settings.show_courses && (
+              <Card>
+                <CardHeader>
+                  <CardTitle>Cursos em Destaque</CardTitle>
+                  <CardDescription>Selecione os cursos para exibir</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                    {courses.map((course) => (
+                      <Button
+                        key={course.id}
+                        variant={settings.featured_courses.includes(course.id) ? "default" : "outline"}
+                        className="h-auto py-4 flex-col items-start justify-start text-left"
+                        onClick={() => toggleCourse(course.id)}
+                      >
+                        <span className="font-semibold">{course.title}</span>
+                        <span className="text-xs opacity-80">R$ {course.price}</span>
+                      </Button>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+
+            {settings.show_plans && (
+              <Card>
+                <CardHeader>
+                  <CardTitle>Planos em Destaque</CardTitle>
+                  <CardDescription>Selecione os planos para exibir</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                    {plans.map((plan) => (
+                      <Button
+                        key={plan.id}
+                        variant={settings.featured_plans.includes(plan.id) ? "default" : "outline"}
+                        className="h-auto py-4 flex-col items-start justify-start text-left"
+                        onClick={() => togglePlan(plan.id)}
+                      >
+                        <span className="font-semibold">{plan.name}</span>
+                        <span className="text-xs opacity-80">R$ {plan.price}</span>
+                      </Button>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+          </TabsContent>
+
+          <TabsContent value="theme" className="space-y-6">
             <Card>
               <CardHeader>
-                <CardTitle>Cursos em Destaque</CardTitle>
-                <CardDescription>Selecione os cursos para exibir</CardDescription>
+                <CardTitle className="flex items-center gap-2">
+                  <Palette className="h-5 w-5 text-primary" />
+                  Cores do Modo Claro
+                </CardTitle>
+                <CardDescription>Personalize as cores para o tema claro</CardDescription>
               </CardHeader>
-              <CardContent>
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-                  {courses.map((course) => (
-                    <Button
-                      key={course.id}
-                      variant={settings.featured_courses.includes(course.id) ? "default" : "outline"}
-                      className="h-auto py-4 flex-col items-start justify-start text-left"
-                      onClick={() => toggleCourse(course.id)}
-                    >
-                      <span className="font-semibold">{course.title}</span>
-                      <span className="text-xs opacity-80">R$ {course.price}</span>
-                    </Button>
-                  ))}
+              <CardContent className="space-y-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  <div className="grid gap-2">
+                    <Label htmlFor="primary-light">Cor Primária</Label>
+                    <Input
+                      id="primary-light"
+                      value={settings.primary_color_light}
+                      onChange={(e) => setSettings({ ...settings, primary_color_light: e.target.value })}
+                      placeholder="oklch(0.55 0.15 75)"
+                    />
+                  </div>
+                  <div className="grid gap-2">
+                    <Label htmlFor="background-light">Cor de Fundo</Label>
+                    <Input
+                      id="background-light"
+                      value={settings.background_color_light}
+                      onChange={(e) => setSettings({ ...settings, background_color_light: e.target.value })}
+                      placeholder="oklch(0.97 0.01 85)"
+                    />
+                  </div>
+                  <div className="grid gap-2">
+                    <Label htmlFor="card-light">Cor dos Cards</Label>
+                    <Input
+                      id="card-light"
+                      value={settings.card_color_light}
+                      onChange={(e) => setSettings({ ...settings, card_color_light: e.target.value })}
+                      placeholder="oklch(0.98 0.01 85)"
+                    />
+                  </div>
+                  <div className="grid gap-2">
+                    <Label htmlFor="text-light">Cor do Texto</Label>
+                    <Input
+                      id="text-light"
+                      value={settings.text_color_light}
+                      onChange={(e) => setSettings({ ...settings, text_color_light: e.target.value })}
+                      placeholder="oklch(0.2 0 0)"
+                    />
+                  </div>
+                  <div className="grid gap-2">
+                    <Label htmlFor="accent-light">Cor de Destaque</Label>
+                    <Input
+                      id="accent-light"
+                      value={settings.accent_color_light}
+                      onChange={(e) => setSettings({ ...settings, accent_color_light: e.target.value })}
+                      placeholder="oklch(0.55 0.15 75)"
+                    />
+                  </div>
                 </div>
               </CardContent>
             </Card>
-          )}
 
-          {settings.show_plans && (
             <Card>
               <CardHeader>
-                <CardTitle>Planos em Destaque</CardTitle>
-                <CardDescription>Selecione os planos para exibir</CardDescription>
+                <CardTitle className="flex items-center gap-2">
+                  <Palette className="h-5 w-5 text-primary" />
+                  Cores do Modo Escuro
+                </CardTitle>
+                <CardDescription>Personalize as cores para o tema escuro</CardDescription>
               </CardHeader>
-              <CardContent>
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-                  {plans.map((plan) => (
-                    <Button
-                      key={plan.id}
-                      variant={settings.featured_plans.includes(plan.id) ? "default" : "outline"}
-                      className="h-auto py-4 flex-col items-start justify-start text-left"
-                      onClick={() => togglePlan(plan.id)}
-                    >
-                      <span className="font-semibold">{plan.name}</span>
-                      <span className="text-xs opacity-80">R$ {plan.price}</span>
-                    </Button>
-                  ))}
+              <CardContent className="space-y-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  <div className="grid gap-2">
+                    <Label htmlFor="primary-dark">Cor Primária</Label>
+                    <Input
+                      id="primary-dark"
+                      value={settings.primary_color_dark}
+                      onChange={(e) => setSettings({ ...settings, primary_color_dark: e.target.value })}
+                      placeholder="oklch(0.55 0.15 75)"
+                    />
+                  </div>
+                  <div className="grid gap-2">
+                    <Label htmlFor="background-dark">Cor de Fundo</Label>
+                    <Input
+                      id="background-dark"
+                      value={settings.background_color_dark}
+                      onChange={(e) => setSettings({ ...settings, background_color_dark: e.target.value })}
+                      placeholder="oklch(0.24 0.04 175)"
+                    />
+                  </div>
+                  <div className="grid gap-2">
+                    <Label htmlFor="card-dark">Cor dos Cards</Label>
+                    <Input
+                      id="card-dark"
+                      value={settings.card_color_dark}
+                      onChange={(e) => setSettings({ ...settings, card_color_dark: e.target.value })}
+                      placeholder="oklch(0.26 0.04 175)"
+                    />
+                  </div>
+                  <div className="grid gap-2">
+                    <Label htmlFor="text-dark">Cor do Texto</Label>
+                    <Input
+                      id="text-dark"
+                      value={settings.text_color_dark}
+                      onChange={(e) => setSettings({ ...settings, text_color_dark: e.target.value })}
+                      placeholder="oklch(0.95 0 0)"
+                    />
+                  </div>
+                  <div className="grid gap-2">
+                    <Label htmlFor="accent-dark">Cor de Destaque</Label>
+                    <Input
+                      id="accent-dark"
+                      value={settings.accent_color_dark}
+                      onChange={(e) => setSettings({ ...settings, accent_color_dark: e.target.value })}
+                      placeholder="oklch(0.55 0.15 75)"
+                    />
+                  </div>
                 </div>
               </CardContent>
             </Card>
-          )}
-        </TabsContent>
 
-        <TabsContent value="theme" className="space-y-6">
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Palette className="h-5 w-5 text-primary" />
-                Cores do Modo Claro
-              </CardTitle>
-              <CardDescription>Personalize as cores para o tema claro</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                <div className="grid gap-2">
-                  <Label htmlFor="primary-light">Cor Primária</Label>
-                  <Input
-                    id="primary-light"
-                    value={settings.primary_color_light}
-                    onChange={(e) => setSettings({ ...settings, primary_color_light: e.target.value })}
-                    placeholder="oklch(0.55 0.15 75)"
-                  />
+            <Card>
+              <CardHeader>
+                <CardTitle>Tipografia e Estilos</CardTitle>
+                <CardDescription>Personalize fontes e estilos gerais</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div className="grid gap-2">
+                    <Label htmlFor="font-heading">Fonte dos Títulos</Label>
+                    <Input
+                      id="font-heading"
+                      value={settings.font_heading}
+                      onChange={(e) => setSettings({ ...settings, font_heading: e.target.value })}
+                      placeholder="Playfair Display"
+                    />
+                  </div>
+                  <div className="grid gap-2">
+                    <Label htmlFor="font-body">Fonte do Corpo</Label>
+                    <Input
+                      id="font-body"
+                      value={settings.font_body}
+                      onChange={(e) => setSettings({ ...settings, font_body: e.target.value })}
+                      placeholder="Inter"
+                    />
+                  </div>
+                  <div className="grid gap-2">
+                    <Label htmlFor="border-radius">Border Radius</Label>
+                    <Input
+                      id="border-radius"
+                      value={settings.border_radius}
+                      onChange={(e) => setSettings({ ...settings, border_radius: e.target.value })}
+                      placeholder="0.625rem"
+                    />
+                  </div>
                 </div>
                 <div className="grid gap-2">
-                  <Label htmlFor="background-light">Cor de Fundo</Label>
-                  <Input
-                    id="background-light"
-                    value={settings.background_color_light}
-                    onChange={(e) => setSettings({ ...settings, background_color_light: e.target.value })}
-                    placeholder="oklch(0.97 0.01 85)"
+                  <Label htmlFor="custom-css">CSS Customizado</Label>
+                  <Textarea
+                    id="custom-css"
+                    value={settings.custom_css}
+                    onChange={(e) => setSettings({ ...settings, custom_css: e.target.value })}
+                    placeholder="/* Adicione CSS personalizado aqui */"
+                    rows={8}
+                    className="font-mono text-sm"
                   />
+                  <p className="text-xs text-muted-foreground">
+                    Use este campo para adicionar CSS personalizado que será aplicado globalmente.
+                  </p>
                 </div>
-                <div className="grid gap-2">
-                  <Label htmlFor="card-light">Cor dos Cards</Label>
-                  <Input
-                    id="card-light"
-                    value={settings.card_color_light}
-                    onChange={(e) => setSettings({ ...settings, card_color_light: e.target.value })}
-                    placeholder="oklch(0.98 0.01 85)"
-                  />
-                </div>
-                <div className="grid gap-2">
-                  <Label htmlFor="text-light">Cor do Texto</Label>
-                  <Input
-                    id="text-light"
-                    value={settings.text_color_light}
-                    onChange={(e) => setSettings({ ...settings, text_color_light: e.target.value })}
-                    placeholder="oklch(0.2 0 0)"
-                  />
-                </div>
-                <div className="grid gap-2">
-                  <Label htmlFor="accent-light">Cor de Destaque</Label>
-                  <Input
-                    id="accent-light"
-                    value={settings.accent_color_light}
-                    onChange={(e) => setSettings({ ...settings, accent_color_light: e.target.value })}
-                    placeholder="oklch(0.55 0.15 75)"
-                  />
-                </div>
-              </div>
-            </CardContent>
-          </Card>
+              </CardContent>
+            </Card>
+          </TabsContent>
 
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Palette className="h-5 w-5 text-primary" />
-                Cores do Modo Escuro
-              </CardTitle>
-              <CardDescription>Personalize as cores para o tema escuro</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          <TabsContent value="images" className="space-y-6">
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <ImageIcon className="h-5 w-5 text-primary" />
+                  Imagens e Logos
+                </CardTitle>
+                <CardDescription>Configure as imagens da sua homepage</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
                 <div className="grid gap-2">
-                  <Label htmlFor="primary-dark">Cor Primária</Label>
+                  <Label htmlFor="logo-url">Logo (URL)</Label>
                   <Input
-                    id="primary-dark"
-                    value={settings.primary_color_dark}
-                    onChange={(e) => setSettings({ ...settings, primary_color_dark: e.target.value })}
-                    placeholder="oklch(0.55 0.15 75)"
+                    id="logo-url"
+                    value={settings.logo_url}
+                    onChange={(e) => setSettings({ ...settings, logo_url: e.target.value })}
+                    placeholder="https://..."
                   />
+                  <p className="text-xs text-muted-foreground">URL da imagem do logo do seu estabelecimento</p>
                 </div>
                 <div className="grid gap-2">
-                  <Label htmlFor="background-dark">Cor de Fundo</Label>
+                  <Label htmlFor="favicon-url">Favicon (URL)</Label>
                   <Input
-                    id="background-dark"
-                    value={settings.background_color_dark}
-                    onChange={(e) => setSettings({ ...settings, background_color_dark: e.target.value })}
-                    placeholder="oklch(0.24 0.04 175)"
+                    id="favicon-url"
+                    value={settings.favicon_url}
+                    onChange={(e) => setSettings({ ...settings, favicon_url: e.target.value })}
+                    placeholder="https://..."
                   />
+                  <p className="text-xs text-muted-foreground">URL do ícone que aparece na aba do navegador</p>
                 </div>
                 <div className="grid gap-2">
-                  <Label htmlFor="card-dark">Cor dos Cards</Label>
+                  <Label htmlFor="hero-image-url">Imagem Hero (URL)</Label>
                   <Input
-                    id="card-dark"
-                    value={settings.card_color_dark}
-                    onChange={(e) => setSettings({ ...settings, card_color_dark: e.target.value })}
-                    placeholder="oklch(0.26 0.04 175)"
+                    id="hero-image-url"
+                    value={settings.hero_image_url}
+                    onChange={(e) => setSettings({ ...settings, hero_image_url: e.target.value })}
+                    placeholder="https://..."
                   />
+                  <p className="text-xs text-muted-foreground">
+                    Imagem de fundo para a seção hero (opcional, deixe vazio para usar gradiente)
+                  </p>
                 </div>
-                <div className="grid gap-2">
-                  <Label htmlFor="text-dark">Cor do Texto</Label>
-                  <Input
-                    id="text-dark"
-                    value={settings.text_color_dark}
-                    onChange={(e) => setSettings({ ...settings, text_color_dark: e.target.value })}
-                    placeholder="oklch(0.95 0 0)"
-                  />
-                </div>
-                <div className="grid gap-2">
-                  <Label htmlFor="accent-dark">Cor de Destaque</Label>
-                  <Input
-                    id="accent-dark"
-                    value={settings.accent_color_dark}
-                    onChange={(e) => setSettings({ ...settings, accent_color_dark: e.target.value })}
-                    placeholder="oklch(0.55 0.15 75)"
-                  />
-                </div>
-              </div>
-            </CardContent>
-          </Card>
+              </CardContent>
+            </Card>
+          </TabsContent>
 
-          <Card>
-            <CardHeader>
-              <CardTitle>Tipografia e Estilos</CardTitle>
-              <CardDescription>Personalize fontes e estilos gerais</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <TabsContent value="seo" className="space-y-6">
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Globe className="h-5 w-5 text-primary" />
+                  SEO e Meta Tags
+                </CardTitle>
+                <CardDescription>Otimize sua homepage para motores de busca</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
                 <div className="grid gap-2">
-                  <Label htmlFor="font-heading">Fonte dos Títulos</Label>
+                  <Label htmlFor="meta-title">Título da Página (Meta Title)</Label>
                   <Input
-                    id="font-heading"
-                    value={settings.font_heading}
-                    onChange={(e) => setSettings({ ...settings, font_heading: e.target.value })}
-                    placeholder="Playfair Display"
+                    id="meta-title"
+                    value={settings.meta_title}
+                    onChange={(e) => setSettings({ ...settings, meta_title: e.target.value })}
+                    placeholder="Styllus Estética e Beleza"
+                    maxLength={60}
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    Máximo 60 caracteres - {settings.meta_title.length}/60
+                  </p>
+                </div>
+                <div className="grid gap-2">
+                  <Label htmlFor="meta-description">Descrição (Meta Description)</Label>
+                  <Textarea
+                    id="meta-description"
+                    value={settings.meta_description}
+                    onChange={(e) => setSettings({ ...settings, meta_description: e.target.value })}
+                    placeholder="Agende seus serviços de estética e beleza online"
+                    rows={3}
+                    maxLength={160}
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    Máximo 160 caracteres - {settings.meta_description.length}/160
+                  </p>
+                </div>
+                <div className="grid gap-2">
+                  <Label htmlFor="meta-keywords">Palavras-chave (separadas por vírgula)</Label>
+                  <Input
+                    id="meta-keywords"
+                    value={settings.meta_keywords.join(", ")}
+                    onChange={(e) =>
+                      setSettings({
+                        ...settings,
+                        meta_keywords: e.target.value.split(",").map((k) => k.trim()),
+                      })
+                    }
+                    placeholder="estética, beleza, salão, manicure, pedicure"
+                  />
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="social" className="space-y-6">
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Share2 className="h-5 w-5 text-primary" />
+                  Redes Sociais
+                </CardTitle>
+                <CardDescription>Configure links para suas redes sociais</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="grid gap-2">
+                  <Label htmlFor="social-facebook">Facebook</Label>
+                  <Input
+                    id="social-facebook"
+                    value={settings.social_facebook}
+                    onChange={(e) => setSettings({ ...settings, social_facebook: e.target.value })}
+                    placeholder="https://facebook.com/seu-perfil"
                   />
                 </div>
                 <div className="grid gap-2">
-                  <Label htmlFor="font-body">Fonte do Corpo</Label>
+                  <Label htmlFor="social-instagram">Instagram</Label>
                   <Input
-                    id="font-body"
-                    value={settings.font_body}
-                    onChange={(e) => setSettings({ ...settings, font_body: e.target.value })}
-                    placeholder="Inter"
+                    id="social-instagram"
+                    value={settings.social_instagram}
+                    onChange={(e) => setSettings({ ...settings, social_instagram: e.target.value })}
+                    placeholder="https://instagram.com/seu-perfil"
                   />
                 </div>
                 <div className="grid gap-2">
-                  <Label htmlFor="border-radius">Border Radius</Label>
+                  <Label htmlFor="social-whatsapp">WhatsApp</Label>
                   <Input
-                    id="border-radius"
-                    value={settings.border_radius}
-                    onChange={(e) => setSettings({ ...settings, border_radius: e.target.value })}
-                    placeholder="0.625rem"
+                    id="social-whatsapp"
+                    value={settings.social_whatsapp}
+                    onChange={(e) => setSettings({ ...settings, social_whatsapp: e.target.value })}
+                    placeholder="5511999999999"
                   />
+                  <p className="text-xs text-muted-foreground">
+                    Digite apenas números com DDI e DDD (ex: 5511999999999)
+                  </p>
                 </div>
-              </div>
-              <div className="grid gap-2">
-                <Label htmlFor="custom-css">CSS Customizado</Label>
-                <Textarea
-                  id="custom-css"
-                  value={settings.custom_css}
-                  onChange={(e) => setSettings({ ...settings, custom_css: e.target.value })}
-                  placeholder="/* Adicione CSS personalizado aqui */"
-                  rows={8}
-                  className="font-mono text-sm"
-                />
-                <p className="text-xs text-muted-foreground">
-                  Use este campo para adicionar CSS personalizado que será aplicado globalmente.
-                </p>
-              </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        <TabsContent value="images" className="space-y-6">
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <ImageIcon className="h-5 w-5 text-primary" />
-                Imagens e Logos
-              </CardTitle>
-              <CardDescription>Configure as imagens da sua homepage</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="grid gap-2">
-                <Label htmlFor="logo-url">Logo (URL)</Label>
-                <Input
-                  id="logo-url"
-                  value={settings.logo_url}
-                  onChange={(e) => setSettings({ ...settings, logo_url: e.target.value })}
-                  placeholder="https://..."
-                />
-                <p className="text-xs text-muted-foreground">URL da imagem do logo do seu estabelecimento</p>
-              </div>
-              <div className="grid gap-2">
-                <Label htmlFor="favicon-url">Favicon (URL)</Label>
-                <Input
-                  id="favicon-url"
-                  value={settings.favicon_url}
-                  onChange={(e) => setSettings({ ...settings, favicon_url: e.target.value })}
-                  placeholder="https://..."
-                />
-                <p className="text-xs text-muted-foreground">URL do ícone que aparece na aba do navegador</p>
-              </div>
-              <div className="grid gap-2">
-                <Label htmlFor="hero-image-url">Imagem Hero (URL)</Label>
-                <Input
-                  id="hero-image-url"
-                  value={settings.hero_image_url}
-                  onChange={(e) => setSettings({ ...settings, hero_image_url: e.target.value })}
-                  placeholder="https://..."
-                />
-                <p className="text-xs text-muted-foreground">
-                  Imagem de fundo para a seção hero (opcional, deixe vazio para usar gradiente)
-                </p>
-              </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        <TabsContent value="seo" className="space-y-6">
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Globe className="h-5 w-5 text-primary" />
-                SEO e Meta Tags
-              </CardTitle>
-              <CardDescription>Otimize sua homepage para motores de busca</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="grid gap-2">
-                <Label htmlFor="meta-title">Título da Página (Meta Title)</Label>
-                <Input
-                  id="meta-title"
-                  value={settings.meta_title}
-                  onChange={(e) => setSettings({ ...settings, meta_title: e.target.value })}
-                  placeholder="Styllus Estética e Beleza"
-                  maxLength={60}
-                />
-                <p className="text-xs text-muted-foreground">Máximo 60 caracteres - {settings.meta_title.length}/60</p>
-              </div>
-              <div className="grid gap-2">
-                <Label htmlFor="meta-description">Descrição (Meta Description)</Label>
-                <Textarea
-                  id="meta-description"
-                  value={settings.meta_description}
-                  onChange={(e) => setSettings({ ...settings, meta_description: e.target.value })}
-                  placeholder="Agende seus serviços de estética e beleza online"
-                  rows={3}
-                  maxLength={160}
-                />
-                <p className="text-xs text-muted-foreground">
-                  Máximo 160 caracteres - {settings.meta_description.length}/160
-                </p>
-              </div>
-              <div className="grid gap-2">
-                <Label htmlFor="meta-keywords">Palavras-chave (separadas por vírgula)</Label>
-                <Input
-                  id="meta-keywords"
-                  value={settings.meta_keywords.join(", ")}
-                  onChange={(e) =>
-                    setSettings({
-                      ...settings,
-                      meta_keywords: e.target.value.split(",").map((k) => k.trim()),
-                    })
-                  }
-                  placeholder="estética, beleza, salão, manicure, pedicure"
-                />
-              </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        <TabsContent value="social" className="space-y-6">
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Share2 className="h-5 w-5 text-primary" />
-                Redes Sociais
-              </CardTitle>
-              <CardDescription>Configure links para suas redes sociais</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="grid gap-2">
-                <Label htmlFor="social-facebook">Facebook</Label>
-                <Input
-                  id="social-facebook"
-                  value={settings.social_facebook}
-                  onChange={(e) => setSettings({ ...settings, social_facebook: e.target.value })}
-                  placeholder="https://facebook.com/seu-perfil"
-                />
-              </div>
-              <div className="grid gap-2">
-                <Label htmlFor="social-instagram">Instagram</Label>
-                <Input
-                  id="social-instagram"
-                  value={settings.social_instagram}
-                  onChange={(e) => setSettings({ ...settings, social_instagram: e.target.value })}
-                  placeholder="https://instagram.com/seu-perfil"
-                />
-              </div>
-              <div className="grid gap-2">
-                <Label htmlFor="social-whatsapp">WhatsApp</Label>
-                <Input
-                  id="social-whatsapp"
-                  value={settings.social_whatsapp}
-                  onChange={(e) => setSettings({ ...settings, social_whatsapp: e.target.value })}
-                  placeholder="5511999999999"
-                />
-                <p className="text-xs text-muted-foreground">Digite apenas números com DDI e DDD (ex: 5511999999999)</p>
-              </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
-      </Tabs>
+              </CardContent>
+            </Card>
+          </TabsContent>
+        </Tabs>
+      </div>
 
       <div className="fixed bottom-6 right-6 z-50">
-        <Button onClick={saveSettings} disabled={saving} size="lg" className="shadow-2xl">
+        <Button onClick={saveSettings} disabled={saving || !canEdit} size="lg" className="shadow-2xl">
           {saving ? <Loader2 className="h-5 w-5 mr-2 animate-spin" /> : <Save className="h-5 w-5 mr-2" />}
           Salvar Alterações
         </Button>
