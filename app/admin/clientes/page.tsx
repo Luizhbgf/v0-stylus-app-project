@@ -3,7 +3,7 @@ import { createClient } from "@/lib/supabase/server"
 import { Navbar } from "@/components/navbar"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import { Users, Calendar, DollarSign, Mail, Phone, Filter, UserPlus } from "lucide-react"
+import { Users, Calendar, DollarSign, Mail, Phone, Filter, UserPlus, MessageCircle } from "lucide-react"
 import Link from "next/link"
 import { Label } from "@/components/ui/label"
 import { Input } from "@/components/ui/input"
@@ -289,6 +289,23 @@ export default async function AdminClientesPage({
                         <DollarSign className="h-4 w-4 text-gold" />
                         <span className="text-foreground">R$ {client.total_spent.toFixed(2)}</span>
                       </div>
+                      {client.phone !== "N/A" && client.phone && client.phone.length >= 10 && (
+                        <Button
+                          asChild
+                          size="sm"
+                          variant="outline"
+                          className="w-full border-green-500 text-green-500 hover:bg-green-500 hover:text-white bg-transparent"
+                        >
+                          <a
+                            href={`https://wa.me/55${client.phone.replace(/\D/g, "")}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                          >
+                            <MessageCircle className="h-4 w-4 mr-2" />
+                            WhatsApp
+                          </a>
+                        </Button>
+                      )}
                     </div>
                   </div>
                 </CardContent>

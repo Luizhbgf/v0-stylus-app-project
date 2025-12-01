@@ -4,7 +4,7 @@ import { useState, useEffect } from "react"
 import { createClient } from "@/lib/supabase/client"
 import { Navbar } from "@/components/navbar"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { DollarSign, TrendingUp, Calendar, Filter, Trash2, CheckCircle, CreditCard } from "lucide-react"
+import { DollarSign, TrendingUp, Calendar, Filter, Trash2, CheckCircle, CreditCard, Award } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -205,6 +205,7 @@ export default function StaffFinanceiro() {
       status: isPaid ? "paid" : "pending",
       isPayLater: isPayLater,
       service_name: apt.service?.name || "Serviço não especificado",
+      service_category: apt.service?.category || "",
       client_name: clientName,
       notes: `${apt.service?.name || "Serviço"} - ${clientName}`,
     })
@@ -243,6 +244,42 @@ export default function StaffFinanceiro() {
       }
       paymentMethodStats[method].count++
       paymentMethodStats[method].revenue += Number(e.amount)
+    }
+  })
+
+  const serviceGroups = {
+    "Cortes e Estética": ["corte", "barba", "sobrancelha"],
+    Químicas: ["quimica", "coloração", "descoloração", "tintura", "mechas", "luzes"],
+    "Unhas e Massagem": ["unha", "manicure", "pedicure", "massagem"],
+  }
+
+  const groupedServiceStats: Record<string, Record<string, { count: number; revenue: number }>> = {
+    "Cortes e Estética": {},
+    Químicas: {},
+    "Unhas e Massagem": {},
+    Outros: {},
+  }
+
+  filteredEarnings.forEach((e) => {
+    if (e.status === "paid") {
+      const serviceName = e.service_name || "Desconhecido"
+      const serviceCategory = e.service_category?.toLowerCase() || ""
+
+      let group = "Outros"
+      for (const [groupName, keywords] of Object.entries(serviceGroups)) {
+        if (
+          keywords.some((keyword) => serviceName.toLowerCase().includes(keyword) || serviceCategory.includes(keyword))
+        ) {
+          group = groupName
+          break
+        }
+      }
+
+      if (!groupedServiceStats[group][serviceName]) {
+        groupedServiceStats[group][serviceName] = { count: 0, revenue: 0 }
+      }
+      groupedServiceStats[group][serviceName].count++
+      groupedServiceStats[group][serviceName].revenue += Number(e.amount)
     }
   })
 
@@ -292,9 +329,11 @@ export default function StaffFinanceiro() {
 
         <div className="grid md:grid-cols-3 gap-6 mb-8">
           <Card className="border-gold/20">
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Total Recebido</CardTitle>
-              <DollarSign className="h-4 w-4 text-gold" />
+            <CardHeader>
+              <CardTitle className="flex items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Total Recebido</CardTitle>
+                <DollarSign className="h-4 w-4 text-gold" />
+              </CardTitle>
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold text-foreground">R$ {totalPaid.toFixed(2)}</div>
@@ -303,9 +342,11 @@ export default function StaffFinanceiro() {
           </Card>
 
           <Card className="border-gold/20">
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Pendente</CardTitle>
-              <Calendar className="h-4 w-4 text-gold" />
+            <CardHeader>
+              <CardTitle className="flex items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Pendente</CardTitle>
+                <Calendar className="h-4 w-4 text-gold" />
+              </CardTitle>
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold text-foreground">R$ {totalPending.toFixed(2)}</div>
@@ -314,9 +355,11 @@ export default function StaffFinanceiro() {
           </Card>
 
           <Card className="border-gold/20">
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Este Mês</CardTitle>
-              <TrendingUp className="h-4 w-4 text-gold" />
+            <CardHeader>
+              <CardTitle className="flex items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Este Mês</CardTitle>
+                <TrendingUp className="h-4 w-4 text-gold" />
+              </CardTitle>
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold text-foreground">R$ {monthlyEarnings.toFixed(2)}</div>
@@ -355,6 +398,43 @@ export default function StaffFinanceiro() {
             </CardContent>
           </Card>
         )}
+
+        <div className="grid md:grid-cols-3 gap-6 mb-8">
+          {Object.entries(groupedServiceStats).map(([groupName, services]) => {
+            const groupRevenue = Object.values(services).reduce((sum, s) => sum + s.revenue, 0)
+            const groupCount = Object.values(services).reduce((sum, s) => sum + s.count, 0)
+
+            if (groupCount === 0) return null
+
+            return (
+              <Card key={groupName} className="border-gold/20">
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2 text-foreground">
+                    <Award className="h-5 w-5 text-gold" />
+                    {groupName}
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="mb-4">
+                    <p className="text-3xl font-bold text-gold">R$ {groupRevenue.toFixed(2)}</p>
+                    <p className="text-sm text-muted-foreground">{groupCount} serviços</p>
+                  </div>
+                  <div className="space-y-2">
+                    {Object.entries(services)
+                      .sort((a, b) => b[1].revenue - a[1].revenue)
+                      .slice(0, 3)
+                      .map(([serviceName, stats]) => (
+                        <div key={serviceName} className="flex justify-between text-sm">
+                          <span className="text-muted-foreground truncate">{serviceName}</span>
+                          <span className="text-foreground font-medium">R$ {stats.revenue.toFixed(2)}</span>
+                        </div>
+                      ))}
+                  </div>
+                </CardContent>
+              </Card>
+            )
+          })}
+        </div>
 
         <div>
           <h2 className="text-2xl font-bold text-foreground mb-4">Histórico de Pagamentos</h2>
@@ -505,11 +585,10 @@ export default function StaffFinanceiro() {
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setShowPaymentMethodDialog(false)}>
-              Cancelar
+              Voltar
             </Button>
             <Button
               onClick={() => selectedAppointmentId && handleMarkAsPaid(selectedAppointmentId)}
-              disabled={!selectedPaymentMethod}
               className="bg-gold hover:bg-gold/90"
             >
               Confirmar

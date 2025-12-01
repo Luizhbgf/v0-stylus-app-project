@@ -3,7 +3,7 @@ import { createClient } from "@/lib/supabase/server"
 import { Navbar } from "@/components/navbar"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import { Users, Star, Filter, UserPlus } from "lucide-react"
+import { Users, Star, Filter, UserPlus, MessageCircle } from "lucide-react"
 import Link from "next/link"
 import { Label } from "@/components/ui/label"
 import { Input } from "@/components/ui/input"
@@ -234,7 +234,7 @@ export default async function StaffClientes({
                         Última visita: {new Date(client.last_visit).toLocaleDateString("pt-BR")}
                       </p>
                     </div>
-                    <div className="text-right">
+                    <div className="text-right space-y-2">
                       <div className="mb-2">
                         <p className="text-2xl font-bold text-foreground">{client.total_visits}</p>
                         <p className="text-xs text-muted-foreground">visitas</p>
@@ -243,6 +243,23 @@ export default async function StaffClientes({
                         <p className="text-lg font-semibold text-gold">R$ {Number(client.total_spent).toFixed(2)}</p>
                         <p className="text-xs text-muted-foreground">total gasto</p>
                       </div>
+                      {client.phone !== "N/A" && client.phone && client.phone.length >= 10 && (
+                        <Button
+                          asChild
+                          size="sm"
+                          variant="outline"
+                          className="w-full border-green-500 text-green-500 hover:bg-green-500 hover:text-white mt-2 bg-transparent"
+                        >
+                          <a
+                            href={`https://wa.me/55${client.phone.replace(/\D/g, "")}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                          >
+                            <MessageCircle className="h-4 w-4 mr-2" />
+                            WhatsApp
+                          </a>
+                        </Button>
+                      )}
                     </div>
                   </div>
                 </CardContent>
