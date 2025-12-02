@@ -8,18 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Button } from "@/components/ui/button"
-import {
-  DollarSign,
-  TrendingUp,
-  TrendingDown,
-  Calendar,
-  Filter,
-  Award,
-  Trash2,
-  CheckCircle,
-  RotateCcw,
-  CreditCard,
-} from "lucide-react"
+import { DollarSign, Calendar, Filter, Award, Trash2, CheckCircle, RotateCcw, CreditCard } from "lucide-react"
 import { format, startOfMonth, endOfMonth, subMonths } from "date-fns"
 import { ptBR } from "date-fns/locale"
 import { useToast } from "@/hooks/use-toast"
@@ -361,24 +350,58 @@ export default function AdminFinanceiroPage() {
   }
 
   payments.forEach((p) => {
-    const serviceName = p.appointment?.service?.name || "Desconhecido"
-    const serviceCategory = p.appointment?.service?.category?.toLowerCase() || ""
+    const appointment = p.appointment
 
-    let group = "Outros"
-    for (const [groupName, keywords] of Object.entries(serviceGroups)) {
-      if (
-        keywords.some((keyword) => serviceName.toLowerCase().includes(keyword) || serviceCategory.includes(keyword))
-      ) {
-        group = groupName
-        break
+    // Check if appointment has multiple services
+    if (appointment?.service_ids && appointment.service_ids.length > 0) {
+      // Process each service separately
+      appointment.service_ids.forEach((serviceId: string) => {
+        // Get service price from service_prices jsonb field
+        const servicePrice = appointment.service_prices?.[serviceId] || 0
+
+        // Find service details (we'll need to fetch this)
+        // For now, use service name from service_id match
+        const service = appointment.services?.find((s: any) => s.id === serviceId)
+        const serviceName = service?.name || "Serviço Múltiplo"
+        const serviceCategory = service?.category?.toLowerCase() || ""
+
+        let group = "Outros"
+        for (const [groupName, keywords] of Object.entries(serviceGroups)) {
+          if (
+            keywords.some((keyword) => serviceName.toLowerCase().includes(keyword) || serviceCategory.includes(keyword))
+          ) {
+            group = groupName
+            break
+          }
+        }
+
+        if (!groupedServiceStats[group][serviceName]) {
+          groupedServiceStats[group][serviceName] = { count: 0, revenue: 0 }
+        }
+        groupedServiceStats[group][serviceName].count++
+        groupedServiceStats[group][serviceName].revenue += Number(servicePrice)
+      })
+    } else {
+      // Legacy single service appointment
+      const serviceName = appointment?.service?.name || "Desconhecido"
+      const serviceCategory = appointment?.service?.category?.toLowerCase() || ""
+
+      let group = "Outros"
+      for (const [groupName, keywords] of Object.entries(serviceGroups)) {
+        if (
+          keywords.some((keyword) => serviceName.toLowerCase().includes(keyword) || serviceCategory.includes(keyword))
+        ) {
+          group = groupName
+          break
+        }
       }
-    }
 
-    if (!groupedServiceStats[group][serviceName]) {
-      groupedServiceStats[group][serviceName] = { count: 0, revenue: 0 }
+      if (!groupedServiceStats[group][serviceName]) {
+        groupedServiceStats[group][serviceName] = { count: 0, revenue: 0 }
+      }
+      groupedServiceStats[group][serviceName].count++
+      groupedServiceStats[group][serviceName].revenue += Number(p.amount)
     }
-    groupedServiceStats[group][serviceName].count++
-    groupedServiceStats[group][serviceName].revenue += Number(p.amount)
   })
 
   return (
@@ -466,20 +489,32 @@ export default function AdminFinanceiroPage() {
           </Card>
 
           <Card className="border-gold/20">
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Variação Mensal</CardTitle>
-              {revenueChange >= 0 ? (
-                <TrendingUp className="h-4 w-4 text-green-500" />
-              ) : (
-                <TrendingDown className="h-4 w-4 text-red-500" />
-              )}
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 text-foreground">
+                <CreditCard className="h-5 w-5 text-gold" />
+                Métodos de Pagamento
+              </CardTitle>
             </CardHeader>
             <CardContent>
-              <div className={`text-2xl font-bold ${revenueChange >= 0 ? "text-green-500" : "text-red-500"}`}>
-                {revenueChange >= 0 ? "+" : ""}
-                {revenueChange.toFixed(1)}%
+              <div className="grid md:grid-cols-4 gap-4">
+                {Object.entries(paymentMethodStats).map(([method, stats]) => (
+                  <div key={method} className="p-4 bg-card/50 rounded-lg">
+                    <p className="text-sm text-muted-foreground mb-1">
+                      {method === "pix"
+                        ? "PIX"
+                        : method === "dinheiro"
+                          ? "Dinheiro"
+                          : method === "cartao_credito"
+                            ? "Cartão Crédito"
+                            : method === "cartao_debito"
+                              ? "Cartão Débito"
+                              : method}
+                    </p>
+                    <p className="text-2xl font-bold text-gold">R$ {stats.revenue.toFixed(2)}</p>
+                    <p className="text-xs text-muted-foreground mt-1">{stats.count} transações</p>
+                  </div>
+                ))}
               </div>
-              <p className="text-xs text-muted-foreground mt-1">vs. mês anterior</p>
             </CardContent>
           </Card>
 
@@ -495,36 +530,6 @@ export default function AdminFinanceiroPage() {
             </CardContent>
           </Card>
         </div>
-
-        <Card className="border-gold/20 mb-8">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2 text-foreground">
-              <CreditCard className="h-5 w-5 text-gold" />
-              Métodos de Pagamento
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="grid md:grid-cols-4 gap-4">
-              {Object.entries(paymentMethodStats).map(([method, stats]) => (
-                <div key={method} className="p-4 bg-card/50 rounded-lg">
-                  <p className="text-sm text-muted-foreground mb-1">
-                    {method === "pix"
-                      ? "PIX"
-                      : method === "dinheiro"
-                        ? "Dinheiro"
-                        : method === "cartao_credito"
-                          ? "Cartão Crédito"
-                          : method === "cartao_debito"
-                            ? "Cartão Débito"
-                            : method}
-                  </p>
-                  <p className="text-2xl font-bold text-gold">R$ {stats.revenue.toFixed(2)}</p>
-                  <p className="text-xs text-muted-foreground mt-1">{stats.count} transações</p>
-                </div>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
 
         <div className="grid md:grid-cols-3 gap-6 mb-8">
           {Object.entries(groupedServiceStats).map(([groupName, services]) => {

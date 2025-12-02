@@ -66,7 +66,11 @@ export default function StaffFinanceiro() {
         client:profiles!client_id(full_name),
         sporadic_client_name,
         client_type,
-        pay_later
+        pay_later,
+        service_ids,
+        service_names,
+        service_prices,
+        service_categories
       `,
       )
       .eq("staff_id", user.id)
@@ -208,6 +212,10 @@ export default function StaffFinanceiro() {
       service_category: apt.service?.category || "",
       client_name: clientName,
       notes: `${apt.service?.name || "Serviço"} - ${clientName}`,
+      service_ids: apt.service_ids,
+      service_names: apt.service_names,
+      service_prices: apt.service_prices,
+      service_categories: apt.service_categories,
     })
   })
 
@@ -262,24 +270,52 @@ export default function StaffFinanceiro() {
 
   filteredEarnings.forEach((e) => {
     if (e.status === "paid") {
-      const serviceName = e.service_name || "Desconhecido"
-      const serviceCategory = e.service_category?.toLowerCase() || ""
+      if (e.service_ids && e.service_ids.length > 0) {
+        // Process each service separately
+        e.service_ids.forEach((serviceId: string, index: number) => {
+          const servicePrice = e.service_prices?.[serviceId] || e.amount / e.service_ids.length
+          const serviceName = e.service_names?.[index] || `Serviço ${index + 1}`
+          const serviceCategory = e.service_categories?.[index]?.toLowerCase() || ""
 
-      let group = "Outros"
-      for (const [groupName, keywords] of Object.entries(serviceGroups)) {
-        if (
-          keywords.some((keyword) => serviceName.toLowerCase().includes(keyword) || serviceCategory.includes(keyword))
-        ) {
-          group = groupName
-          break
+          let group = "Outros"
+          for (const [groupName, keywords] of Object.entries(serviceGroups)) {
+            if (
+              keywords.some(
+                (keyword) => serviceName.toLowerCase().includes(keyword) || serviceCategory.includes(keyword),
+              )
+            ) {
+              group = groupName
+              break
+            }
+          }
+
+          if (!groupedServiceStats[group][serviceName]) {
+            groupedServiceStats[group][serviceName] = { count: 0, revenue: 0 }
+          }
+          groupedServiceStats[group][serviceName].count++
+          groupedServiceStats[group][serviceName].revenue += Number(servicePrice)
+        })
+      } else {
+        // Legacy single service earning
+        const serviceName = e.service_name || "Desconhecido"
+        const serviceCategory = e.service_category?.toLowerCase() || ""
+
+        let group = "Outros"
+        for (const [groupName, keywords] of Object.entries(serviceGroups)) {
+          if (
+            keywords.some((keyword) => serviceName.toLowerCase().includes(keyword) || serviceCategory.includes(keyword))
+          ) {
+            group = groupName
+            break
+          }
         }
-      }
 
-      if (!groupedServiceStats[group][serviceName]) {
-        groupedServiceStats[group][serviceName] = { count: 0, revenue: 0 }
+        if (!groupedServiceStats[group][serviceName]) {
+          groupedServiceStats[group][serviceName] = { count: 0, revenue: 0 }
+        }
+        groupedServiceStats[group][serviceName].count++
+        groupedServiceStats[group][serviceName].revenue += Number(e.amount)
       }
-      groupedServiceStats[group][serviceName].count++
-      groupedServiceStats[group][serviceName].revenue += Number(e.amount)
     }
   })
 
