@@ -9,7 +9,6 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { PREDEFINED_SERVICES } from "@/lib/constants/services"
 import { Navbar } from "@/components/navbar"
 import { useRouter } from "next/navigation"
@@ -21,8 +20,6 @@ export const dynamic = "force-dynamic"
 
 export default function CriarServicoAdmin() {
   const [profile, setProfile] = useState<any>(null)
-  const [staffMembers, setStaffMembers] = useState<any[]>([])
-  const [selectedStaff, setSelectedStaff] = useState("")
   const [name, setName] = useState("")
   const [description, setDescription] = useState("")
   const [price, setPrice] = useState("")
@@ -53,10 +50,6 @@ export default function CriarServicoAdmin() {
     }
 
     setProfile(profileData)
-
-    // Load staff members
-    const { data: staffData } = await supabase.from("profiles").select("*").gte("user_level", 20).order("full_name")
-    setStaffMembers(staffData || [])
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -64,31 +57,16 @@ export default function CriarServicoAdmin() {
     setIsLoading(true)
 
     try {
-      if (!selectedStaff) {
-        throw new Error("Selecione um profissional")
-      }
-
-      const { data: serviceData, error: serviceError } = await supabase
-        .from("services")
-        .insert({
-          name,
-          description: description || null,
-          price: Number.parseFloat(price),
-          duration: Number.parseInt(duration),
-          category: category || null,
-          is_active: true,
-        })
-        .select()
-        .single()
-
-      if (serviceError) throw serviceError
-
-      const { error: linkError } = await supabase.from("staff_services").insert({
-        staff_id: selectedStaff,
-        service_id: serviceData.id,
+      const { error: serviceError } = await supabase.from("services").insert({
+        name,
+        description: description || null,
+        price: Number.parseFloat(price),
+        duration: Number.parseInt(duration),
+        category: category || null,
+        is_active: true,
       })
 
-      if (linkError) throw linkError
+      if (serviceError) throw serviceError
 
       toast.success("Serviço criado com sucesso!")
       router.push("/admin/servicos")
@@ -126,22 +104,6 @@ export default function CriarServicoAdmin() {
           </CardHeader>
           <CardContent>
             <form onSubmit={handleSubmit} className="space-y-4 md:space-y-6">
-              <div className="space-y-2">
-                <Label htmlFor="staff">Profissional Responsável *</Label>
-                <Select value={selectedStaff} onValueChange={setSelectedStaff} required>
-                  <SelectTrigger className="border-gold/20">
-                    <SelectValue placeholder="Selecione um profissional" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {staffMembers.map((staff) => (
-                      <SelectItem key={staff.id} value={staff.id}>
-                        {staff.full_name || staff.email}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
               <div className="space-y-2">
                 <Label htmlFor="name">Nome do Serviço *</Label>
                 <Input
