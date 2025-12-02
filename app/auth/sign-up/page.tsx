@@ -28,22 +28,39 @@ export default function SignUpPage() {
     setIsLoading(true)
     setError(null)
 
+    console.log("[v0] Starting sign-up process...")
+
     try {
-      const { error } = await supabase.auth.signUp({
+      const { data, error: signUpError } = await supabase.auth.signUp({
         email,
         password,
         options: {
-          emailRedirectTo: "https://v0-stylus-app-project.vercel.app/cliente",
+          emailRedirectTo: process.env.NEXT_PUBLIC_DEV_SUPABASE_REDIRECT_URL || `${window.location.origin}/cliente`,
           data: {
             full_name: fullName,
             phone: phone,
-            user_level: 10, // Default to client
+            user_level: 10, // Client level
           },
         },
       })
-      if (error) throw error
-      router.push("/auth/sign-up-success")
+
+      if (signUpError) {
+        console.error("[v0] Sign-up error:", signUpError)
+        throw signUpError
+      }
+
+      console.log("[v0] Sign-up successful! User created:", data.user?.id)
+      console.log("[v0] Session created:", !!data.session)
+
+      if (data.session) {
+        console.log("[v0] Session exists, redirecting to client dashboard...")
+        router.push("/cliente")
+      } else {
+        console.log("[v0] No session, user needs to confirm email (should not happen with disabled confirmation)")
+        router.push("/auth/sign-up-success")
+      }
     } catch (error: unknown) {
+      console.error("[v0] Sign-up failed:", error)
       setError(error instanceof Error ? error.message : "Erro ao criar conta")
     } finally {
       setIsLoading(false)

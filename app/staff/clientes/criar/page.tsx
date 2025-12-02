@@ -2,7 +2,7 @@
 
 import type React from "react"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { createClient } from "@/lib/supabase/client"
 import { Navbar } from "@/components/navbar"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -13,7 +13,6 @@ import { ArrowLeft } from "lucide-react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { toast } from "sonner"
-import { useEffect } from "react"
 
 export default function CriarClienteStaff() {
   const [profile, setProfile] = useState<any>(null)
@@ -50,40 +49,47 @@ export default function CriarClienteStaff() {
     e.preventDefault()
     setIsLoading(true)
 
+    console.log("[v0] Staff creating new client account...")
+
     try {
-      // Criar conta de autenticação
       const { data: authData, error: authError } = await supabase.auth.signUp({
         email,
         password,
         options: {
           data: {
             full_name: fullName,
-            user_level: 10, // Nível de cliente
+            phone: phone,
+            user_level: 10, // Client level
           },
         },
       })
 
-      if (authError) throw authError
+      if (authError) {
+        console.error("[v0] Auth error:", authError)
+        throw authError
+      }
 
+      console.log("[v0] Client account created successfully! User ID:", authData.user?.id)
+
+      // Just verify it was created
       if (authData.user) {
-        // Atualizar perfil com informações adicionais
-        const { error: profileError } = await supabase
+        const { data: profileData, error: profileError } = await supabase
           .from("profiles")
-          .update({
-            full_name: fullName,
-            phone,
-            user_level: 10,
-            is_active: true,
-          })
+          .select("*")
           .eq("id", authData.user.id)
+          .single()
 
-        if (profileError) throw profileError
+        if (profileError) {
+          console.warn("[v0] Profile verification failed (might not be created yet):", profileError)
+        } else {
+          console.log("[v0] Profile verified:", profileData)
+        }
 
         toast.success("Conta de cliente criada com sucesso!")
         router.push("/staff/clientes")
       }
     } catch (error: any) {
-      console.error("Erro ao criar conta:", error)
+      console.error("[v0] Error creating client account:", error)
       toast.error(error.message || "Erro ao criar conta de cliente")
     } finally {
       setIsLoading(false)
@@ -141,13 +147,14 @@ export default function CriarClienteStaff() {
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="phone">Telefone</Label>
+                <Label htmlFor="phone">Telefone *</Label>
                 <Input
                   id="phone"
                   type="tel"
                   value={phone}
                   onChange={(e) => setPhone(e.target.value)}
                   placeholder="(00) 00000-0000"
+                  required
                   className="border-gold/20"
                 />
               </div>
@@ -165,7 +172,7 @@ export default function CriarClienteStaff() {
                   className="border-gold/20"
                 />
                 <p className="text-xs text-muted-foreground">
-                  O cliente receberá um email para confirmar a conta e poderá alterar a senha posteriormente
+                  O cliente poderá fazer login imediatamente com essas credenciais
                 </p>
               </div>
 
