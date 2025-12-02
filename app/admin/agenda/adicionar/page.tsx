@@ -24,7 +24,7 @@ export default function AdicionarAgendamentoAdmin() {
   const [services, setServices] = useState<any[]>([])
   const [selectedClient, setSelectedClient] = useState("")
   const [selectedStaff, setSelectedStaff] = useState("")
-  const [selectedServices, setSelectedServices] = useState<string[]>([])
+  const [selectedService, setSelectedService] = useState("")
   const [appointmentDate, setAppointmentDate] = useState("")
   const [appointmentTime, setAppointmentTime] = useState("")
   const [notes, setNotes] = useState("")
@@ -43,16 +43,6 @@ export default function AdicionarAgendamentoAdmin() {
   const [staffTimeConflict, setStaffTimeConflict] = useState<string | null>(null)
   const router = useRouter()
   const supabase = createClient()
-
-  const totalDuration = selectedServices.reduce((total, serviceId) => {
-    const service = services.find((s) => s.id === serviceId)
-    return total + (service?.duration || 0)
-  }, 0)
-
-  const totalPrice = selectedServices.reduce((total, serviceId) => {
-    const service = services.find((s) => s.id === serviceId)
-    return total + (service?.price || 0)
-  }, 0)
 
   useEffect(() => {
     loadData()
@@ -139,11 +129,19 @@ export default function AdicionarAgendamentoAdmin() {
     }
   }
 
-  const checkAgendaBlocks = async (staffId: string, date: string, time: string, duration: number) => {
+  const checkAgendaBlocks = async (staffId: string, date: string, time: string, serviceId: string | null) => {
     if (!staffId || !date || !time) return false
 
     try {
       const appointmentDateTime = new Date(`${date}T${time}`)
+
+      // Get service duration to calculate end time
+      let duration = 60 // default 60 minutes
+      if (serviceId) {
+        const { data: service } = await supabase.from("services").select("duration").eq("id", serviceId).single()
+        if (service) duration = service.duration
+      }
+
       const appointmentEndTime = new Date(appointmentDateTime.getTime() + duration * 60000)
 
       const { data: blocks } = await supabase
@@ -238,7 +236,7 @@ export default function AdicionarAgendamentoAdmin() {
       return
     }
 
-    const hasBlock = await checkAgendaBlocks(selectedStaff, appointmentDate, appointmentTime, totalDuration)
+    const hasBlock = await checkAgendaBlocks(selectedStaff, appointmentDate, appointmentTime, selectedService)
     if (hasBlock) {
       return
     }
@@ -270,29 +268,12 @@ export default function AdicionarAgendamentoAdmin() {
         return
       }
 
-      if (clientType !== "none" && selectedServices.length === 0) {
-        toast.error("Selecione pelo menos um serviço")
-        setIsLoading(false)
-        return
-      }
-
       const appointmentDateTime = new Date(`${appointmentDate}T${appointmentTime}`)
-
-      const servicePrices = selectedServices.map((serviceId) => {
-        const service = services.find((s) => s.id === serviceId)
-        return {
-          service_id: serviceId,
-          price: service?.price || 0,
-        }
-      })
 
       const appointmentData = {
         client_id: clientType === "registered" ? selectedClient : null,
         staff_id: selectedStaff,
-        // Keep service_id for backward compatibility with the first service
-        service_id: selectedServices[0] || null,
-        service_ids: selectedServices,
-        service_prices: servicePrices,
+        service_id: selectedService || null,
         appointment_date: appointmentDateTime.toISOString(),
         status: "confirmed",
         notes,
@@ -301,8 +282,6 @@ export default function AdicionarAgendamentoAdmin() {
         sporadic_client_phone: clientType === "sporadic" ? sporadicPhone : null,
         event_title: clientType === "none" ? eventTitle : null,
         payment_status: "pending",
-        custom_price: totalPrice,
-        original_price: totalPrice,
         is_recurring: isRecurring,
         recurrence_type: isRecurring ? recurrenceType : null,
         recurrence_days: isRecurring && recurrenceType === "twice_weekly" ? recurrenceDays : null,
@@ -348,12 +327,6 @@ export default function AdicionarAgendamentoAdmin() {
 
   const toggleRecurrenceDay = (day: number) => {
     setRecurrenceDays((prev) => (prev.includes(day) ? prev.filter((d) => d !== day) : [...prev, day]))
-  }
-
-  const toggleService = (serviceId: string) => {
-    setSelectedServices((prev) =>
-      prev.includes(serviceId) ? prev.filter((id) => id !== serviceId) : [...prev, serviceId],
-    )
   }
 
   if (!profile) return null
@@ -481,49 +454,26 @@ export default function AdicionarAgendamentoAdmin() {
               </div>
 
               <div className="space-y-2">
-                <Label>Serviços {clientType !== "none" && "*"} (pode selecionar múltiplos)</Label>
-                {!selectedStaff ? (
-                  <p className="text-sm text-muted-foreground p-4 border border-gold/20 rounded-lg">
-                    Selecione um profissional primeiro
-                  </p>
-                ) : services.length === 0 ? (
-                  <p className="text-sm text-muted-foreground p-4 border border-gold/20 rounded-lg">
-                    Este profissional não tem serviços cadastrados
-                  </p>
-                ) : (
-                  <div className="space-y-2 max-h-60 overflow-y-auto border border-gold/20 rounded-lg p-3">
+                <Label htmlFor="service">Serviço {clientType !== "none" && "*"}</Label>
+                <Select
+                  value={selectedService}
+                  onValueChange={setSelectedService}
+                  required={clientType !== "none"}
+                  disabled={!selectedStaff}
+                >
+                  <SelectTrigger className="border-gold/20">
+                    <SelectValue
+                      placeholder={selectedStaff ? "Selecione um serviço" : "Selecione um profissional primeiro"}
+                    />
+                  </SelectTrigger>
+                  <SelectContent>
                     {services.map((service: any) => (
-                      <div key={service.id} className="flex items-center space-x-2 p-2 hover:bg-card/50 rounded">
-                        <Checkbox
-                          id={`service-${service.id}`}
-                          checked={selectedServices.includes(service.id)}
-                          onCheckedChange={() => toggleService(service.id)}
-                        />
-                        <label
-                          htmlFor={`service-${service.id}`}
-                          className="flex-1 text-sm text-foreground cursor-pointer"
-                        >
-                          <span className="font-medium">{service.name}</span>
-                          <span className="text-muted-foreground">
-                            {" "}
-                            - R$ {service.price} ({service.duration} min)
-                          </span>
-                        </label>
-                      </div>
+                      <SelectItem key={service.id} value={service.id}>
+                        {service.name} - R$ {service.price} ({service.duration} min)
+                      </SelectItem>
                     ))}
-                  </div>
-                )}
-                {selectedServices.length > 0 && (
-                  <div className="text-sm bg-gold/10 border border-gold/20 p-3 rounded-lg space-y-1">
-                    <p className="text-foreground">
-                      <span className="font-semibold">{selectedServices.length}</span> serviço(s) selecionado(s)
-                    </p>
-                    <p className="text-foreground">
-                      Duração total: <span className="font-semibold">{totalDuration} minutos</span>
-                    </p>
-                    <p className="text-gold font-bold text-base">Preço total: R$ {totalPrice.toFixed(2)}</p>
-                  </div>
-                )}
+                  </SelectContent>
+                </Select>
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">

@@ -30,7 +30,6 @@ export default function AdminRelatoriosPage() {
   const [staff, setStaff] = useState<Profile[]>([])
   const [reportData, setReportData] = useState<any>(null)
   const [exporting, setExporting] = useState(false)
-  const [services, setServices] = useState<any[]>([])
 
   useEffect(() => {
     async function loadData() {
@@ -55,10 +54,6 @@ export default function AdminRelatoriosPage() {
 
       setStaff(staffData || [])
       setLoading(false)
-
-      const { data: servicesData } = await supabase.from("services").select("*")
-
-      setServices(servicesData || [])
     }
 
     loadData()
@@ -187,72 +182,22 @@ export default function AdminRelatoriosPage() {
     const avgRating =
       feedback && feedback.length > 0 ? feedback.reduce((sum, f) => sum + f.rating, 0) / feedback.length : 0
 
-    const serviceStats: Record<
-      string,
-      { count: number; revenue: number; avgRating: number; feedbackCount: number; category: string }
-    > = {}
+    const serviceStats: Record<string, { count: number; revenue: number; avgRating: number; feedbackCount: number }> =
+      {}
 
     completedAppointments.forEach((a) => {
-      // Handle multiple services if service_ids exists
-      if (a.service_ids && Array.isArray(a.service_ids) && a.service_ids.length > 0) {
-        const servicePrices = a.service_prices || []
-
-        a.service_ids.forEach((serviceId: string, index: number) => {
-          // Find the service to get its name and category
-          const serviceData = services.find((s: any) => s.id === serviceId)
-          const serviceName = serviceData?.name || "Desconhecido"
-          const serviceCategory = serviceData?.category || "Sem categoria"
-
-          // Get price for this specific service
-          const priceData = servicePrices.find((sp: any) => sp.service_id === serviceId)
-          const servicePrice = priceData?.price || serviceData?.price || 0
-
-          if (!serviceStats[serviceName]) {
-            serviceStats[serviceName] = {
-              count: 0,
-              revenue: 0,
-              avgRating: 0,
-              feedbackCount: 0,
-              category: serviceCategory,
-            }
-          }
-          serviceStats[serviceName].count++
-          serviceStats[serviceName].revenue += Number(servicePrice)
-        })
-      } else {
-        // Fallback for old single-service appointments
-        const serviceName = a.service?.name || "Desconhecido"
-        const serviceCategory = a.service?.category || "Sem categoria"
-
-        if (!serviceStats[serviceName]) {
-          serviceStats[serviceName] = {
-            count: 0,
-            revenue: 0,
-            avgRating: 0,
-            feedbackCount: 0,
-            category: serviceCategory,
-          }
-        }
-        serviceStats[serviceName].count++
-        serviceStats[serviceName].revenue += Number(a.custom_price || a.service?.price || 0)
+      const serviceName = a.service?.name || "Desconhecido"
+      if (!serviceStats[serviceName]) {
+        serviceStats[serviceName] = { count: 0, revenue: 0, avgRating: 0, feedbackCount: 0 }
       }
+      serviceStats[serviceName].count++
+      serviceStats[serviceName].revenue += Number(a.custom_price || a.service?.price || 0)
 
-      // Handle feedback ratings
       const serviceFeedback = feedback?.filter((f) => f.appointment_id === a.id)
       if (serviceFeedback && serviceFeedback.length > 0) {
-        // Distribute rating across all services in the appointment
-        const serviceNames =
-          a.service_ids && a.service_ids.length > 0
-            ? a.service_ids.map((id: string) => services.find((s: any) => s.id === id)?.name || "Desconhecido")
-            : [a.service?.name || "Desconhecido"]
-
-        serviceNames.forEach((name: string) => {
-          if (serviceStats[name]) {
-            serviceStats[name].avgRating +=
-              serviceFeedback.reduce((sum, f) => sum + f.rating, 0) / serviceFeedback.length
-            serviceStats[name].feedbackCount++
-          }
-        })
+        serviceStats[serviceName].avgRating +=
+          serviceFeedback.reduce((sum, f) => sum + f.rating, 0) / serviceFeedback.length
+        serviceStats[serviceName].feedbackCount++
       }
     })
 
@@ -299,28 +244,6 @@ export default function AdminRelatoriosPage() {
     const retentionRate =
       Object.keys(clientStats).length > 0 ? (returningClients / Object.keys(clientStats).length) * 100 : 0
 
-    const servicesByCategory = Object.entries(serviceStats).reduce(
-      (acc, [name, stats]) => {
-        const category = stats.category || "Sem categoria"
-        if (!acc[category]) {
-          acc[category] = []
-        }
-        acc[category].push({ name, ...stats })
-        return acc
-      },
-      {} as Record<
-        string,
-        Array<{
-          name: string
-          count: number
-          revenue: number
-          avgRating: number
-          feedbackCount: number
-          category: string
-        }>
-      >,
-    )
-
     setReportData({
       appointments: appointments || [],
       completedAppointments,
@@ -338,7 +261,6 @@ export default function AdminRelatoriosPage() {
       startDate,
       endDate,
       lastUpdate: new Date(), // Add timestamp for real-time indicator
-      servicesByCategory,
     })
   }
 
@@ -508,54 +430,6 @@ export default function AdminRelatoriosPage() {
             <CardContent>
               <div className="text-2xl font-bold text-foreground">{reportData.retentionRate.toFixed(1)}%</div>
               <p className="text-xs text-muted-foreground mt-1">{reportData.returningClients} clientes retornaram</p>
-            </CardContent>
-          </Card>
-
-          <Card className="border-gold/20">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-foreground">
-                <TrendingUp className="h-5 w-5 text-gold" />
-                Serviços por Categoria
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-6">
-                {Object.entries(reportData.servicesByCategory)
-                  .sort((a, b) => {
-                    const revenueA = a[1].reduce((sum, s) => sum + s.revenue, 0)
-                    const revenueB = b[1].reduce((sum, s) => sum + s.revenue, 0)
-                    return revenueB - revenueA
-                  })
-                  .map(([category, services]) => {
-                    const categoryRevenue = services.reduce((sum, s) => sum + s.revenue, 0)
-                    const categoryCount = services.reduce((sum, s) => sum + s.count, 0)
-
-                    return (
-                      <div key={category} className="border border-gold/20 rounded-lg p-4">
-                        <div className="flex items-center justify-between mb-3">
-                          <h3 className="font-bold text-lg text-foreground">{category}</h3>
-                          <div className="text-right">
-                            <p className="text-xl font-bold text-gold">R$ {categoryRevenue.toFixed(2)}</p>
-                            <p className="text-sm text-muted-foreground">{categoryCount} serviços</p>
-                          </div>
-                        </div>
-                        <div className="space-y-2">
-                          {services
-                            .sort((a, b) => b.revenue - a.revenue)
-                            .map((service, index) => (
-                              <div key={index} className="flex items-center justify-between p-2 bg-card/30 rounded">
-                                <div>
-                                  <p className="text-sm font-medium text-foreground">{service.name}</p>
-                                  <p className="text-xs text-muted-foreground">{service.count} vendas</p>
-                                </div>
-                                <p className="text-sm font-semibold text-gold">R$ {service.revenue.toFixed(2)}</p>
-                              </div>
-                            ))}
-                        </div>
-                      </div>
-                    )
-                  })}
-              </div>
             </CardContent>
           </Card>
         </div>
@@ -785,14 +659,14 @@ export default function AdminRelatoriosPage() {
                     .map(([clientId, stats]: [string, any], index: number) => {
                       const client = reportData.appointments.find((a: any) => a.client_id === clientId)?.client
                       return (
-                        <div key={index} className="flex items-center justify-between p-3 bg-card/30 rounded">
-                          <div>
-                            <p className="text-sm font-medium text-foreground">{client?.full_name || "Cliente"}</p>
-                            <p className="text-xs text-muted-foreground">
+                        <div key={index} className="flex items-center justify-between p-3 bg-card/50 rounded-lg">
+                          <div className="flex-1">
+                            <p className="font-semibold text-foreground">{client?.full_name || "Cliente"}</p>
+                            <p className="text-sm text-muted-foreground">
                               {stats.visits} visitas • Última: {format(new Date(stats.lastVisit), "dd/MM/yyyy")}
                             </p>
                           </div>
-                          <p className="text-sm font-semibold text-gold">R$ {stats.spent.toFixed(2)}</p>
+                          <p className="text-lg font-bold text-gold">R$ {stats.spent.toFixed(2)}</p>
                         </div>
                       )
                     })}

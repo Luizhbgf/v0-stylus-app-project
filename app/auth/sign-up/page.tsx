@@ -29,57 +29,21 @@ export default function SignUpPage() {
     setError(null)
 
     try {
-      console.log("[v0] Starting sign-up process...")
-
-      const { data, error: signUpError } = await supabase.auth.signUp({
+      const { error } = await supabase.auth.signUp({
         email,
         password,
         options: {
-          emailRedirectTo: `${window.location.origin}/cliente`,
+          emailRedirectTo: "https://v0-stylus-app-project.vercel.app/cliente",
           data: {
             full_name: fullName,
             phone: phone,
-            user_level: 10,
+            user_level: 10, // Default to client
           },
         },
       })
-
-      console.log("[v0] Sign-up response:", { data, error: signUpError })
-
-      if (signUpError) {
-        console.error("[v0] Sign-up error:", signUpError)
-        throw signUpError
-      }
-
-      if (data.user) {
-        console.log("[v0] User created:", data.user.id)
-
-        if (data.session) {
-          console.log("[v0] Session created immediately, redirecting...")
-          router.push("/cliente")
-        } else {
-          console.log("[v0] No session - attempting sign in...")
-          // Try to sign in immediately (works if email confirmation is disabled)
-          const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
-            email,
-            password,
-          })
-
-          console.log("[v0] Sign-in response:", { data: signInData, error: signInError })
-
-          if (signInError) {
-            console.error("[v0] Sign-in error:", signInError)
-            // If sign-in fails, show message that account was created
-            setError("Conta criada! Você pode fazer login agora.")
-            setTimeout(() => router.push("/login"), 2000)
-          } else {
-            console.log("[v0] Sign-in successful, redirecting...")
-            router.push("/cliente")
-          }
-        }
-      }
+      if (error) throw error
+      router.push("/auth/sign-up-success")
     } catch (error: unknown) {
-      console.error("[v0] Sign up error:", error)
       setError(error instanceof Error ? error.message : "Erro ao criar conta")
     } finally {
       setIsLoading(false)
