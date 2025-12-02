@@ -37,6 +37,7 @@ export default function SignUpPage() {
           data: {
             full_name: fullName,
             phone: phone,
+            user_level: 10, // Client level
           },
         },
       })
@@ -44,22 +45,17 @@ export default function SignUpPage() {
       if (signUpError) throw signUpError
 
       if (data.user) {
-        const { error: profileError } = await supabase.from("profiles").insert({
-          id: data.user.id,
-          email: email,
-          full_name: fullName,
-          phone: phone,
-          user_level: 10, // Client level
+        const { error: signInError } = await supabase.auth.signInWithPassword({
+          email,
+          password,
         })
 
-        if (profileError) {
-          console.error("Profile creation error:", profileError)
-        }
+        if (signInError) throw signInError
 
         router.push("/cliente")
       }
     } catch (error: unknown) {
-      console.error("Sign up error:", error)
+      console.error("[v0] Sign up error:", error)
       setError(error instanceof Error ? error.message : "Erro ao criar conta")
     } finally {
       setIsLoading(false)
