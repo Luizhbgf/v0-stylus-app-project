@@ -29,6 +29,8 @@ export default function SignUpPage() {
     setError(null)
 
     try {
+      console.log("[v0] Starting sign-up process...")
+
       const { data, error: signUpError } = await supabase.auth.signUp({
         email,
         password,
@@ -37,22 +39,44 @@ export default function SignUpPage() {
           data: {
             full_name: fullName,
             phone: phone,
-            user_level: 10, // Client level
+            user_level: 10,
           },
         },
       })
 
-      if (signUpError) throw signUpError
+      console.log("[v0] Sign-up response:", { data, error: signUpError })
+
+      if (signUpError) {
+        console.error("[v0] Sign-up error:", signUpError)
+        throw signUpError
+      }
 
       if (data.user) {
-        const { error: signInError } = await supabase.auth.signInWithPassword({
-          email,
-          password,
-        })
+        console.log("[v0] User created:", data.user.id)
 
-        if (signInError) throw signInError
+        if (data.session) {
+          console.log("[v0] Session created immediately, redirecting...")
+          router.push("/cliente")
+        } else {
+          console.log("[v0] No session - attempting sign in...")
+          // Try to sign in immediately (works if email confirmation is disabled)
+          const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
+            email,
+            password,
+          })
 
-        router.push("/cliente")
+          console.log("[v0] Sign-in response:", { data: signInData, error: signInError })
+
+          if (signInError) {
+            console.error("[v0] Sign-in error:", signInError)
+            // If sign-in fails, show message that account was created
+            setError("Conta criada! Você pode fazer login agora.")
+            setTimeout(() => router.push("/login"), 2000)
+          } else {
+            console.log("[v0] Sign-in successful, redirecting...")
+            router.push("/cliente")
+          }
+        }
       }
     } catch (error: unknown) {
       console.error("[v0] Sign up error:", error)
