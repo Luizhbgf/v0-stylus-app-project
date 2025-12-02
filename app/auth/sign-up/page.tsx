@@ -29,21 +29,37 @@ export default function SignUpPage() {
     setError(null)
 
     try {
-      const { error } = await supabase.auth.signUp({
+      const { data, error: signUpError } = await supabase.auth.signUp({
         email,
         password,
         options: {
-          emailRedirectTo: "https://v0-stylus-app-project.vercel.app/cliente",
+          emailRedirectTo: `${window.location.origin}/cliente`,
           data: {
             full_name: fullName,
             phone: phone,
-            user_level: 10, // Default to client
           },
         },
       })
-      if (error) throw error
-      router.push("/auth/sign-up-success")
+
+      if (signUpError) throw signUpError
+
+      if (data.user) {
+        const { error: profileError } = await supabase.from("profiles").insert({
+          id: data.user.id,
+          email: email,
+          full_name: fullName,
+          phone: phone,
+          user_level: 10, // Client level
+        })
+
+        if (profileError) {
+          console.error("Profile creation error:", profileError)
+        }
+
+        router.push("/cliente")
+      }
     } catch (error: unknown) {
+      console.error("Sign up error:", error)
       setError(error instanceof Error ? error.message : "Erro ao criar conta")
     } finally {
       setIsLoading(false)
