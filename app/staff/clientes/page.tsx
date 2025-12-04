@@ -34,6 +34,7 @@ export default async function StaffClientes({
       client_id,
       client_type,
       sporadic_client_name,
+      sporadic_client_phone,
       service:services(price),
       client:profiles!client_id(id, full_name, email, phone)
     `,
@@ -63,7 +64,7 @@ export default async function StaffClientes({
       clientId = `sporadic-${apt.sporadic_client_name}`
       clientName = apt.sporadic_client_name || "Cliente Esporádico"
       clientEmail = "N/A"
-      clientPhone = "N/A"
+      clientPhone = apt.sporadic_client_phone || "N/A"
     } else if (apt.client_id && apt.client) {
       clientId = apt.client_id
       clientName = apt.client.full_name
