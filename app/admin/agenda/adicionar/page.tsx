@@ -31,7 +31,7 @@ export default function AdicionarAgendamentoAdmin() {
   const [appointmentTime, setAppointmentTime] = useState("")
   const [notes, setNotes] = useState("")
 
-  const [clientType, setClientType] = useState<"registered" | "sporadic" | "none">("registered")
+  const [clientType, setClientType] = useState<"sporadic" | "none">("sporadic")
   const [sporadicName, setSporadicName] = useState("")
   const [sporadicPhone, setSporadicPhone] = useState("")
   const [eventTitle, setEventTitle] = useState("")
@@ -246,8 +246,8 @@ export default function AdicionarAgendamentoAdmin() {
     setIsLoading(true)
 
     try {
-      if (clientType === "registered" && !selectedClient) {
-        toast.error("Selecione um cliente")
+      if (clientType === "sporadic" && (!sporadicName || !sporadicPhone)) {
+        toast.error("Preencha o nome e telefone do cliente")
         setIsLoading(false)
         return
       }
@@ -275,7 +275,7 @@ export default function AdicionarAgendamentoAdmin() {
       })
 
       const appointmentData = {
-        client_id: clientType === "registered" ? selectedClient : null,
+        client_id: null,
         staff_id: selectedStaff,
         service_id: selectedServices.length > 0 ? selectedServices[0] : null,
         service_ids: selectedServices.length > 0 ? selectedServices : null,
@@ -373,15 +373,9 @@ export default function AdicionarAgendamentoAdmin() {
                 <Label>Tipo de Agendamento *</Label>
                 <RadioGroup value={clientType} onValueChange={(value: any) => setClientType(value)}>
                   <div className="flex items-center space-x-2 p-3 border border-gold/20 rounded-lg">
-                    <RadioGroupItem value="registered" id="registered" />
-                    <Label htmlFor="registered" className="cursor-pointer flex-1">
-                      Cliente Cadastrado
-                    </Label>
-                  </div>
-                  <div className="flex items-center space-x-2 p-3 border border-gold/20 rounded-lg">
                     <RadioGroupItem value="sporadic" id="sporadic" />
                     <Label htmlFor="sporadic" className="cursor-pointer flex-1">
-                      Cliente Esporádico (sem cadastro)
+                      Marcação de Cliente
                     </Label>
                   </div>
                   <div className="flex items-center space-x-2 p-3 border border-gold/20 rounded-lg">
@@ -392,24 +386,6 @@ export default function AdicionarAgendamentoAdmin() {
                   </div>
                 </RadioGroup>
               </div>
-
-              {clientType === "registered" && (
-                <div className="space-y-2">
-                  <Label htmlFor="client">Cliente *</Label>
-                  <Select value={selectedClient} onValueChange={setSelectedClient} required>
-                    <SelectTrigger className="border-gold/20">
-                      <SelectValue placeholder="Selecione um cliente" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {clients.map((client) => (
-                        <SelectItem key={client.id} value={client.id}>
-                          {client.full_name} - {client.email}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-              )}
 
               {clientType === "sporadic" && (
                 <>
@@ -438,85 +414,86 @@ export default function AdicionarAgendamentoAdmin() {
                 </>
               )}
 
-              {clientType === "none" && (
-                <div className="space-y-2">
-                  <Label htmlFor="eventTitle">Título do Evento *</Label>
-                  <Input
-                    id="eventTitle"
-                    value={eventTitle}
-                    onChange={(e) => setEventTitle(e.target.value)}
-                    placeholder="Ex: Horário bloqueado, Almoço, Reunião..."
-                    className="border-gold/20"
-                    required
-                  />
-                </div>
-              )}
-
-              <div className="space-y-2">
-                <Label htmlFor="staff">Profissional *</Label>
-                <Select value={selectedStaff} onValueChange={setSelectedStaff} required>
-                  <SelectTrigger className="border-gold/20">
-                    <SelectValue placeholder="Selecione um profissional" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {staffMembers.map((staff) => (
-                      <SelectItem key={staff.id} value={staff.id}>
-                        {staff.full_name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div className="space-y-3">
-                <Label>Serviços {clientType !== "none" && "*"}</Label>
-                <p className="text-sm text-muted-foreground">Selecione um ou mais serviços para este agendamento</p>
-
-                {!selectedStaff && <p className="text-sm text-amber-600">Selecione um profissional primeiro</p>}
-
-                <div className="space-y-2 max-h-64 overflow-y-auto border border-gold/20 rounded-lg p-3">
-                  {services.length === 0 && selectedStaff && (
-                    <p className="text-sm text-muted-foreground">Nenhum serviço disponível para este profissional</p>
-                  )}
-
-                  {services.map((service: any) => (
-                    <div
-                      key={service.id}
-                      className="flex items-start space-x-3 p-2 hover:bg-gold/5 rounded-md transition-colors"
-                    >
-                      <Checkbox
-                        id={`service-${service.id}`}
-                        checked={selectedServices.includes(service.id)}
-                        onCheckedChange={() => toggleServiceSelection(service.id)}
-                        disabled={!selectedStaff}
-                      />
-                      <div className="flex-1">
-                        <Label htmlFor={`service-${service.id}`} className="cursor-pointer font-medium text-foreground">
-                          {service.name}
-                        </Label>
-                        <p className="text-sm text-muted-foreground">
-                          R$ {service.price} • {service.duration} min
-                          {service.category && ` • ${service.category}`}
-                        </p>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-
-                {selectedServices.length > 0 && (
-                  <div className="p-3 bg-gold/10 border border-gold/20 rounded-lg">
-                    <div className="flex justify-between items-center text-sm">
-                      <span className="text-muted-foreground">{calculateTotals().count} serviço(s) selecionado(s)</span>
-                      <div className="text-right">
-                        <p className="font-medium text-foreground">
-                          Total: R$ {calculateTotals().totalPrice.toFixed(2)}
-                        </p>
-                        <p className="text-xs text-muted-foreground">Duração: {calculateTotals().totalDuration} min</p>
-                      </div>
-                    </div>
+              {clientType !== "none" && (
+                <>
+                  <div className="space-y-2">
+                    <Label htmlFor="professional">Profissional *</Label>
+                    <Select value={selectedStaff} onValueChange={setSelectedStaff} required>
+                      <SelectTrigger className="border-gold/20">
+                        <SelectValue placeholder="Selecione um profissional" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {staffMembers.map((staff) => (
+                          <SelectItem key={staff.id} value={staff.id}>
+                            {staff.full_name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                   </div>
-                )}
-              </div>
+
+                  <div className="space-y-2">
+                    <Label>Serviços *</Label>
+                    <p className="text-sm text-muted-foreground mb-3">
+                      Selecione um ou mais serviços para este agendamento
+                    </p>
+
+                    {!selectedStaff && <p className="text-sm text-amber-600">Selecione um profissional primeiro</p>}
+
+                    <div className="space-y-2 max-h-64 overflow-y-auto border border-gold/20 rounded-lg p-3">
+                      {services.length === 0 && selectedStaff && (
+                        <p className="text-sm text-muted-foreground">
+                          Nenhum serviço disponível para este profissional
+                        </p>
+                      )}
+
+                      {services.map((service: any) => (
+                        <div
+                          key={service.id}
+                          className="flex items-start space-x-3 p-2 hover:bg-gold/5 rounded-md transition-colors"
+                        >
+                          <Checkbox
+                            id={`service-${service.id}`}
+                            checked={selectedServices.includes(service.id)}
+                            onCheckedChange={() => toggleServiceSelection(service.id)}
+                            disabled={!selectedStaff}
+                          />
+                          <div className="flex-1">
+                            <Label
+                              htmlFor={`service-${service.id}`}
+                              className="cursor-pointer font-medium text-foreground"
+                            >
+                              {service.name}
+                            </Label>
+                            <p className="text-sm text-muted-foreground">
+                              R$ {service.price} • {service.duration} min
+                              {service.category && ` • ${service.category}`}
+                            </p>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+
+                    {selectedServices.length > 0 && (
+                      <div className="p-3 bg-gold/10 border border-gold/20 rounded-lg">
+                        <div className="flex justify-between items-center text-sm">
+                          <span className="text-muted-foreground">
+                            {calculateTotals().count} serviço(s) selecionado(s)
+                          </span>
+                          <div className="text-right">
+                            <p className="font-medium text-foreground">
+                              Total: R$ {calculateTotals().totalPrice.toFixed(2)}
+                            </p>
+                            <p className="text-xs text-muted-foreground">
+                              Duração: {calculateTotals().totalDuration} min
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </>
+              )}
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="space-y-2">
