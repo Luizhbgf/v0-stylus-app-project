@@ -31,6 +31,8 @@ export default function StaffFinanceiro() {
   const router = useRouter()
   const supabase = createClient()
 
+  const [servicesMap, setServicesMap] = useState<Map<string, any>>(new Map())
+
   useEffect(() => {
     loadData()
   }, [])
@@ -83,6 +85,22 @@ export default function StaffFinanceiro() {
       .in("appointment_id", appointmentIds)
 
     setPayments(paymentsData || [])
+
+    const allAppointmentServiceIds = new Set<string>()
+    appointmentsData?.forEach((apt) => {
+      if (apt.service_ids && apt.service_ids.length > 0) {
+        apt.service_ids.forEach((id: string) => allAppointmentServiceIds.add(id))
+      }
+    })
+
+    const allAppointmentServiceIdsArray = Array.from(allAppointmentServiceIds)
+    if (allAppointmentServiceIdsArray.length > 0) {
+      const { data: servicesData } = await supabase
+        .from("services")
+        .select("id, name, category")
+        .in("id", allAppointmentServiceIdsArray)
+      setServicesMap(new Map(servicesData?.map((s: any) => [s.id, s]) || []))
+    }
   }
 
   const handleFilter = () => {
@@ -283,16 +301,6 @@ export default function StaffFinanceiro() {
     Químicas: {},
     "Unhas e Massagem": {},
     Outros: {},
-  }
-
-  const servicesMap = new Map<string, any>()
-  const allAppointmentServiceIdsArray = Array.from(allAppointmentServiceIds)
-  if (allAppointmentServiceIdsArray.length > 0) {
-    const { data: servicesData } = supabase
-      .from("services")
-      .select("id, name, category")
-      .in("id", allAppointmentServiceIdsArray)
-    servicesData?.forEach((s: any) => servicesMap.set(s.id, s))
   }
 
   appointments

@@ -44,6 +44,7 @@ export default function AppointmentDetailPage({ params }: { params: { id: string
     appointment_date: "",
     appointment_time: "",
     service_ids: [] as string[],
+    service_prices: {} as Record<string, number>,
     staff_id: "",
     client_id: "",
     client_type: "",
@@ -138,6 +139,7 @@ export default function AppointmentDetailPage({ params }: { params: { id: string
       appointment_date: appointmentDate.toISOString().split("T")[0],
       appointment_time: appointmentDate.toTimeString().slice(0, 5),
       service_ids: appointmentData.service_ids || [appointmentData.service_id || ""],
+      service_prices: appointmentData.service_prices || {},
       staff_id: appointmentData.staff_id || "",
       client_id: appointmentData.client_id || "",
       client_type: appointmentData.client_type || "registered",
@@ -299,32 +301,41 @@ export default function AppointmentDetailPage({ params }: { params: { id: string
   }
 
   const handleSaveEdit = async () => {
+    if (editData.service_ids.length === 0) {
+      toast.error("Selecione pelo menos um serviço")
+      return
+    }
+
     setIsLoading(true)
     try {
-      const appointmentDateTime = new Date(`${editData.appointment_date}T${editData.appointment_time}`)
+      const totalPrice = Object.values(editData.service_prices).reduce((sum, price) => sum + Number(price), 0)
 
       const updateData: any = {
-        appointment_date: appointmentDateTime.toISOString(),
+        appointment_date: `${editData.appointment_date}T${editData.appointment_time}:00`,
+        staff_id: editData.staff_id,
         service_ids: editData.service_ids,
-        staff_id: editData.staff_id || null,
-        client_type: editData.client_type,
+        service_prices: editData.service_prices,
+        custom_price: totalPrice,
+        original_price: totalPrice,
         payment_status: editData.payment_status,
-        notes: editData.notes || null,
-        custom_price: editData.custom_price ? Number.parseFloat(editData.custom_price) : null,
+        notes: editData.notes,
       }
 
       if (editData.client_type === "registered") {
-        updateData.client_id = editData.client_id || null
+        updateData.client_id = editData.client_id
+        updateData.client_type = "registered"
         updateData.sporadic_client_name = null
         updateData.sporadic_client_phone = null
         updateData.event_title = null
       } else if (editData.client_type === "sporadic") {
         updateData.client_id = null
+        updateData.client_type = "sporadic"
         updateData.sporadic_client_name = editData.sporadic_client_name
         updateData.sporadic_client_phone = editData.sporadic_client_phone
         updateData.event_title = null
-      } else if (editData.client_type === "event") {
+      } else {
         updateData.client_id = null
+        updateData.client_type = "event"
         updateData.sporadic_client_name = null
         updateData.sporadic_client_phone = null
         updateData.event_title = editData.event_title
@@ -441,23 +452,100 @@ export default function AppointmentDetailPage({ params }: { params: { id: string
                     </Select>
                   </div>
 
-                  <div className="space-y-2">
-                    <Label htmlFor="edit-service">Serviço</Label>
-                    <Select
-                      value={editData.service_ids[0]}
-                      onValueChange={(value) => setEditData({ ...editData, service_ids: [value] })}
-                    >
-                      <SelectTrigger>
-                        <SelectValue placeholder="Selecione um serviço" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {services.map((service) => (
-                          <SelectItem key={service.id} value={service.id}>
-                            {service.name} - R$ {service.price.toFixed(2)} ({service.duration}min)
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                  <div className="space-y-3">
+                    <Label>Serviços *</Label>
+                    <p className="text-sm text-muted-foreground mb-2">
+                      Selecione um ou mais serviços e ajuste os preços se necessário
+                    </p>
+                    <div className="border rounded-lg p-4 max-h-[300px] overflow-y-auto space-y-3">
+                      {services.map((service) => {
+                        const isSelected = editData.service_ids.includes(service.id)
+                        const currentPrice = editData.service_prices[service.id] || service.price
+
+                        return (
+                          <div key={service.id} className="flex items-start gap-3 p-3 rounded border">
+                            <input
+                              type="checkbox"
+                              id={`edit-service-${service.id}`}
+                              checked={isSelected}
+                              onChange={(e) => {
+                                if (e.target.checked) {
+                                  setEditData({
+                                    ...editData,
+                                    service_ids: [...editData.service_ids, service.id],
+                                    service_prices: {
+                                      ...editData.service_prices,
+                                      [service.id]: service.price,
+                                    },
+                                  })
+                                } else {
+                                  const newServiceIds = editData.service_ids.filter((id) => id !== service.id)
+                                  const newPrices = { ...editData.service_prices }
+                                  delete newPrices[service.id]
+                                  setEditData({
+                                    ...editData,
+                                    service_ids: newServiceIds,
+                                    service_prices: newPrices,
+                                  })
+                                }
+                              }}
+                              className="mt-1 h-4 w-4"
+                            />
+                            <div className="flex-1">
+                              <label htmlFor={`edit-service-${service.id}`} className="cursor-pointer">
+                                <p className="font-medium text-sm">{service.name}</p>
+                                <p className="text-xs text-muted-foreground">
+                                  R$ {service.price.toFixed(2)} • {service.duration} min • {service.category}
+                                </p>
+                              </label>
+                              {isSelected && (
+                                <div className="mt-2">
+                                  <Label htmlFor={`price-${service.id}`} className="text-xs">
+                                    Ajustar Preço (R$)
+                                  </Label>
+                                  <Input
+                                    id={`price-${service.id}`}
+                                    type="number"
+                                    step="0.01"
+                                    min="0"
+                                    value={currentPrice}
+                                    onChange={(e) => {
+                                      setEditData({
+                                        ...editData,
+                                        service_prices: {
+                                          ...editData.service_prices,
+                                          [service.id]: Number.parseFloat(e.target.value) || 0,
+                                        },
+                                      })
+                                    }}
+                                    className="h-8 text-sm"
+                                  />
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        )
+                      })}
+                    </div>
+                    {editData.service_ids.length > 0 && (
+                      <div className="bg-muted/50 p-3 rounded-lg">
+                        <p className="text-sm font-medium">{editData.service_ids.length} serviço(s) selecionado(s)</p>
+                        <p className="text-lg font-bold text-gold">
+                          Total: R${" "}
+                          {Object.values(editData.service_prices)
+                            .reduce((sum, price) => sum + Number(price), 0)
+                            .toFixed(2)}
+                        </p>
+                        <p className="text-xs text-muted-foreground mt-1">
+                          Duração:{" "}
+                          {editData.service_ids.reduce((total, id) => {
+                            const service = services.find((s) => s.id === id)
+                            return total + (service?.duration || 0)
+                          }, 0)}{" "}
+                          min
+                        </p>
+                      </div>
+                    )}
                   </div>
 
                   <div className="space-y-2">
