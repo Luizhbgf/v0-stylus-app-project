@@ -42,6 +42,7 @@ export default function AdminFinanceiroPage() {
   const [selectedAppointmentId, setSelectedAppointmentId] = useState<string | null>(null)
   const [selectedPaymentMethod, setSelectedPaymentMethod] = useState<string>("")
   const { toast } = useToast()
+  const [servicesMap, setServicesMap] = useState<Map<string, any>>(new Map<string, any>())
 
   useEffect(() => {
     async function loadData() {
@@ -129,6 +130,15 @@ export default function AdminFinanceiroPage() {
 
     setPayments(paymentsDataMapped)
     setAppointments(appointmentsData || [])
+
+    if (appointmentIds.length > 0) {
+      const { data: servicesData } = await supabase
+        .from("services")
+        .select("id, name, category")
+        .in("id", appointmentIds)
+
+      setServicesMap(new Map(servicesData?.map((s) => [s.id, s]) || []))
+    }
   }
 
   function openPaymentMethodDialog(appointmentId: string) {
@@ -336,7 +346,7 @@ export default function AdminFinanceiroPage() {
     }
   })
 
-  const serviceGroups = {
+  const serviceGroups: Record<string, string[]> = {
     "Cortes e Estética": ["corte", "barba", "sobrancelha"],
     Químicas: ["quimica", "coloração", "descoloração", "tintura", "mechas", "luzes"],
     "Unhas e Massagem": ["unha", "manicure", "pedicure", "massagem"],
@@ -352,17 +362,15 @@ export default function AdminFinanceiroPage() {
   payments.forEach((p) => {
     const appointment = p.appointment
 
-    // Check if appointment has multiple services
     if (appointment?.service_ids && appointment.service_ids.length > 0) {
       // Process each service separately
       appointment.service_ids.forEach((serviceId: string) => {
         // Get service price from service_prices jsonb field
         const servicePrice = appointment.service_prices?.[serviceId] || 0
 
-        // Find service details (we'll need to fetch this)
-        // For now, use service name from service_id match
-        const service = appointment.services?.find((s: any) => s.id === serviceId)
-        const serviceName = service?.name || "Serviço Múltiplo"
+        // Get service details from servicesMap
+        const service = servicesMap.get(serviceId)
+        const serviceName = service?.name || "Serviço Desconhecido"
         const serviceCategory = service?.category?.toLowerCase() || ""
 
         let group = "Outros"

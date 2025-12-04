@@ -33,8 +33,9 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog"
+import { redirect } from "next/navigation"
 
-export default function AdminAppointmentDetailsPage({ params }: { params: { id: string } }) {
+export default async function AppointmentDetailPage({ params }: { params: { id: string } }) {
   const [profile, setProfile] = useState<any>(null)
   const [appointment, setAppointment] = useState<any>(null)
   const [isLoading, setIsLoading] = useState(false)
@@ -42,7 +43,7 @@ export default function AdminAppointmentDetailsPage({ params }: { params: { id: 
   const [editData, setEditData] = useState({
     appointment_date: "",
     appointment_time: "",
-    service_id: "",
+    service_ids: [] as string[],
     staff_id: "",
     client_id: "",
     client_type: "",
@@ -98,39 +99,42 @@ export default function AdminAppointmentDetailsPage({ params }: { params: { id: 
       .order("full_name")
     setStaffMembers(staffData || [])
 
-    const { data: appointmentData } = await supabase
+    const { data: appointmentData, error } = await supabase
       .from("appointments")
       .select(
         `
         *,
-        service:services(*),
-        client:client_id(full_name, phone, email),
-        staff:staff_id(full_name)
+        service:services!service_id(id, name, price, duration, category),
+        client:profiles!client_id(id, full_name, phone, email),
+        staff:profiles!staff_id(id, full_name)
       `,
       )
       .eq("id", params.id)
       .single()
 
-    if (appointmentData) {
-      setAppointment(appointmentData)
-      const currentPrice = appointmentData.custom_price || appointmentData.service?.price || 0
-
-      const appointmentDate = new Date(appointmentData.appointment_date)
-      setEditData({
-        appointment_date: appointmentDate.toISOString().split("T")[0],
-        appointment_time: appointmentDate.toTimeString().slice(0, 5),
-        service_id: appointmentData.service_id || "",
-        staff_id: appointmentData.staff_id || "",
-        client_id: appointmentData.client_id || "",
-        client_type: appointmentData.client_type || "registered",
-        sporadic_client_name: appointmentData.sporadic_client_name || "",
-        sporadic_client_phone: appointmentData.sporadic_client_phone || "",
-        event_title: appointmentData.event_title || "",
-        custom_price: currentPrice.toString(),
-        payment_status: appointmentData.payment_status || "pending",
-        notes: appointmentData.notes || "",
-      })
+    if (error || !appointmentData) {
+      redirect("/admin/agenda")
+      return
     }
+
+    setAppointment(appointmentData)
+    const currentPrice = appointmentData.custom_price || appointmentData.service?.price || 0
+
+    const appointmentDate = new Date(appointmentData.appointment_date)
+    setEditData({
+      appointment_date: appointmentDate.toISOString().split("T")[0],
+      appointment_time: appointmentDate.toTimeString().slice(0, 5),
+      service_ids: appointmentData.service_ids || [appointmentData.service_id || ""],
+      staff_id: appointmentData.staff_id || "",
+      client_id: appointmentData.client_id || "",
+      client_type: appointmentData.client_type || "registered",
+      sporadic_client_name: appointmentData.sporadic_client_name || "",
+      sporadic_client_phone: appointmentData.sporadic_client_phone || "",
+      event_title: appointmentData.event_title || "",
+      custom_price: currentPrice.toString(),
+      payment_status: appointmentData.payment_status || "pending",
+      notes: appointmentData.notes || "",
+    })
   }
 
   const handleComplete = () => {
@@ -289,7 +293,7 @@ export default function AdminAppointmentDetailsPage({ params }: { params: { id: 
 
       const updateData: any = {
         appointment_date: appointmentDateTime.toISOString(),
-        service_id: editData.service_id || null,
+        service_ids: editData.service_ids,
         staff_id: editData.staff_id || null,
         client_type: editData.client_type,
         payment_status: editData.payment_status,
@@ -331,6 +335,23 @@ export default function AdminAppointmentDetailsPage({ params }: { params: { id: 
 
   if (!profile || !appointment) return null
 
+  let allServices: any[] = []
+  if (appointment.service_ids && appointment.service_ids.length > 0) {
+    const { data: servicesData } = await supabase
+      .from("services")
+      .select("id, name, price, duration, category")
+      .in("id", appointment.service_ids)
+    allServices = servicesData || []
+  } else if (appointment.service) {
+    allServices = [appointment.service]
+  }
+
+  const totalDuration = allServices.reduce((sum, s) => sum + (s.duration || 0), 0)
+  const totalPrice =
+    appointment.service_ids && appointment.service_ids.length > 0
+      ? Object.values(appointment.service_prices || {}).reduce((sum: number, price: any) => sum + Number(price), 0)
+      : Number(appointment.service?.price || 0)
+
   const appointmentDate = new Date(appointment.appointment_date)
   const displayPrice = appointment.custom_price || appointment.service?.price || 0
 
@@ -371,38 +392,12 @@ export default function AdminAppointmentDetailsPage({ params }: { params: { id: 
           </div>
         </div>
 
-        <div className="space-y-6">
-          <Card className="border-gold/20">
+        <div className="grid gap-6 lg:grid-cols-3">
+          <Card className="lg:col-span-2 border-gold/20">
             <CardHeader>
-              <div className="flex items-center justify-between">
-                <CardTitle>Detalhes do Agendamento</CardTitle>
-                <Badge
-                  variant="outline"
-                  className={
-                    appointment.status === "completed"
-                      ? "bg-green-500/10 text-green-500 border-green-500/20"
-                      : appointment.status === "confirmed"
-                        ? "bg-blue-500/10 text-blue-500 border-blue-500/20"
-                        : appointment.status === "cancelled"
-                          ? "bg-red-500/10 text-red-500 border-red-500/20"
-                          : appointment.status === "no_show"
-                            ? "bg-orange-500/10 text-orange-500 border-orange-500/20"
-                            : "bg-yellow-500/10 text-yellow-500 border-yellow-500/20"
-                  }
-                >
-                  {appointment.status === "completed"
-                    ? "Concluído"
-                    : appointment.status === "confirmed"
-                      ? "Confirmado"
-                      : appointment.status === "cancelled"
-                        ? "Cancelado"
-                        : appointment.status === "no_show"
-                          ? "Não Compareceu"
-                          : "Pendente"}
-                </Badge>
-              </div>
+              <CardTitle className="text-foreground">Detalhes do Agendamento</CardTitle>
             </CardHeader>
-            <CardContent className="space-y-4">
+            <CardContent className="space-y-6">
               {isEditing ? (
                 <div className="space-y-4 p-4 bg-muted/30 rounded-lg border border-gold/20">
                   <div className="grid grid-cols-2 gap-4">
@@ -448,8 +443,8 @@ export default function AdminAppointmentDetailsPage({ params }: { params: { id: 
                   <div className="space-y-2">
                     <Label htmlFor="edit-service">Serviço</Label>
                     <Select
-                      value={editData.service_id}
-                      onValueChange={(value) => setEditData({ ...editData, service_id: value })}
+                      value={editData.service_ids[0]}
+                      onValueChange={(value) => setEditData({ ...editData, service_ids: [value] })}
                     >
                       <SelectTrigger>
                         <SelectValue placeholder="Selecione um serviço" />
@@ -630,13 +625,40 @@ export default function AdminAppointmentDetailsPage({ params }: { params: { id: 
                     </div>
                   )}
 
-                  {appointment.service && (
+                  {allServices.length > 0 && (
                     <div className="flex items-start gap-3">
                       <Clock className="h-5 w-5 text-gold mt-0.5" />
-                      <div>
-                        <p className="text-sm text-muted-foreground">Serviço</p>
-                        <p className="text-foreground font-medium">{appointment.service.name}</p>
-                        <p className="text-sm text-muted-foreground">{appointment.service.duration} minutos</p>
+                      <div className="w-full">
+                        <p className="text-sm text-muted-foreground mb-2">
+                          {allServices.length > 1 ? "Serviços" : "Serviço"}
+                        </p>
+                        <div className="space-y-3">
+                          {allServices.map((service) => (
+                            <div
+                              key={service.id}
+                              className="flex justify-between items-start border-l-2 border-gold/30 pl-3"
+                            >
+                              <div>
+                                <p className="text-foreground font-medium">{service.name}</p>
+                                <p className="text-sm text-muted-foreground">
+                                  {service.duration} minutos • {service.category}
+                                </p>
+                              </div>
+                              <p className="text-foreground font-semibold">
+                                R$ {appointment.service_prices?.[service.id]?.toFixed(2) || service.price.toFixed(2)}
+                              </p>
+                            </div>
+                          ))}
+                        </div>
+                        {allServices.length > 1 && (
+                          <div className="mt-4 pt-3 border-t border-border flex justify-between">
+                            <p className="text-foreground font-semibold">Total</p>
+                            <div className="text-right">
+                              <p className="text-lg font-bold text-gold">R$ {totalPrice.toFixed(2)}</p>
+                              <p className="text-sm text-muted-foreground">{totalDuration} minutos</p>
+                            </div>
+                          </div>
+                        )}
                       </div>
                     </div>
                   )}

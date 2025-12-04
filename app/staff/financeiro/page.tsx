@@ -4,7 +4,7 @@ import { useState, useEffect } from "react"
 import { createClient } from "@/lib/supabase/client"
 import { Navbar } from "@/components/navbar"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { DollarSign, TrendingUp, Calendar, Filter, Trash2, CheckCircle, CreditCard, Award } from "lucide-react"
+import { DollarSign, TrendingUp, Calendar, Filter, Trash2, CheckCircle, CreditCard, Scissors } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -68,9 +68,7 @@ export default function StaffFinanceiro() {
         client_type,
         pay_later,
         service_ids,
-        service_names,
-        service_prices,
-        service_categories
+        service_prices
       `,
       )
       .eq("staff_id", user.id)
@@ -184,6 +182,13 @@ export default function StaffFinanceiro() {
 
   const paymentMap = new Map(payments?.map((p) => [p.appointment_id, p.payment_method]) || [])
 
+  const allAppointmentServiceIds = new Set<string>()
+  appointments?.forEach((apt) => {
+    if (apt.service_ids && apt.service_ids.length > 0) {
+      apt.service_ids.forEach((id: string) => allAppointmentServiceIds.add(id))
+    }
+  })
+
   const earnings: any[] = []
 
   appointments?.forEach((apt) => {
@@ -195,8 +200,24 @@ export default function StaffFinanceiro() {
     const clientName =
       apt.client_type === "sporadic" ? apt.sporadic_client_name : apt.client?.full_name || "Cliente não identificado"
 
-    const amount = apt.custom_price || apt.service?.price || 0
-    const originalPrice = apt.original_price || apt.service?.price || 0
+    let amount = 0
+    let serviceNames: string[] = []
+
+    if (apt.service_ids && apt.service_ids.length > 0) {
+      apt.service_ids.forEach((serviceId: string) => {
+        const servicePrice = apt.service_prices?.[serviceId] || 0
+        amount += Number(servicePrice)
+        const service = servicesMap.get(serviceId)
+        if (service) {
+          serviceNames.push(service.name)
+        }
+      })
+    } else {
+      amount = apt.custom_price || apt.service?.price || 0
+      serviceNames = [apt.service?.name || "Serviço não especificado"]
+    }
+
+    const originalPrice = apt.original_price || amount
 
     earnings.push({
       id: apt.id,
@@ -208,14 +229,10 @@ export default function StaffFinanceiro() {
       payment_method: paymentMap.get(apt.id) || "Não informado",
       status: isPaid ? "paid" : "pending",
       isPayLater: isPayLater,
-      service_name: apt.service?.name || "Serviço não especificado",
+      service_name: serviceNames.join(", "),
       service_category: apt.service?.category || "",
       client_name: clientName,
-      notes: `${apt.service?.name || "Serviço"} - ${clientName}`,
-      service_ids: apt.service_ids,
-      service_names: apt.service_names,
-      service_prices: apt.service_prices,
-      service_categories: apt.service_categories,
+      notes: `${serviceNames.join(", ")} - ${clientName}`,
     })
   })
 
@@ -255,7 +272,7 @@ export default function StaffFinanceiro() {
     }
   })
 
-  const serviceGroups = {
+  const serviceGroups: Record<string, string[]> = {
     "Cortes e Estética": ["corte", "barba", "sobrancelha"],
     Químicas: ["quimica", "coloração", "descoloração", "tintura", "mechas", "luzes"],
     "Unhas e Massagem": ["unha", "manicure", "pedicure", "massagem"],
@@ -268,14 +285,25 @@ export default function StaffFinanceiro() {
     Outros: {},
   }
 
-  filteredEarnings.forEach((e) => {
-    if (e.status === "paid") {
-      if (e.service_ids && e.service_ids.length > 0) {
-        // Process each service separately
-        e.service_ids.forEach((serviceId: string, index: number) => {
-          const servicePrice = e.service_prices?.[serviceId] || e.amount / e.service_ids.length
-          const serviceName = e.service_names?.[index] || `Serviço ${index + 1}`
-          const serviceCategory = e.service_categories?.[index]?.toLowerCase() || ""
+  const servicesMap = new Map<string, any>()
+  const allAppointmentServiceIdsArray = Array.from(allAppointmentServiceIds)
+  if (allAppointmentServiceIdsArray.length > 0) {
+    const { data: servicesData } = supabase
+      .from("services")
+      .select("id, name, category")
+      .in("id", allAppointmentServiceIdsArray)
+    servicesData?.forEach((s: any) => servicesMap.set(s.id, s))
+  }
+
+  appointments
+    ?.filter((apt) => apt.status === "completed")
+    .forEach((apt) => {
+      if (apt.service_ids && apt.service_ids.length > 0) {
+        apt.service_ids.forEach((serviceId: string) => {
+          const servicePrice = apt.service_prices?.[serviceId] || 0
+          const service = servicesMap.get(serviceId)
+          const serviceName = service?.name || "Serviço Desconhecido"
+          const serviceCategory = service?.category?.toLowerCase() || ""
 
           let group = "Outros"
           for (const [groupName, keywords] of Object.entries(serviceGroups)) {
@@ -296,9 +324,9 @@ export default function StaffFinanceiro() {
           groupedServiceStats[group][serviceName].revenue += Number(servicePrice)
         })
       } else {
-        // Legacy single service earning
-        const serviceName = e.service_name || "Desconhecido"
-        const serviceCategory = e.service_category?.toLowerCase() || ""
+        const serviceName = apt.service?.name || "Desconhecido"
+        const serviceCategory = apt.service?.category?.toLowerCase() || ""
+        const amount = apt.custom_price || apt.service?.price || 0
 
         let group = "Outros"
         for (const [groupName, keywords] of Object.entries(serviceGroups)) {
@@ -314,10 +342,9 @@ export default function StaffFinanceiro() {
           groupedServiceStats[group][serviceName] = { count: 0, revenue: 0 }
         }
         groupedServiceStats[group][serviceName].count++
-        groupedServiceStats[group][serviceName].revenue += Number(e.amount)
+        groupedServiceStats[group][serviceName].revenue += Number(amount)
       }
-    }
-  })
+    })
 
   if (!profile) return null
 
@@ -435,33 +462,31 @@ export default function StaffFinanceiro() {
           </Card>
         )}
 
-        <div className="grid md:grid-cols-3 gap-6 mb-8">
-          {Object.entries(groupedServiceStats).map(([groupName, services]) => {
-            const groupRevenue = Object.values(services).reduce((sum, s) => sum + s.revenue, 0)
-            const groupCount = Object.values(services).reduce((sum, s) => sum + s.count, 0)
+        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4 mb-8">
+          {Object.entries(groupedServiceStats).map(([category, services]) => {
+            const totalRevenue = Object.values(services).reduce((sum, s) => sum + s.revenue, 0)
+            const totalCount = Object.values(services).reduce((sum, s) => sum + s.count, 0)
 
-            if (groupCount === 0) return null
+            if (totalCount === 0) return null
 
             return (
-              <Card key={groupName} className="border-gold/20">
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2 text-foreground">
-                    <Award className="h-5 w-5 text-gold" />
-                    {groupName}
+              <Card key={category} className="border-gold/20">
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-base font-medium text-foreground flex items-center gap-2">
+                    <Scissors className="h-4 w-4 text-gold" />
+                    {category}
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <div className="mb-4">
-                    <p className="text-3xl font-bold text-gold">R$ {groupRevenue.toFixed(2)}</p>
-                    <p className="text-sm text-muted-foreground">{groupCount} serviços</p>
-                  </div>
-                  <div className="space-y-2">
+                  <p className="text-2xl font-bold text-gold mb-2">R$ {totalRevenue.toFixed(2)}</p>
+                  <p className="text-xs text-muted-foreground mb-3">{totalCount} serviços</p>
+                  <div className="space-y-1">
                     {Object.entries(services)
                       .sort((a, b) => b[1].revenue - a[1].revenue)
                       .slice(0, 3)
-                      .map(([serviceName, stats]) => (
-                        <div key={serviceName} className="flex justify-between text-sm">
-                          <span className="text-muted-foreground truncate">{serviceName}</span>
+                      .map(([name, stats]) => (
+                        <div key={name} className="flex justify-between text-xs">
+                          <span className="text-muted-foreground truncate">{name}</span>
                           <span className="text-foreground font-medium">R$ {stats.revenue.toFixed(2)}</span>
                         </div>
                       ))}
