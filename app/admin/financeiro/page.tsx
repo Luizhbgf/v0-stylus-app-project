@@ -85,7 +85,6 @@ export default function AdminFinanceiroPage() {
         `
         *,
         client:client_id(full_name),
-        service:service_id(name, price, category),
         staff:staff_id(id, full_name)
       `,
       )
@@ -100,6 +99,22 @@ export default function AdminFinanceiroPage() {
 
     const { data: appointmentsData } = await query
 
+    const allServiceIds = new Set<string>()
+    appointmentsData?.forEach((apt) => {
+      if (apt.service_id) allServiceIds.add(apt.service_id)
+      if (apt.service_ids && Array.isArray(apt.service_ids)) {
+        apt.service_ids.forEach((id: string) => allServiceIds.add(id))
+      }
+    })
+
+    const { data: servicesData } = await supabase
+      .from("services")
+      .select("id, name, price, category")
+      .in("id", Array.from(allServiceIds))
+
+    const servicesMapData = new Map(servicesData?.map((s) => [s.id, s]) || [])
+    setServicesMap(servicesMapData)
+
     const appointmentIds = appointmentsData?.map((a) => a.id) || []
     const { data: paymentsData } = await supabase
       .from("payments")
@@ -109,36 +124,45 @@ export default function AdminFinanceiroPage() {
     const paymentMethodMap = new Map(paymentsData?.map((p) => [p.appointment_id, p.payment_method]) || [])
 
     const paymentsDataMapped =
-      appointmentsData?.map((apt) => ({
-        id: apt.id,
-        amount: apt.custom_price || apt.service?.price || 0,
-        original_price: apt.original_price || apt.service?.price || 0,
-        custom_price: apt.custom_price,
-        payment_date: apt.appointment_date,
-        payment_method: paymentMethodMap.get(apt.id) || "Não especificado",
-        payment_status: apt.payment_status,
-        pay_later: apt.pay_later,
-        status: "completed",
-        client: apt.client,
-        sporadic_client_name: apt.sporadic_client_name,
-        client_type: apt.client_type,
-        appointment: {
-          service: apt.service,
-          staff: apt.staff,
-        },
-      })) || []
+      appointmentsData?.map((apt) => {
+        let totalAmount = 0
+
+        // If has service_prices (multi-service), sum them
+        if (apt.service_prices && typeof apt.service_prices === "object") {
+          totalAmount = Object.values(apt.service_prices as Record<string, number>).reduce(
+            (sum, price) => sum + price,
+            0,
+          )
+        }
+        // Fallback to custom_price or single service price
+        else {
+          const singleService = servicesMapData.get(apt.service_id)
+          totalAmount = apt.custom_price || singleService?.price || 0
+        }
+
+        return {
+          id: apt.id,
+          amount: totalAmount,
+          original_price: apt.original_price || totalAmount,
+          custom_price: apt.custom_price,
+          payment_date: apt.appointment_date,
+          payment_method: paymentMethodMap.get(apt.id) || "Não especificado",
+          payment_status: apt.payment_status,
+          pay_later: apt.pay_later,
+          status: "completed",
+          client: apt.client,
+          sporadic_client_name: apt.sporadic_client_name,
+          client_type: apt.client_type,
+          appointment: {
+            ...apt,
+            service: servicesMapData.get(apt.service_id), // Legacy single service
+            staff: apt.staff,
+          },
+        }
+      }) || []
 
     setPayments(paymentsDataMapped)
     setAppointments(appointmentsData || [])
-
-    if (appointmentIds.length > 0) {
-      const { data: servicesData } = await supabase
-        .from("services")
-        .select("id, name, category")
-        .in("id", appointmentIds)
-
-      setServicesMap(new Map(servicesData?.map((s) => [s.id, s]) || []))
-    }
   }
 
   function openPaymentMethodDialog(appointmentId: string) {
