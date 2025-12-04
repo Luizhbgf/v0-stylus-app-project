@@ -35,6 +35,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog"
+import { Checkbox } from "@/components/ui/checkbox"
 
 export default function StaffAppointmentDetailsPage({ params }: { params: { id: string } }) {
   const router = useRouter()
@@ -49,6 +50,26 @@ export default function StaffAppointmentDetailsPage({ params }: { params: { id: 
   const [showNoShowDialog, setShowNoShowDialog] = useState(false)
   const [noShowReason, setNoShowReason] = useState("")
   const supabase = createClient()
+
+  const [allServices, setAllServices] = useState<any[]>([])
+  const [clients, setClients] = useState<any[]>([])
+  const [isEditing, setIsEditing] = useState(false)
+  const [editData, setEditData] = useState({
+    appointment_date: "",
+    appointment_time: "",
+    service_id: "",
+    client_id: "",
+    client_type: "",
+    sporadic_client_name: "",
+    sporadic_client_phone: "",
+    event_title: "",
+    custom_price: "",
+    payment_status: "",
+    notes: "",
+    // Multi-service fields
+    selected_services: [] as string[],
+    service_prices: {} as Record<string, number>,
+  })
 
   useEffect(() => {
     loadData()
@@ -67,7 +88,7 @@ export default function StaffAppointmentDetailsPage({ params }: { params: { id: 
     setProfile(profileData)
 
     const { data: servicesData } = await supabase.from("services").select("*").eq("is_active", true).order("name")
-    setServices(servicesData || [])
+    setAllServices(servicesData || [])
 
     const { data: clientsData } = await supabase
       .from("profiles")
@@ -81,7 +102,6 @@ export default function StaffAppointmentDetailsPage({ params }: { params: { id: 
       .select(
         `
         *,
-        service:services(*),
         client:client_id(full_name, phone, email),
         staff:staff_id(full_name)
       `,
@@ -90,8 +110,20 @@ export default function StaffAppointmentDetailsPage({ params }: { params: { id: 
       .single()
 
     if (appointmentData) {
-      setAppointment(appointmentData)
-      const currentPrice = appointmentData.custom_price || appointmentData.service?.price || 0
+      const serviceIds = appointmentData.service_ids || (appointmentData.service_id ? [appointmentData.service_id] : [])
+
+      // Fetch full service details for display in the view
+      if (serviceIds.length > 0) {
+        const { data: servicesForAppointment } = await supabase.from("services").select("*").in("id", serviceIds)
+
+        setAppointment({ ...appointmentData, services: servicesForAppointment || [] })
+      } else {
+        setAppointment(appointmentData)
+      }
+
+      const currentServiceIds =
+        appointmentData.service_ids || (appointmentData.service_id ? [appointmentData.service_id] : [])
+      const currentPrices = appointmentData.service_prices || {}
 
       const appointmentDate = new Date(appointmentData.appointment_date)
       setEditData({
@@ -103,25 +135,91 @@ export default function StaffAppointmentDetailsPage({ params }: { params: { id: 
         sporadic_client_name: appointmentData.sporadic_client_name || "",
         sporadic_client_phone: appointmentData.sporadic_client_phone || "",
         event_title: appointmentData.event_title || "",
-        custom_price: currentPrice.toString(),
+        custom_price: (appointmentData.custom_price || 0).toString(),
         payment_status: appointmentData.payment_status || "pending",
         notes: appointmentData.notes || "",
+        selected_services: currentServiceIds,
+        service_prices: currentPrices,
+      })
+    }
+
+    setLoading(false)
+  }
+
+  const toggleServiceSelection = (serviceId: string, servicePrice: number) => {
+    const isSelected = editData.selected_services.includes(serviceId)
+
+    if (isSelected) {
+      // Remove service
+      const newSelectedServices = editData.selected_services.filter((id) => id !== serviceId)
+      const newServicePrices = { ...editData.service_prices }
+      delete newServicePrices[serviceId]
+
+      setEditData({
+        ...editData,
+        selected_services: newSelectedServices,
+        service_prices: newServicePrices,
+      })
+    } else {
+      // Add service
+      setEditData({
+        ...editData,
+        selected_services: [...editData.selected_services, serviceId],
+        service_prices: {
+          ...editData.service_prices,
+          [serviceId]: servicePrice,
+        },
       })
     }
   }
 
+  const updateServicePrice = (serviceId: string, newPrice: number) => {
+    setEditData({
+      ...editData,
+      service_prices: {
+        ...editData.service_prices,
+        [serviceId]: newPrice,
+      },
+    })
+  }
+
+  const calculateTotals = () => {
+    let totalPrice = 0
+    let totalDuration = 0
+
+    editData.selected_services.forEach((serviceId) => {
+      const service = allServices.find((s) => s.id === serviceId)
+      if (service) {
+        totalPrice += editData.service_prices[serviceId] || service.price
+        totalDuration += service.duration || 0
+      }
+    })
+
+    return { totalPrice, totalDuration }
+  }
+
   const handleSaveEdit = async () => {
+    if (editData.selected_services.length === 0) {
+      toast.error("Selecione pelo menos um serviço")
+      return
+    }
+
     setIsLoading(true)
     try {
       const appointmentDateTime = new Date(`${editData.appointment_date}T${editData.appointment_time}`)
+      const { totalPrice, totalDuration } = calculateTotals()
 
       const updateData: any = {
         appointment_date: appointmentDateTime.toISOString(),
-        service_id: editData.service_id || null,
+        service_ids: editData.selected_services,
+        service_prices: editData.service_prices,
+        custom_price: totalPrice, // Use the calculated total price
+        duration: totalDuration,
+        // Legacy support (if needed, though ideally the DB schema should be updated to prefer service_ids)
+        service_id: editData.selected_services[0] || null,
         client_type: editData.client_type,
         payment_status: editData.payment_status,
         notes: editData.notes || null,
-        custom_price: editData.custom_price ? Number.parseFloat(editData.custom_price) : null,
       }
 
       if (editData.client_type === "registered") {
@@ -187,6 +285,11 @@ export default function StaffAppointmentDetailsPage({ params }: { params: { id: 
       const { error: appointmentError } = await supabase.from("appointments").update(updates).eq("id", appointment.id)
 
       if (appointmentError) throw appointmentError
+
+      const displayPrice =
+        appointment.custom_price ||
+        Object.values(appointment.service_prices || {}).reduce((sum: number, price: any) => sum + Number(price), 0) ||
+        0
 
       // Create payment record if paid
       if (paymentStatus === "paid" && method) {
@@ -274,27 +377,13 @@ export default function StaffAppointmentDetailsPage({ params }: { params: { id: 
     }
   }
 
-  const [services, setServices] = useState<any[]>([])
-  const [clients, setClients] = useState<any[]>([])
-  const [isEditing, setIsEditing] = useState(false)
-  const [editData, setEditData] = useState({
-    appointment_date: "",
-    appointment_time: "",
-    service_id: "",
-    client_id: "",
-    client_type: "",
-    sporadic_client_name: "",
-    sporadic_client_phone: "",
-    event_title: "",
-    custom_price: "",
-    payment_status: "",
-    notes: "",
-  })
-
-  if (!profile || !appointment) return null
+  if (loading || !profile || !appointment) return null
 
   const appointmentDate = new Date(appointment.appointment_date)
-  const displayPrice = appointment.custom_price || appointment.service?.price || 0
+  const displayPrice =
+    appointment.custom_price ||
+    Object.values(appointment.service_prices || {}).reduce((sum: number, price: any) => sum + Number(price), 0) ||
+    0
 
   return (
     <div className="min-h-screen bg-background">
@@ -325,7 +414,7 @@ export default function StaffAppointmentDetailsPage({ params }: { params: { id: 
                   Cancelar
                 </Button>
                 <Button onClick={handleSaveEdit} disabled={isLoading}>
-                  <Save className="mr-2 h-4 w-4" />
+                  {isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
                   {isLoading ? "Salvando..." : "Salvar"}
                 </Button>
               </div>
@@ -389,22 +478,78 @@ export default function StaffAppointmentDetailsPage({ params }: { params: { id: 
                   </div>
 
                   <div className="space-y-2">
-                    <Label htmlFor="edit-service">Serviço</Label>
-                    <Select
-                      value={editData.service_id}
-                      onValueChange={(value) => setEditData({ ...editData, service_id: value })}
-                    >
-                      <SelectTrigger>
-                        <SelectValue placeholder="Selecione um serviço" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {services.map((service) => (
-                          <SelectItem key={service.id} value={service.id}>
-                            {service.name} - R$ {service.price.toFixed(2)} ({service.duration}min)
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                    <Label>Serviços</Label>
+                    <p className="text-sm text-muted-foreground mb-3">
+                      Selecione um ou mais serviços para este agendamento
+                    </p>
+                    <div className="space-y-3 max-h-64 overflow-y-auto border border-border rounded-lg p-3">
+                      {allServices.map((service) => {
+                        const isSelected = editData.selected_services.includes(service.id)
+                        // Use the price from editData if available, otherwise use the default service price
+                        const currentPrice =
+                          editData.service_prices[service.id] !== undefined
+                            ? editData.service_prices[service.id]
+                            : service.price
+
+                        return (
+                          <div key={service.id} className="space-y-2">
+                            <div className="flex items-start gap-3 p-2 hover:bg-muted/50 rounded">
+                              <Checkbox
+                                id={`service-${service.id}`}
+                                checked={isSelected}
+                                onCheckedChange={() => toggleServiceSelection(service.id, service.price)}
+                              />
+                              <div className="flex-1">
+                                <label
+                                  htmlFor={`service-${service.id}`}
+                                  className="text-sm font-medium leading-none cursor-pointer"
+                                >
+                                  {service.name}
+                                </label>
+                                <p className="text-sm text-muted-foreground">
+                                  R$ {service.price.toFixed(2)} • {service.duration} min • {service.category}
+                                </p>
+                              </div>
+                            </div>
+
+                            {/* Show price input only for selected services */}
+                            {isSelected && (
+                              <div className="ml-8 space-y-1">
+                                <Label htmlFor={`price-${service.id}`} className="text-xs">
+                                  Preço personalizado (R$)
+                                </Label>
+                                <Input
+                                  id={`price-${service.id}`}
+                                  type="number"
+                                  step="0.01"
+                                  value={currentPrice}
+                                  onChange={(e) =>
+                                    updateServicePrice(service.id, Number.parseFloat(e.target.value) || 0)
+                                  }
+                                  className="h-8"
+                                />
+                              </div>
+                            )}
+                          </div>
+                        )
+                      })}
+                    </div>
+
+                    {/* Show totals */}
+                    {editData.selected_services.length > 0 && (
+                      <div className="mt-3 p-3 bg-gold/5 rounded-lg border border-gold/20">
+                        <div className="flex justify-between text-sm mb-1">
+                          <span className="text-muted-foreground">
+                            {editData.selected_services.length} serviço(s) selecionado(s)
+                          </span>
+                          <span className="text-muted-foreground">Duração: {calculateTotals().totalDuration} min</span>
+                        </div>
+                        <div className="flex justify-between font-semibold text-lg">
+                          <span>Total</span>
+                          <span className="text-gold">R$ {calculateTotals().totalPrice.toFixed(2)}</span>
+                        </div>
+                      </div>
+                    )}
                   </div>
 
                   <div className="space-y-2">
@@ -481,41 +626,6 @@ export default function StaffAppointmentDetailsPage({ params }: { params: { id: 
                   )}
 
                   <div className="space-y-2">
-                    <Label htmlFor="edit-price">Valor Personalizado (R$)</Label>
-                    <Input
-                      id="edit-price"
-                      type="number"
-                      step="0.01"
-                      value={editData.custom_price}
-                      onChange={(e) => setEditData({ ...editData, custom_price: e.target.value })}
-                      placeholder="Deixe vazio para usar preço padrão"
-                    />
-                    {appointment.custom_price && appointment.original_price && (
-                      <div className="text-sm space-y-1 mt-2 p-2 bg-muted/50 rounded">
-                        <div className="flex justify-between">
-                          <span className="text-muted-foreground">Valor Original:</span>
-                          <span className="font-medium">R$ {Number(appointment.original_price).toFixed(2)}</span>
-                        </div>
-                        <div className="flex justify-between">
-                          <span className="text-muted-foreground">Valor Alterado:</span>
-                          <span className="font-medium text-primary">
-                            R$ {Number(appointment.custom_price).toFixed(2)}
-                          </span>
-                        </div>
-                        <div className="flex justify-between border-t border-border pt-1 mt-1">
-                          <span className="text-muted-foreground">Diferença:</span>
-                          <span
-                            className={`font-semibold ${Number(appointment.custom_price) > Number(appointment.original_price) ? "text-green-500" : "text-red-500"}`}
-                          >
-                            {Number(appointment.custom_price) > Number(appointment.original_price) ? "+" : ""}
-                            R$ {(Number(appointment.custom_price) - Number(appointment.original_price)).toFixed(2)}
-                          </span>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-
-                  <div className="space-y-2">
                     <Label htmlFor="edit-payment-status">Status de Pagamento</Label>
                     <Select
                       value={editData.payment_status}
@@ -527,7 +637,7 @@ export default function StaffAppointmentDetailsPage({ params }: { params: { id: 
                       <SelectContent>
                         <SelectItem value="pending">Pendente</SelectItem>
                         <SelectItem value="paid">Pago</SelectItem>
-                        <SelectItem value="overdue">Atrasado</SelectItem>
+                        <SelectItem value="cancelled">Cancelado</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
@@ -545,10 +655,10 @@ export default function StaffAppointmentDetailsPage({ params }: { params: { id: 
                 </div>
               ) : (
                 <>
-                  <div className="flex items-start gap-3">
-                    <Calendar className="h-5 w-5 text-gold mt-0.5" />
+                  <div className="flex items-center gap-3 text-muted-foreground">
+                    <Calendar className="h-5 w-5" />
                     <div>
-                      <p className="text-sm text-muted-foreground">Data e Hora</p>
+                      <p className="text-sm">Data e Hora</p>
                       <p className="text-foreground font-medium">
                         {appointmentDate.toLocaleDateString("pt-BR", {
                           weekday: "long",
@@ -558,91 +668,118 @@ export default function StaffAppointmentDetailsPage({ params }: { params: { id: 
                         })}
                       </p>
                       <p className="text-foreground font-medium">
-                        {appointmentDate.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}
+                        {appointmentDate.toLocaleTimeString("pt-BR", {
+                          hour: "2-digit",
+                          minute: "2-digit",
+                        })}
                       </p>
                     </div>
                   </div>
 
-                  {appointment.service && (
-                    <div className="flex items-start gap-3">
-                      <Clock className="h-5 w-5 text-gold mt-0.5" />
-                      <div>
-                        <p className="text-sm text-muted-foreground">Serviço</p>
-                        <p className="text-foreground font-medium">{appointment.service.name}</p>
-                        <p className="text-sm text-muted-foreground">{appointment.service.duration} minutos</p>
-                      </div>
-                    </div>
-                  )}
-
-                  {appointment.client_type === "sporadic" ? (
-                    <div className="flex items-start gap-3">
-                      <User className="h-5 w-5 text-gold mt-0.5" />
-                      <div>
-                        <p className="text-sm text-muted-foreground">Cliente Esporádico</p>
-                        <p className="text-foreground font-medium">{appointment.sporadic_client_name}</p>
-                        <p className="text-sm text-muted-foreground">{appointment.sporadic_client_phone}</p>
-                      </div>
-                    </div>
-                  ) : appointment.client ? (
-                    <div className="flex items-start gap-3">
-                      <User className="h-5 w-5 text-gold mt-0.5" />
-                      <div>
-                        <p className="text-sm text-muted-foreground">Cliente</p>
-                        <p className="text-foreground font-medium">{appointment.client.full_name}</p>
-                        <p className="text-sm text-muted-foreground">{appointment.client.phone}</p>
-                        <p className="text-sm text-muted-foreground">{appointment.client.email}</p>
-                      </div>
-                    </div>
-                  ) : (
-                    <div className="flex items-start gap-3">
-                      <User className="h-5 w-5 text-gold mt-0.5" />
-                      <div>
-                        <p className="text-sm text-muted-foreground">Evento</p>
-                        <p className="text-foreground font-medium">{appointment.event_title || "Sem título"}</p>
-                      </div>
-                    </div>
-                  )}
-
-                  <div className="flex items-start gap-3">
-                    <DollarSign className="h-5 w-5 text-gold mt-0.5" />
+                  <div className="flex items-start gap-3 text-muted-foreground">
+                    <User className="h-5 w-5 mt-0.5" />
                     <div>
-                      <p className="text-sm text-muted-foreground">Valor</p>
-                      <p className="text-foreground font-medium text-2xl">R$ {displayPrice.toFixed(2)}</p>
-                      {appointment.custom_price && appointment.original_price && (
-                        <div className="mt-2 text-xs space-y-1">
-                          <div className="flex items-center justify-between">
-                            <span className="text-muted-foreground">Original:</span>
-                            <span className="line-through">R$ {Number(appointment.original_price).toFixed(2)}</span>
+                      <p className="text-sm">Profissional</p>
+                      <p className="text-foreground font-medium">{appointment.staff?.full_name}</p>
+                    </div>
+                  </div>
+
+                  <div className="flex items-start gap-3 text-muted-foreground">
+                    <Clock className="h-5 w-5 mt-0.5" />
+                    <div className="flex-1">
+                      <p className="text-sm mb-2">Serviços</p>
+                      <div className="space-y-2">
+                        {appointment.services?.map((service: any) => {
+                          // Use the price stored in the appointment's service_prices if available, otherwise use the default service price
+                          const servicePrice = appointment.service_prices?.[service.id] ?? service.price
+                          return (
+                            <div key={service.id} className="flex justify-between items-start p-2 bg-muted/30 rounded">
+                              <div>
+                                <p className="text-foreground font-medium">{service.name}</p>
+                                <p className="text-xs text-muted-foreground">
+                                  {service.duration} minutos • {service.category}
+                                </p>
+                              </div>
+                              <p className="text-foreground font-semibold">R$ {Number(servicePrice).toFixed(2)}</p>
+                            </div>
+                          )
+                        })}
+
+                        {/* Total */}
+                        {appointment.services?.length > 1 && (
+                          <div className="flex justify-between items-center pt-2 border-t border-border">
+                            <p className="font-semibold">Total</p>
+                            <div className="text-right">
+                              <p className="text-gold font-bold text-lg">R$ {displayPrice.toFixed(2)}</p>
+                              <p className="text-xs text-muted-foreground">
+                                {appointment.services.reduce((sum: number, s: any) => sum + (s.duration || 0), 0)}{" "}
+                                minutos
+                              </p>
+                            </div>
                           </div>
-                          <div className="flex items-center justify-between">
-                            <span className="text-muted-foreground">Alterado:</span>
-                            <span className="font-semibold text-primary">
-                              R$ {Number(appointment.custom_price).toFixed(2)}
-                            </span>
-                          </div>
-                        </div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="flex items-start gap-3 text-muted-foreground">
+                    <User className="h-5 w-5 mt-0.5" />
+                    <div>
+                      <p className="text-sm">
+                        {appointment.client_type === "registered"
+                          ? "Cliente"
+                          : appointment.client_type === "sporadic"
+                            ? "Cliente Esporádico (sem cadastro)"
+                            : "Evento sem Cliente (bloqueio, reunião, etc.)"}
+                      </p>
+                      {appointment.client_type === "registered" && appointment.client && (
+                        <>
+                          <p className="text-foreground font-medium">{appointment.client.full_name}</p>
+                          {appointment.client.phone && (
+                            <p className="text-sm text-muted-foreground">{appointment.client.phone}</p>
+                          )}
+                        </>
                       )}
+                      {appointment.client_type === "sporadic" && (
+                        <>
+                          <p className="text-foreground font-medium">{appointment.sporadic_client_name}</p>
+                          {appointment.sporadic_client_phone && (
+                            <p className="text-sm text-muted-foreground">{appointment.sporadic_client_phone}</p>
+                          )}
+                        </>
+                      )}
+                      {appointment.client_type === "event" && (
+                        <p className="text-foreground font-medium">{appointment.event_title}</p>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-3 text-muted-foreground">
+                    <DollarSign className="h-5 w-5" />
+                    <div>
+                      <p className="text-sm">Valor</p>
+                      <p className="text-foreground font-bold text-xl text-gold">R$ {displayPrice.toFixed(2)}</p>
                       <Badge
                         variant="outline"
                         className={
                           appointment.payment_status === "paid"
-                            ? "bg-green-500/10 text-green-500 border-green-500/20"
-                            : appointment.payment_status === "overdue"
-                              ? "bg-red-500/10 text-red-500 border-red-500/20"
-                              : "bg-yellow-500/10 text-yellow-500 border-yellow-500/20"
+                            ? "bg-green-500/10 text-green-500 border-green-500/20 mt-1"
+                            : appointment.payment_status === "cancelled"
+                              ? "bg-red-500/10 text-red-500 border-red-500/20 mt-1"
+                              : "bg-yellow-500/10 text-yellow-500 border-yellow-500/20 mt-1"
                         }
                       >
                         {appointment.payment_status === "paid"
                           ? "Pago"
-                          : appointment.payment_status === "overdue"
-                            ? "Atrasado"
+                          : appointment.payment_status === "cancelled"
+                            ? "Cancelado"
                             : "Pendente"}
                       </Badge>
                     </div>
                   </div>
 
                   {appointment.notes && (
-                    <div className="pt-4 border-t border-gold/20">
+                    <div className="pt-4 border-t border-border">
                       <p className="text-sm text-muted-foreground mb-1">Observações</p>
                       <p className="text-foreground">{appointment.notes}</p>
                     </div>
@@ -652,188 +789,155 @@ export default function StaffAppointmentDetailsPage({ params }: { params: { id: 
             </CardContent>
           </Card>
 
-          {!isEditing &&
-            appointment.status !== "completed" &&
-            appointment.status !== "cancelled" &&
-            appointment.status !== "no_show" && (
-              <Card className="border-gold/20">
-                <CardHeader>
-                  <CardTitle>Ações</CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-3">
-                  <Button
-                    className="w-full bg-green-600 hover:bg-green-700 text-white"
-                    onClick={handleComplete}
-                    disabled={isLoading}
-                  >
+          {/* Actions */}
+          {appointment.status === "pending" && !isEditing && (
+            <Card className="border-gold/20">
+              <CardHeader>
+                <CardTitle>Ações Administrativas</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                <Button
+                  onClick={handleComplete}
+                  className="w-full bg-green-600 hover:bg-green-700"
+                  disabled={isLoading}
+                >
+                  {isLoading ? (
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  ) : (
                     <CheckCircle className="mr-2 h-4 w-4" />
-                    Marcar como Concluído
-                  </Button>
+                  )}
+                  Marcar como Concluído
+                </Button>
 
-                  <Button
-                    variant="outline"
-                    className="w-full border-orange-500/20 text-orange-500 hover:bg-orange-500/10 bg-transparent"
-                    onClick={() => setShowNoShowDialog(true)}
-                    disabled={isLoading}
-                  >
-                    <UserX className="mr-2 h-4 w-4" />
-                    Cliente Não Compareceu
-                  </Button>
+                <Button
+                  onClick={() => setShowNoShowDialog(true)}
+                  variant="outline"
+                  className="w-full border-orange-500/20 text-orange-500 hover:bg-orange-500/10"
+                  disabled={isLoading}
+                >
+                  <UserX className="mr-2 h-4 w-4" />
+                  Cliente Não Compareceu
+                </Button>
 
-                  <Button variant="destructive" className="w-full" onClick={handleCancel} disabled={isLoading}>
-                    <X className="mr-2 h-4 w-4" />
-                    Cancelar Agendamento
-                  </Button>
-                </CardContent>
-              </Card>
-            )}
+                <Button
+                  onClick={handleCancel}
+                  variant="outline"
+                  className="w-full border-red-500/20 text-red-500 hover:bg-red-500/10 bg-transparent"
+                  disabled={isLoading}
+                >
+                  <X className="mr-2 h-4 w-4" />
+                  Cancelar Agendamento
+                </Button>
+              </CardContent>
+            </Card>
+          )}
         </div>
       </div>
 
+      {/* Payment Choice Dialog */}
       <Dialog open={showPaymentDialog} onOpenChange={setShowPaymentDialog}>
-        <DialogContent className="max-w-[95vw] sm:max-w-lg mx-4 max-h-[90vh] overflow-y-auto">
+        <DialogContent>
           <DialogHeader>
-            <DialogTitle className="text-lg sm:text-xl">Finalizar Agendamento</DialogTitle>
-            <DialogDescription className="text-sm sm:text-base">
-              Como foi realizado o pagamento deste serviço?
-            </DialogDescription>
+            <DialogTitle>Confirmar Conclusão</DialogTitle>
+            <DialogDescription>O cliente realizou o pagamento?</DialogDescription>
           </DialogHeader>
-          <div className="space-y-3 sm:space-y-4 py-4">
+          <div className="space-y-3 py-4">
             <Button
-              variant={paymentChoice === "paid" ? "default" : "outline"}
-              className="w-full h-auto py-6 sm:py-4 flex flex-col items-center gap-3 sm:gap-2 text-base sm:text-sm"
               onClick={() => setPaymentChoice("paid")}
+              className={`w-full justify-start ${paymentChoice === "paid" ? "bg-green-600" : ""}`}
+              variant={paymentChoice === "paid" ? "default" : "outline"}
             >
-              <CheckCircle className="h-8 w-8 sm:h-6 sm:w-6" />
-              <div className="text-center">
-                <div className="font-semibold text-base sm:text-sm">Já foi pago</div>
-                <div className="text-sm sm:text-xs text-muted-foreground mt-1">
-                  Cliente pagou no momento do atendimento
-                </div>
-              </div>
+              <CreditCard className="mr-2 h-4 w-4" />
+              Sim, o cliente pagou
             </Button>
             <Button
-              variant={paymentChoice === "later" ? "default" : "outline"}
-              className="w-full h-auto py-6 sm:py-4 flex flex-col items-center gap-3 sm:gap-2 text-base sm:text-sm"
               onClick={() => setPaymentChoice("later")}
+              className={`w-full justify-start ${paymentChoice === "later" ? "bg-yellow-600" : ""}`}
+              variant={paymentChoice === "later" ? "default" : "outline"}
             >
-              <Clock className="h-8 w-8 sm:h-6 sm:w-6" />
-              <div className="text-center">
-                <div className="font-semibold text-base sm:text-sm">Pagar depois</div>
-                <div className="text-sm sm:text-xs text-muted-foreground mt-1">
-                  Aparecerá no financeiro como pendente até marcar como pago
-                </div>
-              </div>
+              <Clock className="mr-2 h-4 w-4" />
+              Não, vai pagar depois
             </Button>
           </div>
-          <DialogFooter className="gap-2 sm:gap-0 flex-col sm:flex-row">
-            <Button
-              variant="outline"
-              onClick={() => setShowPaymentDialog(false)}
-              disabled={isLoading}
-              className="w-full sm:w-auto h-12 sm:h-10 text-base sm:text-sm"
-            >
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowPaymentDialog(false)}>
               Cancelar
             </Button>
-            <Button
-              onClick={handleConfirmPayment}
-              disabled={!paymentChoice || isLoading}
-              className="w-full sm:w-auto h-12 sm:h-10 text-base sm:text-sm"
-            >
-              {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              Confirmar
+            <Button onClick={handleConfirmPayment} disabled={!paymentChoice}>
+              Continuar
             </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
 
+      {/* Payment Method Dialog */}
       <Dialog open={showPaymentMethodDialog} onOpenChange={setShowPaymentMethodDialog}>
-        <DialogContent className="max-w-[95vw] sm:max-w-lg mx-4">
+        <DialogContent>
           <DialogHeader>
-            <DialogTitle className="text-lg sm:text-xl">Forma de Pagamento</DialogTitle>
-            <DialogDescription className="text-sm sm:text-base">
-              Selecione como o cliente realizou o pagamento
-            </DialogDescription>
+            <DialogTitle>Forma de Pagamento</DialogTitle>
+            <DialogDescription>Selecione como o cliente pagou</DialogDescription>
           </DialogHeader>
-          <div className="grid grid-cols-2 gap-3 sm:gap-4 py-4">
+          <div className="space-y-3 py-4">
             <Button
-              variant={paymentMethod === "pix" ? "default" : "outline"}
-              className="h-auto py-6 sm:py-4 flex flex-col items-center gap-2"
               onClick={() => setPaymentMethod("pix")}
+              className={`w-full justify-start ${paymentMethod === "pix" ? "bg-primary" : ""}`}
+              variant={paymentMethod === "pix" ? "default" : "outline"}
             >
-              <CreditCard className="h-8 w-8 sm:h-6 sm:w-6" />
-              <span className="text-base sm:text-sm font-semibold">PIX</span>
+              PIX
             </Button>
             <Button
-              variant={paymentMethod === "dinheiro" ? "default" : "outline"}
-              className="h-auto py-6 sm:py-4 flex flex-col items-center gap-2"
               onClick={() => setPaymentMethod("dinheiro")}
+              className={`w-full justify-start ${paymentMethod === "dinheiro" ? "bg-primary" : ""}`}
+              variant={paymentMethod === "dinheiro" ? "default" : "outline"}
             >
-              <DollarSign className="h-8 w-8 sm:h-6 sm:w-6" />
-              <span className="text-base sm:text-sm font-semibold">Dinheiro</span>
+              Dinheiro
             </Button>
             <Button
-              variant={paymentMethod === "credito" ? "default" : "outline"}
-              className="h-auto py-6 sm:py-4 flex flex-col items-center gap-2"
-              onClick={() => setPaymentMethod("credito")}
+              onClick={() => setPaymentMethod("cartao_debito")}
+              className={`w-full justify-start ${paymentMethod === "cartao_debito" ? "bg-primary" : ""}`}
+              variant={paymentMethod === "cartao_debito" ? "default" : "outline"}
             >
-              <CreditCard className="h-8 w-8 sm:h-6 sm:w-6" />
-              <span className="text-base sm:text-sm font-semibold">Cartão Crédito</span>
+              Cartão de Débito
             </Button>
             <Button
-              variant={paymentMethod === "debito" ? "default" : "outline"}
-              className="h-auto py-6 sm:py-4 flex flex-col items-center gap-2"
-              onClick={() => setPaymentMethod("debito")}
+              onClick={() => setPaymentMethod("cartao_credito")}
+              className={`w-full justify-start ${paymentMethod === "cartao_credito" ? "bg-primary" : ""}`}
+              variant={paymentMethod === "cartao_credito" ? "default" : "outline"}
             >
-              <CreditCard className="h-8 w-8 sm:h-6 sm:w-6" />
-              <span className="text-base sm:text-sm font-semibold">Cartão Débito</span>
+              Cartão de Crédito
             </Button>
           </div>
-          <DialogFooter className="gap-2 sm:gap-0 flex-col sm:flex-row">
-            <Button
-              variant="outline"
-              onClick={() => {
-                setShowPaymentMethodDialog(false)
-                setShowPaymentDialog(true)
-              }}
-              disabled={isLoading}
-              className="w-full sm:w-auto h-12 sm:h-10 text-base sm:text-sm"
-            >
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowPaymentMethodDialog(false)}>
               Voltar
             </Button>
-            <Button
-              onClick={handleConfirmPaymentMethod}
-              disabled={!paymentMethod || isLoading}
-              className="w-full sm:w-auto h-12 sm:h-10 text-base sm:text-sm"
-            >
-              {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+            <Button onClick={handleConfirmPaymentMethod} disabled={!paymentMethod}>
               Confirmar
             </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
 
+      {/* No Show Dialog */}
       <Dialog open={showNoShowDialog} onOpenChange={setShowNoShowDialog}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Marcar como Não Compareceu</DialogTitle>
-            <DialogDescription>Por favor, informe o motivo:</DialogDescription>
+            <DialogTitle>Cliente Não Compareceu</DialogTitle>
+            <DialogDescription>Adicione uma observação sobre o não comparecimento (opcional)</DialogDescription>
           </DialogHeader>
-          <div className="space-y-4 py-4">
-            <Textarea
-              value={noShowReason}
-              onChange={(e) => setNoShowReason(e.target.value)}
-              placeholder="Motivo do não comparecimento..."
-              rows={3}
-            />
-          </div>
+          <Textarea
+            value={noShowReason}
+            onChange={(e) => setNoShowReason(e.target.value)}
+            placeholder="Ex: Cliente não respondeu ligação, não avisou..."
+            rows={3}
+          />
           <DialogFooter>
-            <Button variant="outline" onClick={() => setShowNoShowDialog(false)} disabled={isLoading}>
+            <Button variant="outline" onClick={() => setShowNoShowDialog(false)}>
               Cancelar
             </Button>
-            <Button onClick={handleNoShow} disabled={isLoading}>
+            <Button onClick={handleNoShow} className="bg-orange-600 hover:bg-orange-700" disabled={isLoading}>
               {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              Confirmar
+              Confirmar Não Comparecimento
             </Button>
           </DialogFooter>
         </DialogContent>
