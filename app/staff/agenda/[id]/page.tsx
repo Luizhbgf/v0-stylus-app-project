@@ -790,10 +790,10 @@ export default function StaffAppointmentDetailsPage({ params }: { params: { id: 
           </Card>
 
           {/* Actions */}
-          {appointment.status === "pending" && !isEditing && (
+          {(appointment.status === "pending" || appointment.status === "confirmed") && !isEditing && (
             <Card className="border-gold/20">
               <CardHeader>
-                <CardTitle>Ações Administrativas</CardTitle>
+                <CardTitle>Ações</CardTitle>
               </CardHeader>
               <CardContent className="space-y-3">
                 <Button
