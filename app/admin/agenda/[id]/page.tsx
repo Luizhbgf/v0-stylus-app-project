@@ -33,11 +33,11 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog"
-import { redirect } from "next/navigation"
 
-export default async function AppointmentDetailPage({ params }: { params: { id: string } }) {
+export default function AppointmentDetailPage({ params }: { params: { id: string } }) {
   const [profile, setProfile] = useState<any>(null)
   const [appointment, setAppointment] = useState<any>(null)
+  const [allServices, setAllServices] = useState<any[]>([])
   const [isLoading, setIsLoading] = useState(false)
   const [isEditing, setIsEditing] = useState(false)
   const [editData, setEditData] = useState({
@@ -113,11 +113,24 @@ export default async function AppointmentDetailPage({ params }: { params: { id: 
       .single()
 
     if (error || !appointmentData) {
-      redirect("/admin/agenda")
+      router.push("/admin/agenda")
       return
     }
 
     setAppointment(appointmentData)
+
+    let loadedServices: any[] = []
+    if (appointmentData.service_ids && appointmentData.service_ids.length > 0) {
+      const { data: servicesData } = await supabase
+        .from("services")
+        .select("id, name, price, duration, category")
+        .in("id", appointmentData.service_ids)
+      loadedServices = servicesData || []
+    } else if (appointmentData.service) {
+      loadedServices = [appointmentData.service]
+    }
+    setAllServices(loadedServices)
+
     const currentPrice = appointmentData.custom_price || appointmentData.service?.price || 0
 
     const appointmentDate = new Date(appointmentData.appointment_date)
@@ -169,7 +182,6 @@ export default async function AppointmentDetailPage({ params }: { params: { id: 
 
       if (appointmentError) throw appointmentError
 
-      // Create payment record if paid
       if (paymentStatus === "paid" && method) {
         const { error: paymentError } = await supabase.from("payments").insert({
           appointment_id: appointment.id,
@@ -335,17 +347,6 @@ export default async function AppointmentDetailPage({ params }: { params: { id: 
 
   if (!profile || !appointment) return null
 
-  let allServices: any[] = []
-  if (appointment.service_ids && appointment.service_ids.length > 0) {
-    const { data: servicesData } = await supabase
-      .from("services")
-      .select("id, name, price, duration, category")
-      .in("id", appointment.service_ids)
-    allServices = servicesData || []
-  } else if (appointment.service) {
-    allServices = [appointment.service]
-  }
-
   const totalDuration = allServices.reduce((sum, s) => sum + (s.duration || 0), 0)
   const totalPrice =
     appointment.service_ids && appointment.service_ids.length > 0
@@ -353,7 +354,7 @@ export default async function AppointmentDetailPage({ params }: { params: { id: 
       : Number(appointment.service?.price || 0)
 
   const appointmentDate = new Date(appointment.appointment_date)
-  const displayPrice = appointment.custom_price || appointment.service?.price || 0
+  const displayPrice = appointment.custom_price || totalPrice || appointment.service?.price || 0
 
   return (
     <div className="min-h-screen bg-background">
