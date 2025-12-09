@@ -78,55 +78,70 @@ export default function QuizPage() {
             id: 1,
             question: "Quais categorias de serviços você tem interesse?",
             options: [
-              { value: "cabelo", label: "Cabelo (Corte, Coloração, Tratamentos)" },
-              { value: "barba", label: "Barba e Bigode" },
-              { value: "unhas", label: "Unhas (Manicure, Pedicure, Alongamento)" },
-              { value: "estetica", label: "Estética Facial e Corporal" },
-              { value: "massagem", label: "Massagens e Relaxamento" },
-              { value: "sobrancelha", label: "Sobrancelhas e Cílios" },
-              { value: "maquiagem", label: "Maquiagem" },
-              { value: "depilacao", label: "Depilação" },
+              { value: "cabelo", label: "Cabelo (Corte, Coloração, Tratamentos)", specialty: "hair", weight: 5 },
+              { value: "barba", label: "Barba e Bigode", specialty: "beard", weight: 4 },
+              { value: "unhas", label: "Unhas (Manicure, Pedicure, Alongamento)", specialty: "nails", weight: 3 },
+              { value: "estetica", label: "Estética Facial e Corporal", specialty: "aesthetics", weight: 4 },
+              { value: "massagem", label: "Massagens e Relaxamento", specialty: "massage", weight: 5 },
+              { value: "sobrancelha", label: "Sobrancelhas e Cílios", specialty: "eyebrows", weight: 3 },
+              { value: "maquiagem", label: "Maquiagem", specialty: "makeup", weight: 4 },
+              { value: "depilacao", label: "Depilação", specialty: "hair_removal", weight: 2 },
             ],
             order_index: 1,
-            category: "interesse",
+            category: "interest",
           },
           {
             id: 2,
             question: "Com que frequência você busca esses serviços?",
             options: [
-              { value: "semanal", label: "Semanalmente" },
-              { value: "quinzenal", label: "A cada 15 dias" },
-              { value: "mensal", label: "Mensalmente" },
-              { value: "trimestral", label: "A cada 2-3 meses" },
-              { value: "eventual", label: "Ocasionalmente" },
+              { value: "semanal", label: "Semanalmente", specialty: "frequency_weekly", weight: 5 },
+              { value: "quinzenal", label: "A cada 15 dias", specialty: "frequency_biweekly", weight: 4 },
+              { value: "mensal", label: "Mensalmente", specialty: "frequency_monthly", weight: 3 },
+              { value: "trimestral", label: "A cada 2-3 meses", specialty: "frequency_quarterly", weight: 2 },
+              { value: "eventual", label: "Ocasionalmente", specialty: "frequency_occasional", weight: 1 },
             ],
             order_index: 2,
-            category: "frequencia",
+            category: "frequency",
           },
           {
             id: 3,
             question: "O que é mais importante para você?",
             options: [
-              { value: "qualidade", label: "Qualidade e experiência do profissional" },
-              { value: "preco", label: "Preço acessível" },
-              { value: "rapidez", label: "Atendimento rápido" },
-              { value: "localizacao", label: "Localização conveniente" },
-              { value: "ambiente", label: "Ambiente agradável e acolhedor" },
+              {
+                value: "qualidade",
+                label: "Qualidade e experiência do profissional",
+                specialty: "priority_quality",
+                weight: 5,
+              },
+              { value: "preco", label: "Preço acessível", specialty: "priority_price", weight: 3 },
+              { value: "rapidez", label: "Atendimento rápido", specialty: "priority_speed", weight: 4 },
+              { value: "localizacao", label: "Localização conveniente", specialty: "priority_location", weight: 3 },
+              { value: "ambiente", label: "Ambiente agradável e acolhedor", specialty: "priority_ambiance", weight: 4 },
             ],
             order_index: 3,
-            category: "prioridade",
+            category: "priority",
           },
           {
             id: 4,
             question: "Que tipo de profissional você prefere?",
             options: [
-              { value: "moderno", label: "Moderno e antenado nas tendências" },
-              { value: "classico", label: "Clássico e tradicional" },
-              { value: "versatil", label: "Versátil (faz vários tipos de trabalho)" },
-              { value: "especialista", label: "Especialista em técnicas específicas" },
+              { value: "moderno", label: "Moderno e antenado nas tendências", specialty: "style_modern", weight: 4 },
+              { value: "classico", label: "Clássico e tradicional", specialty: "style_classic", weight: 3 },
+              {
+                value: "versatil",
+                label: "Versátil (faz vários tipos de trabalho)",
+                specialty: "style_versatile",
+                weight: 5,
+              },
+              {
+                value: "especialista",
+                label: "Especialista em técnicas específicas",
+                specialty: "style_specialist",
+                weight: 4,
+              },
             ],
             order_index: 4,
-            category: "estilo",
+            category: "style",
           },
         ])
       } else {
@@ -218,107 +233,108 @@ export default function QuizPage() {
     }
   }
 
-  const calculateResult = async () => {
-    setLoading(true)
-    try {
-      const specialtyScores: Record<string, number> = {}
+  // calculateResult is no longer used, its logic is merged into handleSubmit
+  // const calculateResult = async () => {
+  //   setLoading(true)
+  //   try {
+  //     const specialtyScores: Record<string, number> = {}
 
-      questions.forEach((question) => {
-        const selectedAnswer = answers[question.category] // Changed from question.id to question.category
-        if (selectedAnswer) {
-          const option = question.options.find((opt: any) => opt.value === selectedAnswer) // Changed from text to value
-          if (option) {
-            specialtyScores[option.specialty] = (specialtyScores[option.specialty] || 0) + option.weight
-          }
-        }
-      })
+  //     questions.forEach((question) => {
+  //       const selectedAnswer = answers[question.category] // Changed from question.id to question.category
+  //       if (selectedAnswer) {
+  //         const option = question.options.find((opt: any) => opt.value === selectedAnswer) // Changed from text to value
+  //         if (option) {
+  //           specialtyScores[option.specialty] = (specialtyScores[option.specialty] || 0) + option.weight
+  //         }
+  //       }
+  //     })
 
-      const { data: staffMembers } = await supabase
-        .from("profiles")
-        .select("*")
-        .eq("user_level", 20)
-        .eq("is_active", true)
-        .neq("staff_status", "inactive")
+  //     const { data: staffMembers } = await supabase
+  //       .from("profiles")
+  //       .select("*")
+  //       .eq("user_level", 20)
+  //       .eq("is_active", true)
+  //       .neq("staff_status", "inactive")
 
-      if (staffMembers && staffMembers.length > 0) {
-        const staffScores = staffMembers.map((staff) => {
-          let score = 0
-          if (staff.specialties) {
-            staff.specialties.forEach((specialty: string) => {
-              score += specialtyScores[specialty] || 0
-            })
-          }
-          return { ...staff, score }
-        })
+  //     if (staffMembers && staffMembers.length > 0) {
+  //       const staffScores = staffMembers.map((staff) => {
+  //         let score = 0
+  //         if (staff.specialties) {
+  //           staff.specialties.forEach((specialty: string) => {
+  //             score += specialtyScores[specialty] || 0
+  //           })
+  //         }
+  //         return { ...staff, score }
+  //       })
 
-        staffScores.sort((a, b) => b.score - a.score)
-        const bestMatch = staffScores[0]
+  //       staffScores.sort((a, b) => b.score - a.score)
+  //       const bestMatch = staffScores[0]
 
-        const [servicesData, coursesData, subscriptionsData, feedbackData] = await Promise.all([
-          supabase.from("staff_services").select("*, services(*)").eq("staff_id", bestMatch.id),
-          supabase.from("staff_courses").select("*, courses(*)").eq("staff_id", bestMatch.id).eq("progress", 100),
-          supabase.from("subscription_plans").select("*").eq("staff_id", bestMatch.id).eq("is_active", true),
-          supabase
-            .from("feedback")
-            .select("*")
-            .eq("staff_id", bestMatch.id)
-            .order("created_at", { ascending: false })
-            .limit(5),
-        ])
+  //       const [servicesData, coursesData, subscriptionsData, feedbackData] = await Promise.all([
+  //         supabase.from("staff_services").select("*, services(*)").eq("staff_id", bestMatch.id),
+  //         supabase.from("staff_courses").select("*, courses(*)").eq("staff_id", bestMatch.id).eq("progress", 100),
+  //         supabase.from("subscription_plans").select("*").eq("staff_id", bestMatch.id).eq("is_active", true),
+  //         supabase
+  //           .from("feedback")
+  //           .select("*")
+  //           .eq("staff_id", bestMatch.id)
+  //           .order("created_at", { ascending: false })
+  //           .limit(5),
+  //       ])
 
-        const avgRating =
-          feedbackData.data && feedbackData.data.length > 0
-            ? feedbackData.data.reduce((sum, f) => sum + f.rating, 0) / feedbackData.data.length
-            : 0
+  //       const avgRating =
+  //         feedbackData.data && feedbackData.data.length > 0
+  //           ? feedbackData.data.reduce((sum, f) => sum + f.rating, 0) / feedbackData.data.length
+  //           : 0
 
-        const resultData = {
-          ...bestMatch,
-          services: servicesData.data || [],
-          courses: coursesData.data || [],
-          subscriptions: subscriptionsData.data || [],
-          feedback: feedbackData.data || [],
-          avgRating,
-        }
+  //       const resultData = {
+  //         ...bestMatch,
+  //         services: servicesData.data || [],
+  //         courses: coursesData.data || [],
+  //         subscriptions: subscriptionsData.data || [],
+  //         feedback: feedbackData.data || [],
+  //         avgRating,
+  //       }
 
-        setResult(resultData)
+  //       setResult(resultData)
 
-        setLoadingAiMessage(true)
-        try {
-          const selectedServicesDetails = allServices
-            .filter((s) => selectedServices.includes(s.id))
-            .map((s) => `${s.name} (${s.category})`)
-            .join(", ")
+  //       setLoadingAiMessage(true)
+  //       try {
+  //         const selectedServicesDetails = allServices
+  //           .filter((s) => selectedServices.includes(s.id))
+  //           .map((s) => `${s.name} (${s.category})`)
+  //           .join(", ")
 
-          const response = await fetch("/api/quiz/personalize", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              staffId: bestMatch.id,
-              userAnswers: answers,
-              quizQuestions: questions,
-              selectedServices: selectedServicesDetails,
-              referenceImagesCount: referenceImages.length,
-              additionalNotes,
-            }),
-          })
+  //         const response = await fetch("/api/quiz/personalize", {
+  //           method: "POST",
+  //           headers: { "Content-Type": "application/json" },
+  //           body: JSON.stringify({
+  //             staffId: bestMatch.id,
+  //             userAnswers: answers,
+  //             quizQuestions: questions,
+  //             selectedServices: selectedServicesDetails,
+  //             referenceImagesCount: referenceImages.length,
+  //             additionalNotes,
+  //           }),
+  //         })
 
-          if (response.ok) {
-            const data = await response.json()
-            setAiMessage(data.message)
-          }
-        } catch (error) {
-          console.error("[v0] Error fetching AI message:", error)
-        } finally {
-          setLoadingAiMessage(false)
-        }
-      }
-    } catch (error) {
-      console.error("[v0] Error calculating quiz result:", error)
-      toast.error("Erro ao calcular resultado")
-    } finally {
-      setLoading(false)
-    }
-  }
+  //         if (response.ok) {
+  //           const data = await response.json()
+  //           setAiMessage(data.message)
+  //         }
+  //       } catch (error) {
+  //         console.error("[v0] Error fetching AI message:", error)
+  //       } finally {
+  //         setLoadingAiMessage(false)
+  //       }
+  //     }
+  //   } catch (error) {
+  //     console.error("[v0] Error calculating quiz result:", error)
+  //     toast.error("Erro ao calcular resultado")
+  //   } finally {
+  //     setLoading(false)
+  //   }
+  // }
 
   const handleSubmit = async () => {
     setLoadingAiMessage(true)
@@ -328,31 +344,165 @@ export default function QuizPage() {
       console.log("[v0] Reference images:", referenceImages.length)
       console.log("[v0] Additional notes:", additionalNotes)
 
-      const response = await fetch("/api/quiz/personalize", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          answers,
-          selectedServices,
-          referenceImages,
-          additionalNotes,
-        }),
+      const requiredQuestions = questions.filter((q) => !q.question.includes("Opcional"))
+      const answeredCount = Object.keys(answers).length
+
+      // Note: The current flow has 4 questions + 1 service selection + 1 image/notes section, so total 6 steps.
+      // We need to ensure answers are captured for all relevant questions.
+      // The 'answers' state maps category to value. Let's check if all required categories have answers.
+      const requiredCategories = questions.map((q) => q.category)
+      const allRequiredAnswered = requiredCategories.every(
+        (category) => answers[category] !== undefined && answers[category] !== "",
+      )
+
+      if (!allRequiredAnswered) {
+        toast.error("Por favor, responda todas as perguntas obrigatórias")
+        setLoadingAiMessage(false)
+        return
+      }
+
+      setLoading(true)
+
+      const supabase = await createClient()
+
+      const specialtyScores: Record<string, number> = {}
+      questions.forEach((question) => {
+        const answer = answers[question.category] // Use category as key
+        if (answer && question.options) {
+          const option = question.options.find((opt: any) => opt.value === answer)
+          if (option) {
+            // Ensure specialty and weight exist
+            if (option.specialty && typeof option.weight === "number") {
+              specialtyScores[option.specialty] = (specialtyScores[option.specialty] || 0) + option.weight
+            }
+          }
+        }
       })
 
-      const data = await response.json()
-      console.log("[v0] Quiz result:", data)
+      console.log("[v0] Specialty scores calculated:", specialtyScores)
 
-      if (data.success) {
-        setResult(data.result)
-        setAiMessage(data.aiMessage)
-      } else {
-        toast.error("Erro ao processar suas respostas")
+      const { data: staffMembers, error: staffError } = await supabase
+        .from("profiles")
+        .select("*")
+        .eq("user_level", 20)
+        .eq("is_active", true)
+        .neq("staff_status", "inactive")
+
+      console.log("[v0] Found staff members:", staffMembers?.length || 0)
+
+      if (staffError) {
+        console.error("[v0] Error fetching staff:", staffError)
+        toast.error("Erro ao buscar profissionais")
+        setLoading(false)
+        setLoadingAiMessage(false)
+        return
+      }
+
+      if (!staffMembers || staffMembers.length === 0) {
+        console.error("[v0] No active staff members found")
+        toast.error("Nenhum profissional disponível no momento")
+        setLoading(false)
+        setLoadingAiMessage(false)
+        return
+      }
+
+      const staffScores = staffMembers.map((staff) => {
+        let score = 0
+        // Ensure staff.specialties is an array before iterating
+        if (Array.isArray(staff.specialties)) {
+          staff.specialties.forEach((specialty: string) => {
+            score += specialtyScores[specialty] || 0
+          })
+        }
+        if (selectedServices.length > 0 && staff.id) {
+          // This will be refined with actual service matching later
+          // For now, a simple bonus if any service is selected.
+          score += 5
+        }
+        return { ...staff, score }
+      })
+
+      staffScores.sort((a, b) => b.score - a.score)
+      const bestMatch = staffScores[0]
+
+      console.log("[v0] Best match found:", {
+        id: bestMatch.id,
+        name: bestMatch.full_name,
+        score: bestMatch.score,
+      })
+
+      const [servicesData, coursesData, subscriptionsData, feedbackData] = await Promise.all([
+        supabase.from("staff_services").select("*, services(*)").eq("staff_id", bestMatch.id),
+        supabase.from("staff_courses").select("*, courses(*)").eq("staff_id", bestMatch.id).eq("progress", 100),
+        supabase.from("subscription_plans").select("*").eq("staff_id", bestMatch.id).eq("is_active", true),
+        supabase
+          .from("feedback")
+          .select("*")
+          .eq("staff_id", bestMatch.id)
+          .order("created_at", { ascending: false })
+          .limit(5),
+      ])
+
+      const avgRating =
+        feedbackData.data && feedbackData.data.length > 0
+          ? feedbackData.data.reduce((sum, f) => sum + f.rating, 0) / feedbackData.data.length
+          : 0
+
+      const resultData = {
+        ...bestMatch,
+        services: servicesData.data || [],
+        courses: coursesData.data || [],
+        subscriptions: subscriptionsData.data || [],
+        feedback: feedbackData.data || [],
+        avgRating,
+      }
+
+      setResult(resultData)
+
+      setLoadingAiMessage(true)
+      try {
+        const selectedServicesDetails = allServices
+          .filter((s) => selectedServices.includes(s.id))
+          .map((s) => `${s.name} (${s.category})`)
+          .join(", ")
+
+        console.log("[v0] Calling AI API with staffId:", bestMatch.id)
+
+        const response = await fetch("/api/quiz/personalize", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            staffId: bestMatch.id,
+            userAnswers: answers,
+            quizQuestions: questions,
+            selectedServices: selectedServicesDetails,
+            referenceImagesCount: referenceImages.length,
+            additionalNotes,
+          }),
+        })
+
+        console.log("[v0] AI API response status:", response.status)
+
+        if (response.ok) {
+          const data = await response.json()
+          console.log("[v0] AI message received successfully")
+          setAiMessage(data.message)
+        } else {
+          const errorData = await response.json()
+          console.error("[v0] AI API error:", errorData)
+          toast.error("Erro ao gerar recomendação personalizada")
+        }
+      } catch (error) {
+        console.error("[v0] Error fetching AI message:", error)
+        toast.error("Erro ao gerar recomendação com IA")
+      } finally {
+        setLoadingAiMessage(false)
       }
     } catch (error) {
-      console.error("[v0] Error submitting quiz:", error)
-      toast.error("Erro ao enviar o quiz")
+      console.error("[v0] Error calculating quiz result:", error)
+      toast.error("Erro ao calcular resultado")
     } finally {
-      setLoadingAiMessage(false)
+      setLoading(false)
     }
   }
 
@@ -700,6 +850,8 @@ export default function QuizPage() {
   }
 
   const isLastQuestion = currentQuestion === questions.length
+  const isServiceSelectionStep = currentQuestion === questions.length + 1
+  const isImageUploadStep = currentQuestion === questions.length + 2
 
   return (
     <div className="min-h-screen bg-background">
@@ -723,9 +875,11 @@ export default function QuizPage() {
                 <CardTitle>Encontre seu profissional ideal</CardTitle>
               </div>
               <span className="text-sm text-muted-foreground">
-                {isLastQuestion
-                  ? `Personalize sua busca (Opcional)`
-                  : `Pergunta ${currentQuestion + 1} de ${questions.length + 2}`}
+                {isImageUploadStep
+                  ? `Detalhes adicionais`
+                  : isServiceSelectionStep
+                    ? `Personalize sua busca (Opcional)`
+                    : `Pergunta ${currentQuestion + 1} de ${questions.length}`}
               </span>
             </div>
             <div className="w-full bg-secondary rounded-full h-2">
@@ -740,7 +894,7 @@ export default function QuizPage() {
 
           <CardContent className="space-y-6">
             <AnimatePresence mode="wait" custom={direction}>
-              {currentQuestion < questions.length ? (
+              {currentQuestion < questions.length ? ( // Question Step
                 <motion.div
                   key={currentQuestion}
                   custom={direction}
@@ -752,7 +906,7 @@ export default function QuizPage() {
                 >
                   <div className="space-y-4">
                     <h3 className="text-xl font-medium">
-                      Pergunta {currentQuestion + 1} de {questions.length + 2}
+                      Pergunta {currentQuestion + 1} de {questions.length}
                     </h3>
                     <p className="text-lg text-balance">{currentQ?.question}</p>
 
@@ -763,15 +917,15 @@ export default function QuizPage() {
                       <div className="space-y-3">
                         {currentQ?.options.map((option: any, index: number) => (
                           <motion.div
-                            key={option.value} // Changed from index to option.value for better key stability
+                            key={option.value}
                             initial={{ opacity: 0, x: -20 }}
                             animate={{ opacity: 1, x: 0 }}
-                            transition={{ delay: index * 0.1 }} // Keep delay based on index for animation order
+                            transition={{ delay: index * 0.1 }}
                           >
                             <Label
-                              htmlFor={`option-${option.value}`} // Changed from index
+                              htmlFor={`option-${option.value}`}
                               className={`flex items-center p-4 border-2 rounded-lg cursor-pointer transition-all duration-200 ${
-                                answers[currentQ?.category] === option.value // Changed from option.text to option.value
+                                answers[currentQ?.category] === option.value
                                   ? "border-gold bg-gold/5"
                                   : "border-border hover:border-gold/50 hover:bg-muted/50"
                               }`}
@@ -796,10 +950,8 @@ export default function QuizPage() {
                   transition={{ type: "spring", stiffness: 300, damping: 30 }}
                 >
                   <div className="space-y-4">
-                    <h3 className="text-xl font-medium">
-                      Pergunta {questions.length + 1} de {questions.length + 2}
-                    </h3>
-                    <p className="text-lg text-balance">Quais serviços específicos você tem interesse? (Opcional)</p>
+                    <h3 className="text-xl font-medium">Personalize sua busca (Opcional)</h3>
+                    <p className="text-lg text-balance">Quais serviços específicos você tem interesse?</p>
 
                     <div className="relative">
                       <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -877,10 +1029,8 @@ export default function QuizPage() {
                   transition={{ type: "spring", stiffness: 300, damping: 30 }}
                 >
                   <div className="space-y-4">
-                    <h3 className="text-xl font-medium">
-                      Pergunta {questions.length + 2} de {questions.length + 2}
-                    </h3>
-                    <p className="text-lg text-balance">Tem imagens de referência do que você deseja? (Opcional)</p>
+                    <h3 className="text-xl font-medium">Detalhes adicionais (Opcional)</h3>
+                    <p className="text-lg text-balance">Tem imagens de referência do que você deseja?</p>
 
                     <div className="border-2 border-dashed rounded-lg p-6">
                       <label htmlFor="image-upload" className="flex flex-col items-center gap-2 cursor-pointer">
@@ -945,7 +1095,12 @@ export default function QuizPage() {
             </AnimatePresence>
 
             <div className="flex items-center justify-between pt-4">
-              <Button variant="ghost" onClick={handlePrevious} disabled={currentQuestion === 0} className="gap-2">
+              <Button
+                variant="ghost"
+                onClick={handlePrevious}
+                disabled={currentQuestion === 0 || loadingAiMessage}
+                className="gap-2"
+              >
                 <ArrowLeft className="h-4 w-4" />
                 Voltar
               </Button>
@@ -962,12 +1117,9 @@ export default function QuizPage() {
                 }
                 disabled={
                   loadingAiMessage || // Disable if AI is processing
-                  (currentQuestion < questions.length && !answers[currentQ?.category]) || // Disable if current question is unanswered
-                  (currentQuestion === questions.length &&
-                    selectedServices.length === 0 &&
-                    !additionalNotes &&
-                    referenceImages.length === 0 &&
-                    false) // Optional step, always enable if not loading AI
+                  (currentQuestion < questions.length && !answers[currentQ?.category]) // Disable if current question is unanswered
+                  // For optional steps (service selection, image upload), we don't strictly need to disable,
+                  // but we should ensure loadingAiMessage is checked.
                 }
                 className="gap-2"
               >
