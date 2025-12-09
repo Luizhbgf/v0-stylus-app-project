@@ -9,6 +9,7 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import { Label } from "@/components/ui/label"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
+import { Checkbox } from "@/components/ui/checkbox"
 import { useRouter } from "next/navigation"
 import { createClient } from "@/lib/supabase/client"
 import { motion, AnimatePresence } from "framer-motion"
@@ -55,6 +56,7 @@ export default function QuizPage() {
 
   useEffect(() => {
     async function loadQuiz() {
+      console.log("[v0] Loading quiz data...")
       const {
         data: { user: currentUser },
       } = await supabase.auth.getUser()
@@ -65,9 +67,72 @@ export default function QuizPage() {
         supabase.from("services").select("*").eq("is_active", true).order("category, name"),
       ])
 
-      if (questionsData.data) {
+      console.log("[v0] Questions loaded:", questionsData.data?.length || 0)
+      console.log("[v0] Services loaded:", servicesData.data?.length || 0)
+
+      // If no questions in database, use fallback questions
+      if (!questionsData.data || questionsData.data.length === 0) {
+        console.log("[v0] Using fallback questions")
+        setQuestions([
+          {
+            id: 1,
+            question: "Quais categorias de serviços você tem interesse?",
+            options: [
+              { value: "cabelo", label: "Cabelo (Corte, Coloração, Tratamentos)" },
+              { value: "barba", label: "Barba e Bigode" },
+              { value: "unhas", label: "Unhas (Manicure, Pedicure, Alongamento)" },
+              { value: "estetica", label: "Estética Facial e Corporal" },
+              { value: "massagem", label: "Massagens e Relaxamento" },
+              { value: "sobrancelha", label: "Sobrancelhas e Cílios" },
+              { value: "maquiagem", label: "Maquiagem" },
+              { value: "depilacao", label: "Depilação" },
+            ],
+            order_index: 1,
+            category: "interesse",
+          },
+          {
+            id: 2,
+            question: "Com que frequência você busca esses serviços?",
+            options: [
+              { value: "semanal", label: "Semanalmente" },
+              { value: "quinzenal", label: "A cada 15 dias" },
+              { value: "mensal", label: "Mensalmente" },
+              { value: "trimestral", label: "A cada 2-3 meses" },
+              { value: "eventual", label: "Ocasionalmente" },
+            ],
+            order_index: 2,
+            category: "frequencia",
+          },
+          {
+            id: 3,
+            question: "O que é mais importante para você?",
+            options: [
+              { value: "qualidade", label: "Qualidade e experiência do profissional" },
+              { value: "preco", label: "Preço acessível" },
+              { value: "rapidez", label: "Atendimento rápido" },
+              { value: "localizacao", label: "Localização conveniente" },
+              { value: "ambiente", label: "Ambiente agradável e acolhedor" },
+            ],
+            order_index: 3,
+            category: "prioridade",
+          },
+          {
+            id: 4,
+            question: "Que tipo de profissional você prefere?",
+            options: [
+              { value: "moderno", label: "Moderno e antenado nas tendências" },
+              { value: "classico", label: "Clássico e tradicional" },
+              { value: "versatil", label: "Versátil (faz vários tipos de trabalho)" },
+              { value: "especialista", label: "Especialista em técnicas específicas" },
+            ],
+            order_index: 4,
+            category: "estilo",
+          },
+        ])
+      } else {
         setQuestions(questionsData.data)
       }
+
       if (servicesData.data) {
         setAllServices(servicesData.data)
       }
@@ -80,20 +145,6 @@ export default function QuizPage() {
     setAnswers({ ...answers, [questionId]: answer })
   }
 
-  const handleNext = () => {
-    if (currentQuestion < questions.length - 1) {
-      setDirection(1)
-      setCurrentQuestion(currentQuestion + 1)
-    }
-  }
-
-  const handleBack = () => {
-    if (currentQuestion > 0) {
-      setDirection(-1)
-      setCurrentQuestion(currentQuestion - 1)
-    }
-  }
-
   const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files
     if (!files || files.length === 0) return
@@ -101,15 +152,15 @@ export default function QuizPage() {
     setUploadingImages(true)
     try {
       const uploadPromises = Array.from(files).map(async (file) => {
-        const blob = await put(file.name, file, {
+        const blob = await put(`quiz-references/${Date.now()}-${file.name}`, file, {
           access: "public",
         })
         return blob.url
       })
 
       const urls = await Promise.all(uploadPromises)
-      setReferenceImages([...referenceImages, ...urls])
-      toast.success(`${urls.length} imagem(ns) enviada(s) com sucesso`)
+      setReferenceImages((prev) => [...prev, ...urls])
+      toast.success(`${files.length} imagem(ns) enviada(s) com sucesso!`)
     } catch (error) {
       console.error("[v0] Error uploading images:", error)
       toast.error("Erro ao enviar imagens")
@@ -119,22 +170,19 @@ export default function QuizPage() {
   }
 
   const removeImage = (index: number) => {
-    setReferenceImages(referenceImages.filter((_, i) => i !== index))
+    setReferenceImages((prev) => prev.filter((_, i) => i !== index))
   }
 
   const toggleService = (serviceId: string) => {
-    if (selectedServices.includes(serviceId)) {
-      setSelectedServices(selectedServices.filter((id) => id !== serviceId))
-    } else {
-      setSelectedServices([...selectedServices, serviceId])
-    }
+    setSelectedServices((prev) =>
+      prev.includes(serviceId) ? prev.filter((id) => id !== serviceId) : [...prev, serviceId],
+    )
   }
 
   const filteredServices = allServices.filter(
     (service) =>
       service.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      service.category.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      service.description?.toLowerCase().includes(searchQuery.toLowerCase()),
+      service.category.toLowerCase().includes(searchQuery.toLowerCase()),
   )
 
   const servicesByCategory = filteredServices.reduce(
@@ -148,15 +196,37 @@ export default function QuizPage() {
     {} as Record<string, any[]>,
   )
 
+  const handleNext = () => {
+    const currentQ = questions[currentQuestion]
+    if (!answers[currentQ.category]) {
+      toast.error("Por favor, selecione uma resposta antes de continuar")
+      return
+    }
+
+    if (currentQuestion < questions.length - 1) {
+      setDirection(1)
+      setCurrentQuestion(currentQuestion + 1)
+    } else {
+      handleSubmit()
+    }
+  }
+
+  const handlePrevious = () => {
+    if (currentQuestion > 0) {
+      setDirection(-1)
+      setCurrentQuestion(currentQuestion - 1)
+    }
+  }
+
   const calculateResult = async () => {
     setLoading(true)
     try {
       const specialtyScores: Record<string, number> = {}
 
       questions.forEach((question) => {
-        const selectedAnswer = answers[question.id]
+        const selectedAnswer = answers[question.category] // Changed from question.id to question.category
         if (selectedAnswer) {
-          const option = question.options.find((opt: any) => opt.text === selectedAnswer)
+          const option = question.options.find((opt: any) => opt.value === selectedAnswer) // Changed from text to value
           if (option) {
             specialtyScores[option.specialty] = (specialtyScores[option.specialty] || 0) + option.weight
           }
@@ -250,12 +320,48 @@ export default function QuizPage() {
     }
   }
 
+  const handleSubmit = async () => {
+    setLoadingAiMessage(true)
+    try {
+      console.log("[v0] Submitting quiz with answers:", answers)
+      console.log("[v0] Selected services:", selectedServices)
+      console.log("[v0] Reference images:", referenceImages.length)
+      console.log("[v0] Additional notes:", additionalNotes)
+
+      const response = await fetch("/api/quiz/personalize", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          answers,
+          selectedServices,
+          referenceImages,
+          additionalNotes,
+        }),
+      })
+
+      const data = await response.json()
+      console.log("[v0] Quiz result:", data)
+
+      if (data.success) {
+        setResult(data.result)
+        setAiMessage(data.aiMessage)
+      } else {
+        toast.error("Erro ao processar suas respostas")
+      }
+    } catch (error) {
+      console.error("[v0] Error submitting quiz:", error)
+      toast.error("Erro ao enviar o quiz")
+    } finally {
+      setLoadingAiMessage(false)
+    }
+  }
+
   if (loading) {
     return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
+      <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-gold mx-auto mb-4"></div>
-          <p className="text-muted-foreground">Carregando...</p>
+          <Sparkles className="h-12 w-12 mx-auto mb-4 text-primary animate-pulse" />
+          <p className="text-lg">Carregando quiz...</p>
         </div>
       </div>
     )
@@ -575,8 +681,8 @@ export default function QuizPage() {
   }
 
   const currentQ = questions[currentQuestion]
-  // Add 1 to questions.length to account for the final step (service selection + images)
-  const progress = ((currentQuestion + 1) / (questions.length + 1)) * 100
+  // +2 for service selection and image upload steps
+  const progress = ((currentQuestion + 1) / (questions.length + 2)) * 100
 
   const slideVariants = {
     enter: (direction: number) => ({
@@ -608,140 +714,108 @@ export default function QuizPage() {
         </div>
       </header>
 
-      <div className="container mx-auto px-4 py-12">
-        <div className="max-w-2xl mx-auto">
-          <motion.div initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }} className="mb-8 text-center">
-            <div className="inline-flex items-center justify-center w-16 h-16 bg-gold/10 rounded-full mb-4">
-              <Sparkles className="h-8 w-8 text-gold" />
-            </div>
-            <h1 className="text-4xl font-bold text-foreground mb-4">Encontre seu profissional ideal</h1>
-            <p className="text-muted-foreground text-lg">
-              Responda algumas perguntas e vamos recomendar o melhor profissional para você
-            </p>
-          </motion.div>
-
-          <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="mb-8">
-            <div className="flex items-center justify-between mb-3">
-              <span className="text-sm font-medium text-foreground">
+      <main className="container max-w-4xl mx-auto px-4 py-12">
+        <Card>
+          <CardHeader>
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center gap-2">
+                <Sparkles className="h-6 w-6 text-primary" />
+                <CardTitle>Encontre seu profissional ideal</CardTitle>
+              </div>
+              <span className="text-sm text-muted-foreground">
                 {isLastQuestion
                   ? `Personalize sua busca (Opcional)`
-                  : `Pergunta ${currentQuestion + 1} de ${questions.length}`}
+                  : `Pergunta ${currentQuestion + 1} de ${questions.length + 2}`}
               </span>
-              <span className="text-sm font-medium text-gold">{Math.round(progress)}% completo</span>
             </div>
-            <div className="h-3 bg-muted rounded-full overflow-hidden relative">
+            <div className="w-full bg-secondary rounded-full h-2">
               <motion.div
-                className="h-full bg-gradient-to-r from-gold to-gold/70 rounded-full"
+                className="bg-primary h-2 rounded-full"
                 initial={{ width: 0 }}
                 animate={{ width: `${progress}%` }}
-                transition={{ duration: 0.5, ease: "easeOut" }}
+                transition={{ duration: 0.3 }}
               />
             </div>
-          </motion.div>
+          </CardHeader>
 
-          <AnimatePresence mode="wait" custom={direction}>
-            {!isLastQuestion ? (
-              <motion.div
-                key={currentQuestion}
-                custom={direction}
-                variants={slideVariants}
-                initial="enter"
-                animate="center"
-                exit="exit"
-                transition={{ type: "spring", stiffness: 300, damping: 30 }}
-              >
-                <Card className="border-gold/20">
-                  <CardHeader>
-                    <CardTitle className="text-2xl text-foreground">{currentQ?.question}</CardTitle>
-                  </CardHeader>
-                  <CardContent>
+          <CardContent className="space-y-6">
+            <AnimatePresence mode="wait" custom={direction}>
+              {currentQuestion < questions.length ? (
+                <motion.div
+                  key={currentQuestion}
+                  custom={direction}
+                  variants={slideVariants}
+                  initial="enter"
+                  animate="center"
+                  exit="exit"
+                  transition={{ type: "spring", stiffness: 300, damping: 30 }}
+                >
+                  <div className="space-y-4">
+                    <h3 className="text-xl font-medium">
+                      Pergunta {currentQuestion + 1} de {questions.length + 2}
+                    </h3>
+                    <p className="text-lg text-balance">{currentQ?.question}</p>
+
                     <RadioGroup
-                      value={answers[currentQ?.id] || ""}
-                      onValueChange={(value) => handleAnswer(currentQ.id, value)}
+                      value={answers[currentQ?.category] || ""}
+                      onValueChange={(value) => setAnswers((prev) => ({ ...prev, [currentQ.category]: value }))}
                     >
                       <div className="space-y-3">
                         {currentQ?.options.map((option: any, index: number) => (
                           <motion.div
-                            key={index}
+                            key={option.value} // Changed from index to option.value for better key stability
                             initial={{ opacity: 0, x: -20 }}
                             animate={{ opacity: 1, x: 0 }}
-                            transition={{ delay: index * 0.1 }}
+                            transition={{ delay: index * 0.1 }} // Keep delay based on index for animation order
                           >
                             <Label
-                              htmlFor={`option-${index}`}
+                              htmlFor={`option-${option.value}`} // Changed from index
                               className={`flex items-center p-4 border-2 rounded-lg cursor-pointer transition-all duration-200 ${
-                                answers[currentQ?.id] === option.text
+                                answers[currentQ?.category] === option.value // Changed from option.text to option.value
                                   ? "border-gold bg-gold/5"
                                   : "border-border hover:border-gold/50 hover:bg-muted/50"
                               }`}
                             >
-                              <RadioGroupItem value={option.text} id={`option-${index}`} className="mr-3" />
-                              <span className="text-foreground font-medium">{option.text}</span>
+                              <RadioGroupItem value={option.value} id={`option-${option.value}`} className="mr-3" />
+                              <span className="text-foreground font-medium">{option.label}</span>
                             </Label>
                           </motion.div>
                         ))}
                       </div>
                     </RadioGroup>
+                  </div>
+                </motion.div>
+              ) : currentQuestion === questions.length ? ( // Service Selection Step
+                <motion.div
+                  key="service-selection"
+                  custom={direction}
+                  variants={slideVariants}
+                  initial="enter"
+                  animate="center"
+                  exit="exit"
+                  transition={{ type: "spring", stiffness: 300, damping: 30 }}
+                >
+                  <div className="space-y-4">
+                    <h3 className="text-xl font-medium">
+                      Pergunta {questions.length + 1} de {questions.length + 2}
+                    </h3>
+                    <p className="text-lg text-balance">Quais serviços específicos você tem interesse? (Opcional)</p>
 
-                    <div className="flex items-center justify-between mt-8 pt-6 border-t border-border">
-                      <Button
-                        variant="outline"
-                        onClick={handleBack}
-                        disabled={currentQuestion === 0}
-                        className="border-gold/20 bg-transparent"
-                      >
-                        <ArrowLeft className="mr-2 h-4 w-4" />
-                        Voltar
-                      </Button>
-                      <Button
-                        onClick={handleNext}
-                        disabled={!answers[currentQ?.id]}
-                        className="bg-gold hover:bg-gold/90 text-black"
-                      >
-                        Próxima
-                        <ArrowRight className="ml-2 h-4 w-4" />
-                      </Button>
+                    <div className="relative">
+                      <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                      <Input
+                        placeholder="Buscar serviços por nome ou categoria..."
+                        value={searchQuery}
+                        onChange={(e) => setSearchQuery(e.target.value)}
+                        className="pl-10"
+                      />
                     </div>
-                  </CardContent>
-                </Card>
-              </motion.div>
-            ) : (
-              <motion.div
-                key="service-selection"
-                custom={direction}
-                variants={slideVariants}
-                initial="enter"
-                animate="center"
-                exit="exit"
-                transition={{ type: "spring", stiffness: 300, damping: 30 }}
-              >
-                <Card className="border-gold/20">
-                  <CardHeader>
-                    <CardTitle className="text-2xl text-foreground">Personalize sua recomendação (Opcional)</CardTitle>
-                    <p className="text-sm text-muted-foreground mt-2">
-                      Selecione serviços específicos, envie fotos de referência ou adicione observações
-                    </p>
-                  </CardHeader>
-                  <CardContent className="space-y-6">
-                    {/* Service Search */}
-                    <div>
-                      <Label className="text-base font-semibold mb-3 flex items-center gap-2">
-                        <Search className="h-5 w-5 text-gold" />
-                        Buscar Serviços
-                      </Label>
-                      <div className="relative mb-4">
-                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                        <Input
-                          placeholder="Busque por nome ou categoria (ex: corte, unhas, massagem)..."
-                          value={searchQuery}
-                          onChange={(e) => setSearchQuery(e.target.value)}
-                          className="pl-10"
-                        />
-                      </div>
 
-                      {/* Services by Category */}
-                      <div className="max-h-96 overflow-y-auto space-y-4 border border-border rounded-lg p-4">
-                        {Object.entries(servicesByCategory).map(([category, services]) => (
+                    <div className="max-h-96 overflow-y-auto space-y-2 border rounded-lg p-4">
+                      {filteredServices.length === 0 ? (
+                        <p className="text-muted-foreground text-center py-8">Nenhum serviço encontrado</p>
+                      ) : (
+                        Object.entries(servicesByCategory).map(([category, services]) => (
                           <div key={category}>
                             <h3 className="font-semibold text-foreground mb-2 flex items-center gap-2">
                               <div className="w-2 h-2 rounded-full bg-gold" />
@@ -757,11 +831,11 @@ export default function QuizPage() {
                                       : "border-border hover:border-gold/50 hover:bg-muted/50"
                                   }`}
                                 >
-                                  <input
-                                    type="checkbox"
+                                  <Checkbox
                                     checked={selectedServices.includes(service.id)}
-                                    onChange={() => toggleService(service.id)}
-                                    className="mt-1"
+                                    onCheckedChange={() => toggleService(service.id)}
+                                    id={`service-${service.id}`}
+                                    className="mt-0.5"
                                   />
                                   <div className="flex-1">
                                     <div className="flex justify-between items-start">
@@ -779,61 +853,42 @@ export default function QuizPage() {
                               ))}
                             </div>
                           </div>
-                        ))}
-                      </div>
-
-                      {selectedServices.length > 0 && (
-                        <div className="mt-3 p-3 bg-gold/5 border border-gold/20 rounded-lg">
-                          <p className="text-sm font-medium text-foreground">
-                            {selectedServices.length} serviço(s) selecionado(s)
-                          </p>
-                        </div>
+                        ))
                       )}
                     </div>
 
-                    {/* Image Upload */}
-                    <div>
-                      <Label className="text-base font-semibold mb-3 flex items-center gap-2">
-                        <ImageIcon className="h-5 w-5 text-gold" />
-                        Fotos de Referência
-                      </Label>
-                      <p className="text-sm text-muted-foreground mb-3">
-                        Envie fotos do estilo que você deseja (cortes, unhas, maquiagem, etc.)
-                      </p>
-
-                      <div className="grid grid-cols-3 gap-3 mb-3">
-                        {referenceImages.map((url, index) => (
-                          <div key={index} className="relative group">
-                            <img
-                              src={url || "/placeholder.svg"}
-                              alt={`Referência ${index + 1}`}
-                              className="w-full h-24 object-cover rounded-lg border border-gold/20"
-                            />
-                            <button
-                              onClick={() => removeImage(index)}
-                              className="absolute -top-2 -right-2 bg-destructive text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity"
-                            >
-                              <X className="h-4 w-4" />
-                            </button>
-                          </div>
-                        ))}
+                    {selectedServices.length > 0 && (
+                      <div className="mt-3 p-3 bg-gold/5 border border-gold/20 rounded-lg">
+                        <p className="text-sm font-medium text-foreground">
+                          {selectedServices.length} serviço(s) selecionado(s)
+                        </p>
                       </div>
+                    )}
+                  </div>
+                </motion.div> // Image Upload and Notes Step
+              ) : (
+                <motion.div
+                  key="images-and-notes"
+                  custom={direction}
+                  variants={slideVariants}
+                  initial="enter"
+                  animate="center"
+                  exit="exit"
+                  transition={{ type: "spring", stiffness: 300, damping: 30 }}
+                >
+                  <div className="space-y-4">
+                    <h3 className="text-xl font-medium">
+                      Pergunta {questions.length + 2} de {questions.length + 2}
+                    </h3>
+                    <p className="text-lg text-balance">Tem imagens de referência do que você deseja? (Opcional)</p>
 
-                      <Label
-                        htmlFor="image-upload"
-                        className="flex items-center justify-center gap-2 p-4 border-2 border-dashed border-border hover:border-gold/50 rounded-lg cursor-pointer transition-colors bg-muted/30"
-                      >
-                        {uploadingImages ? (
-                          <>
-                            <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-gold"></div>
-                            <span className="text-sm text-muted-foreground">Enviando...</span>
-                          </>
-                        ) : (
-                          <>
-                            <Upload className="h-5 w-5 text-muted-foreground" />
-                            <span className="text-sm text-muted-foreground">Clique para enviar imagens</span>
-                          </>
-                        )}
+                    <div className="border-2 border-dashed rounded-lg p-6">
+                      <label htmlFor="image-upload" className="flex flex-col items-center gap-2 cursor-pointer">
+                        <Upload className="h-10 w-10 text-muted-foreground" />
+                        <p className="text-sm text-muted-foreground text-center">
+                          Clique para enviar imagens de referência
+                        </p>
+                        <p className="text-xs text-muted-foreground">PNG, JPG até 10MB</p>
                         <input
                           id="image-upload"
                           type="file"
@@ -843,54 +898,95 @@ export default function QuizPage() {
                           className="hidden"
                           disabled={uploadingImages}
                         />
-                      </Label>
+                      </label>
                     </div>
 
-                    {/* Additional Notes */}
-                    <div>
-                      <Label htmlFor="notes" className="text-base font-semibold mb-3 block">
-                        Observações Adicionais
-                      </Label>
+                    {uploadingImages && (
+                      <div className="flex items-center justify-center gap-2 text-sm text-muted-foreground">
+                        <ImageIcon className="h-4 w-4 animate-pulse" />
+                        Enviando imagens...
+                      </div>
+                    )}
+
+                    {referenceImages.length > 0 && (
+                      <div className="grid grid-cols-3 gap-4">
+                        {referenceImages.map((url, index) => (
+                          <div key={index} className="relative aspect-square rounded-lg overflow-hidden">
+                            <Image
+                              src={url || "/placeholder.svg"}
+                              alt={`Referência ${index + 1}`}
+                              fill
+                              className="object-cover"
+                            />
+                            <button
+                              onClick={() => removeImage(index)}
+                              className="absolute top-2 right-2 p-1 bg-destructive text-destructive-foreground rounded-full hover:bg-destructive/90"
+                            >
+                              <X className="h-4 w-4" />
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+
+                    <div className="space-y-2">
+                      <Label htmlFor="notes">Observações adicionais (Opcional)</Label>
                       <Textarea
                         id="notes"
-                        placeholder="Conte mais sobre o que você procura, preferências de estilo, horários, orçamento, etc..."
+                        placeholder="Descreva mais detalhes sobre o que você procura, estilos preferidos, alergias, etc."
                         value={additionalNotes}
                         onChange={(e) => setAdditionalNotes(e.target.value)}
                         rows={4}
-                        className="resize-none"
                       />
                     </div>
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
 
-                    <div className="flex items-center justify-between pt-6 border-t border-border">
-                      <Button variant="outline" onClick={handleBack} className="border-gold/20 bg-transparent">
-                        <ArrowLeft className="mr-2 h-4 w-4" />
-                        Voltar
-                      </Button>
-                      <Button
-                        onClick={calculateResult}
-                        disabled={loading}
-                        className="bg-gold hover:bg-gold/90 text-black"
-                      >
-                        {loading ? (
-                          <>
-                            <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-black mr-2"></div>
-                            Calculando...
-                          </>
-                        ) : (
-                          <>
-                            Ver Resultado
-                            <Sparkles className="ml-2 h-4 w-4" />
-                          </>
-                        )}
-                      </Button>
-                    </div>
-                  </CardContent>
-                </Card>
-              </motion.div>
-            )}
-          </AnimatePresence>
-        </div>
-      </div>
+            <div className="flex items-center justify-between pt-4">
+              <Button variant="ghost" onClick={handlePrevious} disabled={currentQuestion === 0} className="gap-2">
+                <ArrowLeft className="h-4 w-4" />
+                Voltar
+              </Button>
+
+              <Button
+                onClick={
+                  currentQuestion < questions.length + 1 // Check if it's not the last step before submitting
+                    ? () => {
+                        // Handle navigation to next question/step
+                        setDirection(1)
+                        setCurrentQuestion(currentQuestion + 1)
+                      }
+                    : handleSubmit // If it's the last step, call handleSubmit
+                }
+                disabled={
+                  loadingAiMessage || // Disable if AI is processing
+                  (currentQuestion < questions.length && !answers[currentQ?.category]) || // Disable if current question is unanswered
+                  (currentQuestion === questions.length &&
+                    selectedServices.length === 0 &&
+                    !additionalNotes &&
+                    referenceImages.length === 0 &&
+                    false) // Optional step, always enable if not loading AI
+                }
+                className="gap-2"
+              >
+                {currentQuestion < questions.length + 1 ? (
+                  <>
+                    Próxima
+                    <ArrowRight className="h-4 w-4" />
+                  </>
+                ) : (
+                  <>
+                    {loadingAiMessage ? "Processando..." : "Ver Recomendação"}
+                    <Sparkles className="h-4 w-4" />
+                  </>
+                )}
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      </main>
     </div>
   )
 }
