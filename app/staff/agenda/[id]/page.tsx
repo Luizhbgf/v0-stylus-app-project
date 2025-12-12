@@ -219,7 +219,6 @@ export default function StaffAppointmentDetailsPage({ params }: { params: { id: 
         service_ids: editData.selected_services,
         service_prices: editData.service_prices,
         custom_price: totalPrice,
-        duration: totalDuration,
         service_id: editData.selected_services[0] || null,
         client_type: editData.client_type,
         payment_status: editData.payment_status,
