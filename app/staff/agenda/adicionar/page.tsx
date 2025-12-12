@@ -35,6 +35,7 @@ export default function AdicionarAgendamentoStaff() {
   const [selectedSubscriber, setSelectedSubscriber] = useState("")
 
   const [isLoading, setIsLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
   const router = useRouter()
   const supabase = createClient()
 
@@ -168,27 +169,33 @@ export default function AdicionarAgendamentoStaff() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
 
-    const hasConflict = await checkTimeConflict(appointmentDate, appointmentTime)
-    if (hasConflict) {
-      toast.error("Já existe um agendamento seu neste horário. Escolha outro horário.")
-      return
-    }
-
-    const hasBlock = await checkAgendaBlocks(appointmentDate, appointmentTime)
-    if (hasBlock) {
-      return
-    }
+    console.log("[v0] Date input value:", appointmentDate)
+    console.log("[v0] Time input value:", appointmentTime)
+    console.log("[v0] Combined datetime string:", `${appointmentDate}T${appointmentTime}`)
 
     setIsLoading(true)
+    setError(null)
 
     try {
-      const {
-        data: { user },
-      } = await supabase.auth.getUser()
-      if (!user) throw new Error("Usuário não autenticado")
+      if (!profile?.id) {
+        throw new Error("Perfil de staff não encontrado")
+      }
 
-      console.log("[v0] Creating appointment for staff:", user.id)
-      console.log("[v0] Selected services:", selectedServices)
+      const appointmentDateTime = new Date(`${appointmentDate}T${appointmentTime}`)
+
+      console.log("[v0] Parsed appointment date:", appointmentDateTime)
+      console.log("[v0] ISO string:", appointmentDateTime.toISOString())
+
+      const hasConflict = await checkTimeConflict(appointmentDate, appointmentTime)
+      if (hasConflict) {
+        toast.error("Já existe um agendamento seu neste horário. Escolha outro horário.")
+        return
+      }
+
+      const hasBlock = await checkAgendaBlocks(appointmentDate, appointmentTime)
+      if (hasBlock) {
+        return
+      }
 
       let selectedClientId = null
 
@@ -238,8 +245,6 @@ export default function AdicionarAgendamentoStaff() {
         return
       }
 
-      const appointmentDateTime = new Date(`${appointmentDate}T${appointmentTime}`)
-
       const servicePrices: Record<string, number> = {}
       selectedServices.forEach((serviceId) => {
         const service = services.find((s: any) => s.id === serviceId)
@@ -252,7 +257,7 @@ export default function AdicionarAgendamentoStaff() {
 
       const appointmentData: any = {
         client_id: selectedClientId,
-        staff_id: user.id,
+        staff_id: profile.id,
         service_id: selectedServices.length > 0 ? selectedServices[0] : null,
         service_ids: selectedServices.length > 0 ? selectedServices : null,
         service_prices: selectedServices.length > 0 ? servicePrices : null,
@@ -272,15 +277,16 @@ export default function AdicionarAgendamentoStaff() {
 
       console.log("[v0] Appointment data to be inserted:", appointmentData)
 
-      const { data: newAppointment, error } = await supabase
+      const { data: newAppointment, error: insertError } = await supabase
         .from("appointments")
         .insert(appointmentData)
         .select()
         .single()
 
-      if (error) {
-        console.error("[v0] Error creating appointment:", error)
-        throw error
+      if (insertError) {
+        console.error("[v0] Error creating appointment:", insertError)
+        setError(insertError.message)
+        throw insertError
       }
 
       console.log("[v0] Appointment created successfully:", newAppointment)
@@ -645,7 +651,7 @@ export default function AdicionarAgendamentoStaff() {
                 <Button type="button" variant="outline" onClick={() => router.back()} className="flex-1">
                   Cancelar
                 </Button>
-                <Button type="submit" disabled={isLoading || !!timeConflict} className="flex-1">
+                <Button type="submit" disabled={isLoading || !!timeConflict || !!error} className="flex-1">
                   {isLoading ? "Criando..." : "Criar Agendamento"}
                 </Button>
               </div>

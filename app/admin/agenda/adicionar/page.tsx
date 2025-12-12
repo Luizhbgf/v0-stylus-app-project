@@ -43,6 +43,7 @@ export default function AdicionarAgendamentoAdmin() {
 
   const [isLoading, setIsLoading] = useState(false)
   const [staffTimeConflict, setStaffTimeConflict] = useState<string | null>(null)
+  const [error, setError] = useState<string | null>(null)
   const router = useRouter()
   const supabase = createClient()
 
@@ -232,20 +233,30 @@ export default function AdicionarAgendamentoAdmin() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
 
-    const hasConflict = await checkStaffTimeConflict(selectedStaff, appointmentDate, appointmentTime)
-    if (hasConflict) {
-      toast.error("Este funcionário já tem um agendamento neste horário. Escolha outro horário ou funcionário.")
-      return
-    }
-
-    const hasBlock = await checkAgendaBlocks(selectedStaff, appointmentDate, appointmentTime)
-    if (hasBlock) {
-      return
-    }
+    console.log("[v0] Date input value:", appointmentDate)
+    console.log("[v0] Time input value:", appointmentTime)
+    console.log("[v0] Combined datetime string:", `${appointmentDate}T${appointmentTime}`)
 
     setIsLoading(true)
+    setError(null)
 
     try {
+      const appointmentDateTime = new Date(`${appointmentDate}T${appointmentTime}`)
+
+      console.log("[v0] Parsed appointment date:", appointmentDateTime)
+      console.log("[v0] ISO string:", appointmentDateTime.toISOString())
+
+      const hasConflict = await checkStaffTimeConflict(selectedStaff, appointmentDate, appointmentTime)
+      if (hasConflict) {
+        toast.error("Este funcionário já tem um agendamento neste horário. Escolha outro horário ou funcionário.")
+        return
+      }
+
+      const hasBlock = await checkAgendaBlocks(selectedStaff, appointmentDate, appointmentTime)
+      if (hasBlock) {
+        return
+      }
+
       if (clientType === "sporadic" && (!sporadicName || !sporadicPhone)) {
         toast.error("Preencha o nome e telefone do cliente")
         setIsLoading(false)
@@ -263,8 +274,6 @@ export default function AdicionarAgendamentoAdmin() {
         setIsLoading(false)
         return
       }
-
-      const appointmentDateTime = new Date(`${appointmentDate}T${appointmentTime}`)
 
       const servicePrices: Record<string, number> = {}
       selectedServices.forEach((serviceId) => {
@@ -294,13 +303,13 @@ export default function AdicionarAgendamentoAdmin() {
         recurrence_end_date: isRecurring ? recurrenceEndDate : null,
       }
 
-      const { data: newAppointment, error } = await supabase
+      const { data: newAppointment, error: insertError } = await supabase
         .from("appointments")
         .insert(appointmentData)
         .select()
         .single()
 
-      if (error) throw error
+      if (insertError) throw insertError
 
       if (isRecurring && newAppointment) {
         const futureAppointments = generateRecurringAppointments(
@@ -326,6 +335,7 @@ export default function AdicionarAgendamentoAdmin() {
     } catch (error) {
       console.error("Erro ao criar agendamento:", error)
       toast.error("Erro ao criar agendamento")
+      setError("Erro ao criar agendamento")
     } finally {
       setIsLoading(false)
     }
