@@ -204,18 +204,22 @@ export default function StaffAppointmentDetailsPage({ params }: { params: { id: 
       return
     }
 
+    console.log("[v0] Saving appointment with editData:", editData)
+
     setIsLoading(true)
     try {
       const appointmentDateTime = new Date(`${editData.appointment_date}T${editData.appointment_time}`)
       const { totalPrice, totalDuration } = calculateTotals()
 
+      console.log("[v0] Calculated totals:", { totalPrice, totalDuration })
+      console.log("[v0] Service prices:", editData.service_prices)
+
       const updateData: any = {
         appointment_date: appointmentDateTime.toISOString(),
         service_ids: editData.selected_services,
         service_prices: editData.service_prices,
-        custom_price: totalPrice, // Use the calculated total price
+        custom_price: totalPrice,
         duration: totalDuration,
-        // Legacy support (if needed, though ideally the DB schema should be updated to prefer service_ids)
         service_id: editData.selected_services[0] || null,
         client_type: editData.client_type,
         payment_status: editData.payment_status,
@@ -232,16 +236,27 @@ export default function StaffAppointmentDetailsPage({ params }: { params: { id: 
         updateData.sporadic_client_name = editData.sporadic_client_name
         updateData.sporadic_client_phone = editData.sporadic_client_phone
         updateData.event_title = null
-      } else if (editData.client_type === "event") {
+      } else if (editData.client_type === "none") {
         updateData.client_id = null
         updateData.sporadic_client_name = null
         updateData.sporadic_client_phone = null
         updateData.event_title = editData.event_title
       }
 
-      const { error } = await supabase.from("appointments").update(updateData).eq("id", appointment.id)
+      console.log("[v0] Update data:", updateData)
 
-      if (error) throw error
+      const { data: updatedData, error } = await supabase
+        .from("appointments")
+        .update(updateData)
+        .eq("id", appointment.id)
+        .select()
+
+      if (error) {
+        console.error("[v0] Supabase error:", error)
+        throw error
+      }
+
+      console.log("[v0] Updated appointment:", updatedData)
 
       toast.success("Agendamento atualizado com sucesso!")
       setIsEditing(false)
@@ -522,11 +537,15 @@ export default function StaffAppointmentDetailsPage({ params }: { params: { id: 
                                   id={`price-${service.id}`}
                                   type="number"
                                   step="0.01"
+                                  min="0"
                                   value={currentPrice}
-                                  onChange={(e) =>
-                                    updateServicePrice(service.id, Number.parseFloat(e.target.value) || 0)
-                                  }
+                                  onChange={(e) => {
+                                    const value = Number.parseFloat(e.target.value) || 0
+                                    console.log("[v0] Updating price for service", service.id, "to", value)
+                                    updateServicePrice(service.id, value)
+                                  }}
                                   className="h-8"
+                                  placeholder="0.00"
                                 />
                               </div>
                             )}
@@ -565,6 +584,7 @@ export default function StaffAppointmentDetailsPage({ params }: { params: { id: 
                         <SelectItem value="registered">Cliente Registrado</SelectItem>
                         <SelectItem value="sporadic">Cliente Esporádico</SelectItem>
                         <SelectItem value="event">Evento</SelectItem>
+                        <SelectItem value="none">Sem Cliente</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>

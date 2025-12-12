@@ -187,6 +187,9 @@ export default function AdicionarAgendamentoStaff() {
       } = await supabase.auth.getUser()
       if (!user) throw new Error("Usuário não autenticado")
 
+      console.log("[v0] Creating appointment for staff:", user.id)
+      console.log("[v0] Selected services:", selectedServices)
+
       let selectedClientId = null
 
       if (clientType === "subscriber") {
@@ -245,6 +248,8 @@ export default function AdicionarAgendamentoStaff() {
         }
       })
 
+      console.log("[v0] Service prices:", servicePrices)
+
       const appointmentData: any = {
         client_id: selectedClientId,
         staff_id: user.id,
@@ -265,6 +270,8 @@ export default function AdicionarAgendamentoStaff() {
         recurrence_end_date: isRecurring && recurrenceEndDate ? new Date(recurrenceEndDate).toISOString() : null,
       }
 
+      console.log("[v0] Appointment data to be inserted:", appointmentData)
+
       const { data: newAppointment, error } = await supabase
         .from("appointments")
         .insert(appointmentData)
@@ -272,9 +279,11 @@ export default function AdicionarAgendamentoStaff() {
         .single()
 
       if (error) {
-        console.error("Error creating appointment:", error)
+        console.error("[v0] Error creating appointment:", error)
         throw error
       }
+
+      console.log("[v0] Appointment created successfully:", newAppointment)
 
       if (isRecurring && newAppointment) {
         const futureAppointments = generateRecurringAppointments(
