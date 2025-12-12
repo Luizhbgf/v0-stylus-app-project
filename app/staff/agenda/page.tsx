@@ -108,8 +108,14 @@ export default function StaffAgenda() {
   }
 
   const loadAppointments = async (staffId: string) => {
+    console.log("[v0] Loading appointments for staff:", staffId)
+    console.log("[v0] Current date:", currentDate)
+    console.log("[v0] View mode:", viewMode)
+
     const startDate = viewMode === "week" ? startOfWeek(currentDate, { weekStartsOn: 0 }) : currentDate
     const endDate = viewMode === "week" ? endOfWeek(currentDate, { weekStartsOn: 0 }) : currentDate
+
+    console.log("[v0] Date range:", { startDate, endDate })
 
     const { data, error } = await supabase
       .from("appointments")
@@ -131,12 +137,15 @@ export default function StaffAgenda() {
       .lte("appointment_date", new Date(endDate.getTime() + 24 * 60 * 60 * 1000).toISOString())
       .order("appointment_date", { ascending: true })
 
+    console.log("[v0] Query result:", { data, error, count: data?.length })
+
     if (error) {
-      console.error("Error loading appointments:", error)
+      console.error("[v0] Error loading appointments:", error)
       setIsLoading(false)
       return
     }
 
+    console.log("[v0] Appointments loaded:", data)
     setAppointments(data || [])
     setIsLoading(false)
   }
