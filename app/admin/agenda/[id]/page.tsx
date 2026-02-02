@@ -632,41 +632,6 @@ export default function AppointmentDetailPage({ params }: { params: { id: string
                   )}
 
                   <div className="space-y-2">
-                    <Label htmlFor="edit-price">Valor Personalizado (R$)</Label>
-                    <Input
-                      id="edit-price"
-                      type="number"
-                      step="0.01"
-                      value={editData.custom_price}
-                      onChange={(e) => setEditData({ ...editData, custom_price: e.target.value })}
-                      placeholder="Deixe vazio para usar preço padrão"
-                    />
-                    {appointment.custom_price && appointment.original_price && (
-                      <div className="text-sm space-y-1 mt-2 p-2 bg-muted/50 rounded">
-                        <div className="flex justify-between">
-                          <span className="text-muted-foreground">Valor Original:</span>
-                          <span className="font-medium">R$ {Number(appointment.original_price).toFixed(2)}</span>
-                        </div>
-                        <div className="flex justify-between">
-                          <span className="text-muted-foreground">Valor Alterado:</span>
-                          <span className="font-medium text-primary">
-                            R$ {Number(appointment.custom_price).toFixed(2)}
-                          </span>
-                        </div>
-                        <div className="flex justify-between border-t border-border pt-1 mt-1">
-                          <span className="text-muted-foreground">Diferença:</span>
-                          <span
-                            className={`font-semibold ${Number(appointment.custom_price) > Number(appointment.original_price) ? "text-green-500" : "text-red-500"}`}
-                          >
-                            {Number(appointment.custom_price) > Number(appointment.original_price) ? "+" : ""}
-                            R$ {(Number(appointment.custom_price) - Number(appointment.original_price)).toFixed(2)}
-                          </span>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-
-                  <div className="space-y-2">
                     <Label htmlFor="edit-payment-status">Status de Pagamento</Label>
                     <Select
                       value={editData.payment_status}
