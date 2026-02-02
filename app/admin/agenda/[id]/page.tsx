@@ -308,15 +308,16 @@ export default function AppointmentDetailPage({ params }: { params: { id: string
 
     setIsLoading(true)
     try {
-      const totalPrice = Object.values(editData.service_prices).reduce((sum, price) => sum + Number(price), 0)
+      const servicesTotal = Object.values(editData.service_prices).reduce((sum, price) => sum + Number(price), 0)
+      const finalPrice = editData.custom_price ? Number.parseFloat(editData.custom_price) : servicesTotal
 
       const updateData: any = {
         appointment_date: `${editData.appointment_date}T${editData.appointment_time}:00`,
         staff_id: editData.staff_id,
         service_ids: editData.service_ids,
         service_prices: editData.service_prices,
-        custom_price: totalPrice,
-        original_price: totalPrice,
+        custom_price: finalPrice,
+        original_price: servicesTotal,
         payment_status: editData.payment_status,
         notes: editData.notes,
       }
@@ -470,22 +471,27 @@ export default function AppointmentDetailPage({ params }: { params: { id: string
                               checked={isSelected}
                               onChange={(e) => {
                                 if (e.target.checked) {
+                                  const newPrices = {
+                                    ...editData.service_prices,
+                                    [service.id]: service.price,
+                                  }
+                                  const newTotal = Object.values(newPrices).reduce((sum, price) => sum + Number(price), 0)
                                   setEditData({
                                     ...editData,
                                     service_ids: [...editData.service_ids, service.id],
-                                    service_prices: {
-                                      ...editData.service_prices,
-                                      [service.id]: service.price,
-                                    },
+                                    service_prices: newPrices,
+                                    custom_price: newTotal.toString(),
                                   })
                                 } else {
                                   const newServiceIds = editData.service_ids.filter((id) => id !== service.id)
                                   const newPrices = { ...editData.service_prices }
                                   delete newPrices[service.id]
+                                  const newTotal = Object.values(newPrices).reduce((sum, price) => sum + Number(price), 0)
                                   setEditData({
                                     ...editData,
                                     service_ids: newServiceIds,
                                     service_prices: newPrices,
+                                    custom_price: newTotal.toString(),
                                   })
                                 }
                               }}
@@ -510,12 +516,16 @@ export default function AppointmentDetailPage({ params }: { params: { id: string
                                     min="0"
                                     value={currentPrice}
                                     onChange={(e) => {
+                                      const newPrice = Number.parseFloat(e.target.value) || 0
+                                      const newPrices = {
+                                        ...editData.service_prices,
+                                        [service.id]: newPrice,
+                                      }
+                                      const newTotal = Object.values(newPrices).reduce((sum, price) => sum + Number(price), 0)
                                       setEditData({
                                         ...editData,
-                                        service_prices: {
-                                          ...editData.service_prices,
-                                          [service.id]: Number.parseFloat(e.target.value) || 0,
-                                        },
+                                        service_prices: newPrices,
+                                        custom_price: newTotal.toString(),
                                       })
                                     }}
                                     className="h-8 text-sm"
