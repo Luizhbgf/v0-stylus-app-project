@@ -86,6 +86,32 @@ export default function StaffAgenda() {
     }
   }, [profile, currentDate, viewMode])
 
+  // Real-time subscription for appointments
+  useEffect(() => {
+    if (!profile) return
+
+    const channel = supabase
+      .channel('staff-agenda-realtime')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'appointments'
+        },
+        (payload) => {
+          console.log('[v0] Realtime appointment change:', payload)
+          // Reload appointments when any change happens
+          loadAppointments(profile.id)
+        }
+      )
+      .subscribe()
+
+    return () => {
+      supabase.removeChannel(channel)
+    }
+  }, [profile, currentDate, viewMode])
+
   const loadData = async () => {
     setIsLoading(true)
     const {

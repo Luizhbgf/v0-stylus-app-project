@@ -77,6 +77,32 @@ export default function AdminAgendaPage() {
     }
   }, [profile, selectedStaff, currentDate, viewMode])
 
+  // Real-time subscription for appointments
+  useEffect(() => {
+    if (!profile) return
+
+    const channel = supabase
+      .channel('admin-agenda-realtime')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'appointments'
+        },
+        (payload) => {
+          console.log('[v0] Realtime appointment change:', payload)
+          // Reload appointments when any change happens
+          loadAppointments()
+        }
+      )
+      .subscribe()
+
+    return () => {
+      supabase.removeChannel(channel)
+    }
+  }, [profile, selectedStaff, currentDate, viewMode])
+
   async function loadAppointments() {
     const startDate = viewMode === "week" ? startOfWeek(currentDate, { weekStartsOn: 0 }) : currentDate
     const endDate = viewMode === "week" ? endOfWeek(currentDate, { weekStartsOn: 0 }) : currentDate
