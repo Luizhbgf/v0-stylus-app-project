@@ -81,27 +81,55 @@ export default function AdminAgendaPage() {
   useEffect(() => {
     if (!profile) return
 
+    console.log('[v0] Setting up realtime subscription for admin agenda')
+
     const channel = supabase
-      .channel('admin-agenda-realtime')
+      .channel('admin-agenda-realtime-' + Date.now())
       .on(
         'postgres_changes',
         {
-          event: '*',
+          event: 'INSERT',
           schema: 'public',
           table: 'appointments'
         },
         (payload) => {
-          console.log('[v0] Realtime appointment change:', payload)
-          // Reload appointments when any change happens
+          console.log('[v0] Realtime INSERT:', payload)
           loadAppointments()
         }
       )
-      .subscribe()
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'appointments'
+        },
+        (payload) => {
+          console.log('[v0] Realtime UPDATE:', payload)
+          loadAppointments()
+        }
+      )
+      .on(
+        'postgres_changes',
+        {
+          event: 'DELETE',
+          schema: 'public',
+          table: 'appointments'
+        },
+        (payload) => {
+          console.log('[v0] Realtime DELETE:', payload)
+          loadAppointments()
+        }
+      )
+      .subscribe((status) => {
+        console.log('[v0] Realtime subscription status:', status)
+      })
 
     return () => {
+      console.log('[v0] Cleaning up realtime subscription')
       supabase.removeChannel(channel)
     }
-  }, [profile, selectedStaff, currentDate, viewMode])
+  }, [profile])
 
   async function loadAppointments() {
     const startDate = viewMode === "week" ? startOfWeek(currentDate, { weekStartsOn: 0 }) : currentDate

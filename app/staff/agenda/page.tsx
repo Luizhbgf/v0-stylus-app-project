@@ -90,27 +90,55 @@ export default function StaffAgenda() {
   useEffect(() => {
     if (!profile) return
 
+    console.log('[v0] Setting up realtime subscription for staff agenda')
+
     const channel = supabase
-      .channel('staff-agenda-realtime')
+      .channel('staff-agenda-realtime-' + Date.now())
       .on(
         'postgres_changes',
         {
-          event: '*',
+          event: 'INSERT',
           schema: 'public',
           table: 'appointments'
         },
         (payload) => {
-          console.log('[v0] Realtime appointment change:', payload)
-          // Reload appointments when any change happens
+          console.log('[v0] Realtime INSERT:', payload)
           loadAppointments(profile.id)
         }
       )
-      .subscribe()
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'appointments'
+        },
+        (payload) => {
+          console.log('[v0] Realtime UPDATE:', payload)
+          loadAppointments(profile.id)
+        }
+      )
+      .on(
+        'postgres_changes',
+        {
+          event: 'DELETE',
+          schema: 'public',
+          table: 'appointments'
+        },
+        (payload) => {
+          console.log('[v0] Realtime DELETE:', payload)
+          loadAppointments(profile.id)
+        }
+      )
+      .subscribe((status) => {
+        console.log('[v0] Realtime subscription status:', status)
+      })
 
     return () => {
+      console.log('[v0] Cleaning up realtime subscription')
       supabase.removeChannel(channel)
     }
-  }, [profile, currentDate, viewMode])
+  }, [profile])
 
   const loadData = async () => {
     setIsLoading(true)

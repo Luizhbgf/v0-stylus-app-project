@@ -1,6 +1,10 @@
 -- Enable Realtime for appointments table
 -- This allows real-time updates when appointments are created, updated, or deleted
 
+-- Set replica identity to FULL for better realtime support
+-- This ensures all columns are available in the realtime payload
+ALTER TABLE appointments REPLICA IDENTITY FULL;
+
 -- Add appointments table to the realtime publication
 -- Using DO block to handle if table is already in publication
 DO $$
