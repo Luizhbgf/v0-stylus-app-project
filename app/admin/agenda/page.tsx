@@ -77,6 +77,63 @@ export default function AdminAgendaPage() {
     }
   }, [profile, selectedStaff, currentDate, viewMode])
 
+  // Real-time subscription for appointments
+  useEffect(() => {
+    if (!profile) return
+
+    const channel = supabase
+      .channel('admin-agenda-realtime-' + Date.now())
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'appointments'
+        },
+        () => {
+          loadAppointments()
+        }
+      )
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'appointments'
+        },
+        () => {
+          loadAppointments()
+        }
+      )
+      .on(
+        'postgres_changes',
+        {
+          event: 'DELETE',
+          schema: 'public',
+          table: 'appointments'
+        },
+        () => {
+          loadAppointments()
+        }
+      )
+      .subscribe()
+
+    return () => {
+      supabase.removeChannel(channel)
+    }
+  }, [profile])
+
+  // Polling fallback - atualiza a cada 15 segundos
+  useEffect(() => {
+    if (!profile) return
+
+    const interval = setInterval(() => {
+      loadAppointments()
+    }, 15000)
+
+    return () => clearInterval(interval)
+  }, [profile, selectedStaff, currentDate, viewMode])
+
   async function loadAppointments() {
     const startDate = viewMode === "week" ? startOfWeek(currentDate, { weekStartsOn: 0 }) : currentDate
     const endDate = viewMode === "week" ? endOfWeek(currentDate, { weekStartsOn: 0 }) : currentDate
