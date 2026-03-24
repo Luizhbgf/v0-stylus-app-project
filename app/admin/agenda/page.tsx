@@ -81,8 +81,6 @@ export default function AdminAgendaPage() {
   useEffect(() => {
     if (!profile) return
 
-    console.log('[v0] Setting up realtime subscription for admin agenda')
-
     const channel = supabase
       .channel('admin-agenda-realtime-' + Date.now())
       .on(
@@ -92,8 +90,7 @@ export default function AdminAgendaPage() {
           schema: 'public',
           table: 'appointments'
         },
-        (payload) => {
-          console.log('[v0] Realtime INSERT:', payload)
+        () => {
           loadAppointments()
         }
       )
@@ -104,8 +101,7 @@ export default function AdminAgendaPage() {
           schema: 'public',
           table: 'appointments'
         },
-        (payload) => {
-          console.log('[v0] Realtime UPDATE:', payload)
+        () => {
           loadAppointments()
         }
       )
@@ -116,20 +112,27 @@ export default function AdminAgendaPage() {
           schema: 'public',
           table: 'appointments'
         },
-        (payload) => {
-          console.log('[v0] Realtime DELETE:', payload)
+        () => {
           loadAppointments()
         }
       )
-      .subscribe((status) => {
-        console.log('[v0] Realtime subscription status:', status)
-      })
+      .subscribe()
 
     return () => {
-      console.log('[v0] Cleaning up realtime subscription')
       supabase.removeChannel(channel)
     }
   }, [profile])
+
+  // Polling fallback - atualiza a cada 15 segundos
+  useEffect(() => {
+    if (!profile) return
+
+    const interval = setInterval(() => {
+      loadAppointments()
+    }, 15000)
+
+    return () => clearInterval(interval)
+  }, [profile, selectedStaff, currentDate, viewMode])
 
   async function loadAppointments() {
     const startDate = viewMode === "week" ? startOfWeek(currentDate, { weekStartsOn: 0 }) : currentDate

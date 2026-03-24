@@ -90,8 +90,6 @@ export default function StaffAgenda() {
   useEffect(() => {
     if (!profile) return
 
-    console.log('[v0] Setting up realtime subscription for staff agenda')
-
     const channel = supabase
       .channel('staff-agenda-realtime-' + Date.now())
       .on(
@@ -101,8 +99,7 @@ export default function StaffAgenda() {
           schema: 'public',
           table: 'appointments'
         },
-        (payload) => {
-          console.log('[v0] Realtime INSERT:', payload)
+        () => {
           loadAppointments(profile.id)
         }
       )
@@ -113,8 +110,7 @@ export default function StaffAgenda() {
           schema: 'public',
           table: 'appointments'
         },
-        (payload) => {
-          console.log('[v0] Realtime UPDATE:', payload)
+        () => {
           loadAppointments(profile.id)
         }
       )
@@ -125,20 +121,27 @@ export default function StaffAgenda() {
           schema: 'public',
           table: 'appointments'
         },
-        (payload) => {
-          console.log('[v0] Realtime DELETE:', payload)
+        () => {
           loadAppointments(profile.id)
         }
       )
-      .subscribe((status) => {
-        console.log('[v0] Realtime subscription status:', status)
-      })
+      .subscribe()
 
     return () => {
-      console.log('[v0] Cleaning up realtime subscription')
       supabase.removeChannel(channel)
     }
   }, [profile])
+
+  // Polling fallback - atualiza a cada 15 segundos
+  useEffect(() => {
+    if (!profile) return
+
+    const interval = setInterval(() => {
+      loadAppointments(profile.id)
+    }, 15000)
+
+    return () => clearInterval(interval)
+  }, [profile, currentDate, viewMode])
 
   const loadData = async () => {
     setIsLoading(true)
@@ -162,14 +165,8 @@ export default function StaffAgenda() {
   }
 
   const loadAppointments = async (staffId: string) => {
-    console.log("[v0] Loading appointments for staff:", staffId)
-    console.log("[v0] Current date:", currentDate)
-    console.log("[v0] View mode:", viewMode)
-
     const startDate = viewMode === "week" ? startOfWeek(currentDate, { weekStartsOn: 0 }) : currentDate
     const endDate = viewMode === "week" ? endOfWeek(currentDate, { weekStartsOn: 0 }) : currentDate
-
-    console.log("[v0] Date range:", { startDate, endDate })
 
     const { data, error } = await supabase
       .from("appointments")
