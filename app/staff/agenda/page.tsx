@@ -132,13 +132,13 @@ export default function StaffAgenda() {
     }
   }, [profile])
 
-  // Polling fallback - atualiza a cada 15 segundos
+  // Polling fallback - atualiza a cada 5 segundos
   useEffect(() => {
     if (!profile) return
 
     const interval = setInterval(() => {
       loadAppointments(profile.id)
-    }, 15000)
+    }, 5000)
 
     return () => clearInterval(interval)
   }, [profile, currentDate, viewMode])
