@@ -123,13 +123,13 @@ export default function AdminAgendaPage() {
     }
   }, [profile])
 
-  // Polling fallback - atualiza a cada 15 segundos
+  // Polling fallback - atualiza a cada 5 segundos
   useEffect(() => {
     if (!profile) return
 
     const interval = setInterval(() => {
       loadAppointments()
-    }, 15000)
+    }, 5000)
 
     return () => clearInterval(interval)
   }, [profile, selectedStaff, currentDate, viewMode])
